@@ -105,7 +105,7 @@ function hs_render_post_slider_shortcode($atts) {
     }
     
     // HTML Cache Key (caches the final rendered HTML per page)
-    $html_transient_key = 'hs_slhtml48_' . md5(json_encode($args) . $active_filter . $paged . $seed);
+    $html_transient_key = 'hs_slhtml49_' . md5(json_encode($args) . $active_filter . $paged . $seed);
     
     $cached_html = get_transient($html_transient_key);
     if ($cached_html !== false && empty($active_filter)) {
@@ -514,6 +514,7 @@ function hs_render_post_slider_shortcode($atts) {
                             on: {
                                 init: function () {
                                     console.log('Swiper INIT event fired!');
+                                    if (this.params.loop) { this.loopDestroy(); this.loopCreate(); this.update(); }
                                     container.classList.add('hs-swiper-loaded');
                                     var loader = container.querySelector('.hs-slider-loader');
                                     if (loader) loader.style.display = 'none';
@@ -574,7 +575,10 @@ function hs_render_post_slider_shortcode($atts) {
                         spaceBetween: 10,
                         preventInteractionOnTransition: true,
                         loop: isLooping,
+                        observer: true,
+                        observeParents: true,
                         loopAdditionalSlides: isLooping ? slideCount : 0,
+                        loopedSlides: isLooping ? slideCount : null,
                         rewind: false, // Disabled rewind because it causes a rapid reverse zap when loop is off
                         autoplay: isLooping ? { delay: 3500, disableOnInteraction: true, pauseOnMouseEnter: true } : false,
                         pagination: false,
