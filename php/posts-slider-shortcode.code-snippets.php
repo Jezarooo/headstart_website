@@ -105,7 +105,7 @@ function hs_render_post_slider_shortcode($atts) {
     }
     
     // HTML Cache Key (caches the final rendered HTML per page)
-    $html_transient_key = 'hs_slhtml38_' . md5(json_encode($args) . $active_filter . $paged . $seed);
+    $html_transient_key = 'hs_slhtml39_' . md5(json_encode($args) . $active_filter . $paged . $seed);
     
     $cached_html = get_transient($html_transient_key);
     if ($cached_html !== false && empty($active_filter)) {
@@ -422,6 +422,8 @@ function hs_render_post_slider_shortcode($atts) {
         <?php if ($ajax_cards_only) {
             $cards_html = ob_get_clean();
             // In AJAX mode, we ONLY want to return the raw HTML of the slides, nothing else.
+            // We append a hidden meta tag so the JS knows the true total posts for this filter.
+            $cards_html .= '<div class="hs-ajax-meta" data-total="' . (isset($deep_query) ? intval($deep_query->found_posts) : 0) . '" style="display:none;"></div>';
             return $cards_html;
         } ?>
 
@@ -493,8 +495,12 @@ function hs_render_post_slider_shortcode($atts) {
                     setTimeout(function() {
                         try {
                             var totalPosts = <?php echo (isset($deep_query) && isset($deep_query->found_posts)) ? intval($deep_query->found_posts) : 0; ?>;
+                            if (wrapper) {
+                                var meta = wrapper.querySelector('.hs-ajax-meta');
+                                if (meta) totalPosts = parseInt(meta.getAttribute('data-total'), 10) || totalPosts;
+                            }
                             var enableLoop = (totalPosts >= 6 && totalPosts <= 20);
-                            var isLooping = enableLoop;
+                            var isLooping = enableLoop && (slideCount >= 6);
                             
                             container.hsSwiperInstance = new Swiper('.hsPostSliderInit-%%HS_SLIDER_ID_PLACEHOLDER%%', {
                             on: {
