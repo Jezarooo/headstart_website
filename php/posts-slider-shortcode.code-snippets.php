@@ -105,7 +105,7 @@ function hs_render_post_slider_shortcode($atts) {
     }
     
     // HTML Cache Key (caches the final rendered HTML per page)
-    $html_transient_key = 'hs_slhtml43_' . md5(json_encode($args) . $active_filter . $paged . $seed);
+    $html_transient_key = 'hs_slhtml44_' . md5(json_encode($args) . $active_filter . $paged . $seed);
     
     $cached_html = get_transient($html_transient_key);
     if ($cached_html !== false && empty($active_filter)) {
@@ -572,7 +572,9 @@ function hs_render_post_slider_shortcode($atts) {
                         spaceBetween: 10,
                         preventInteractionOnTransition: true,
                         loop: isLooping,
-                        loopAdditionalSlides: isLooping ? 5 : 0,
+                        loopedSlides: isLooping ? slideCount : null,
+                        loopAdditionalSlides: isLooping ? slideCount : 0,
+                        loopPreventsSliding: false,
                         rewind: !isLooping, // If massive feed, allow snapping back to start
                         autoplay: isLooping ? { delay: 3500, disableOnInteraction: true, pauseOnMouseEnter: true } : false,
                         pagination: false,
