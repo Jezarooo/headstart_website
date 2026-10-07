@@ -393,7 +393,7 @@ function hs_render_post_slider_shortcode($atts) {
             if ($display === 'slider') {
                 echo '<style>';
                 echo '@media(max-width: 767px) { .hs-header-wrap-' . esc_attr($slider_id) . ' .hs-slider-grid-filter { width: 100% !important; margin-bottom: 15px !important; } .hs-controls-' . esc_attr($slider_id) . ' { width: 100%; justify-content: space-between; } .hs-top-arrows-' . esc_attr($slider_id) . ' { display: none !important; } }';
-                echo '@media(min-width: 768px) { .hsPostSliderInit-' . esc_attr($slider_id) . ' ~ .swiper-button-prev, .hsPostSliderInit-' . esc_attr($slider_id) . ' ~ .swiper-button-next { display: none !important; } }';
+                echo '@media(min-width: 768px) { .hsPostSliderInit-' . esc_attr($slider_id) . ' .swiper-button-prev, .hsPostSliderInit-' . esc_attr($slider_id) . ' .swiper-button-next { display: none !important; } }';
                 echo '</style>';
             }
         }
@@ -428,9 +428,9 @@ function hs_render_post_slider_shortcode($atts) {
         <?php if (!$ajax_cards_only) : ?>
             <?php if ($display === 'slider') : ?>
                 </div> <!-- /swiper-wrapper -->
-                </div> <!-- /swiper -->
                 <div class="swiper-button-prev"></div>
                 <div class="swiper-button-next"></div>
+                </div> <!-- /swiper -->
                 <?php else : ?>
                 </div> <!-- /swiper-wrapper -->
                 <div class="swiper-pagination"></div>
@@ -492,6 +492,10 @@ function hs_render_post_slider_shortcode($atts) {
                 // Expose Swiper instance on the container so we can destroy it later if needed
                     setTimeout(function() {
                         try {
+                            var totalPosts = <?php echo intval($deep_query->found_posts ?? 0); ?>;
+                            var enableLoop = (totalPosts >= 6 && totalPosts <= 20);
+                            var isLooping = enableLoop;
+                            
                             container.hsSwiperInstance = new Swiper('.hsPostSliderInit-%%HS_SLIDER_ID_PLACEHOLDER%%', {
                             on: {
                                 init: function () {
@@ -505,7 +509,7 @@ function hs_render_post_slider_shortcode($atts) {
                                 reachEnd: function() {
                                     // INFINITE SCROLL LOGIC
                                     <?php if ($display === 'slider') : ?>
-                                    if (this.hsIsLoading) return;
+                                    if (this.hsIsLoading || enableLoop) return;
                                     this.hsIsLoading = true;
                                     this.hsCurrentPage++;
                                     console.log('Swiper reached end! Loading page ' + this.hsCurrentPage);
@@ -547,30 +551,39 @@ function hs_render_post_slider_shortcode($atts) {
                                 }
                             },
                         slidesPerView: 'auto', 
+                        slidesPerGroup: 1,
                         spaceBetween: 10,
-                        centeredSlides: shouldLoop,
-                        loop: false, // Turn off loop for Infinite Scroll to work correctly
-                        autoplay: shouldLoop ? { delay: 3500, disableOnInteraction: true, pauseOnMouseEnter: true } : false,
+                        centeredSlides: !isLooping, // Center the first slide explicitly if not looping
+                        initialSlide: isLooping ? 0 : 1, // On mobile, start on 2nd slide so 1st peaks in from left
+                        loop: isLooping, 
+                        rewind: !isLooping, // If massive feed, allow snapping back to start
+                        autoplay: isLooping ? { delay: 3500, disableOnInteraction: true, pauseOnMouseEnter: true } : false,
                         pagination: false,
                     navigation: {
                         nextEl: '.hs-slider-next-%%HS_SLIDER_ID_PLACEHOLDER%%, #%%HS_SLIDER_ID_PLACEHOLDER%% .swiper-button-next',
                         prevEl: '.hs-slider-prev-%%HS_SLIDER_ID_PLACEHOLDER%%, #%%HS_SLIDER_ID_PLACEHOLDER%% .swiper-button-prev',
                     },
                     breakpoints: {
-                        640: { slidesPerView: 'auto', centeredSlides: false },
+                        640: { slidesPerView: 'auto', slidesPerGroup: 1, centeredSlides: false, initialSlide: 0 },
                         768: { 
                             slidesPerView: 'auto', 
+                            slidesPerGroup: 1,
                             centeredSlides: false,
+                            initialSlide: 0,
                             enabled: <?php echo ($display === 'slider') ? 'true' : 'false'; ?> 
                         },
                         1024: { 
                             slidesPerView: 'auto', 
+                            slidesPerGroup: 1,
                             centeredSlides: false,
+                            initialSlide: 0,
                             enabled: <?php echo ($display === 'slider') ? 'true' : 'false'; ?> 
                         },
                         1400: { 
                             slidesPerView: 'auto', 
+                            slidesPerGroup: 1,
                             centeredSlides: false,
+                            initialSlide: 0,
                             enabled: <?php echo ($display === 'slider') ? 'true' : 'false'; ?> 
                         }
                     }
