@@ -105,7 +105,7 @@ function hs_render_post_slider_shortcode($atts) {
     }
     
     // HTML Cache Key (caches the final rendered HTML per page)
-    $html_transient_key = 'hs_slhtml41_' . md5(json_encode($args) . $active_filter . $paged . $seed);
+    $html_transient_key = 'hs_slhtml42_' . md5(json_encode($args) . $active_filter . $paged . $seed);
     
     $cached_html = get_transient($html_transient_key);
     if ($cached_html !== false && empty($active_filter)) {
@@ -570,10 +570,9 @@ function hs_render_post_slider_shortcode($atts) {
                         slidesPerGroup: 1,
                         preventInteractionOnTransition: true, // Stops double-jumping if clicked during autoplay transition
                         spaceBetween: 10,
-                        centeredSlides: !isLooping, // Center the first slide explicitly if not looping
-                        initialSlide: isLooping ? 0 : 1, // On mobile, start on 2nd slide so 1st peaks in from left
-                        loop: isLooping, 
-                        loopedSlides: isLooping ? slideCount : null,
+                        preventInteractionOnTransition: true,
+                        loop: isLooping,
+                        loopAdditionalSlides: isLooping ? 5 : 0,
                         rewind: !isLooping, // If massive feed, allow snapping back to start
                         autoplay: isLooping ? { delay: 3500, disableOnInteraction: true, pauseOnMouseEnter: true } : false,
                         pagination: false,
@@ -582,26 +581,24 @@ function hs_render_post_slider_shortcode($atts) {
                         prevEl: '.hs-slider-prev-%%HS_SLIDER_ID_PLACEHOLDER%%, #%%HS_SLIDER_ID_PLACEHOLDER%% .swiper-button-prev',
                     },
                     breakpoints: {
-                        640: { slidesPerView: 'auto', slidesPerGroup: 1, centeredSlides: false, initialSlide: 0 },
+                        320: { slidesPerView: 'auto', slidesPerGroup: 1, centeredSlides: true },
+                        640: { slidesPerView: 'auto', slidesPerGroup: 1, centeredSlides: true },
                         768: { 
                             slidesPerView: 'auto', 
                             slidesPerGroup: 1,
                             centeredSlides: false,
-                            initialSlide: 0,
                             enabled: <?php echo ($display === 'slider') ? 'true' : 'false'; ?> 
                         },
                         1024: { 
                             slidesPerView: 'auto', 
                             slidesPerGroup: 1,
                             centeredSlides: false,
-                            initialSlide: 0,
                             enabled: <?php echo ($display === 'slider') ? 'true' : 'false'; ?> 
                         },
                         1400: { 
                             slidesPerView: 'auto', 
                             slidesPerGroup: 1,
                             centeredSlides: false,
-                            initialSlide: 0,
                             enabled: <?php echo ($display === 'slider') ? 'true' : 'false'; ?> 
                         }
                     }
