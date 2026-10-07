@@ -105,7 +105,7 @@ function hs_render_post_slider_shortcode($atts) {
     }
     
     // HTML Cache Key (caches the final rendered HTML per page)
-    $html_transient_key = 'hs_slhtml34_' . md5(json_encode($args) . $active_filter . $paged . $seed);
+    $html_transient_key = 'hs_slhtml35_' . md5(json_encode($args) . $active_filter . $paged . $seed);
     
     $cached_html = get_transient($html_transient_key);
     if ($cached_html !== false && empty($active_filter)) {
@@ -552,6 +552,7 @@ function hs_render_post_slider_shortcode($atts) {
                             },
                         slidesPerView: 'auto', 
                         slidesPerGroup: 1,
+                        preventInteractionOnTransition: true, // Stops double-jumping if clicked during autoplay transition
                         spaceBetween: 10,
                         centeredSlides: !isLooping, // Center the first slide explicitly if not looping
                         initialSlide: isLooping ? 0 : 1, // On mobile, start on 2nd slide so 1st peaks in from left
