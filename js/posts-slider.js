@@ -183,32 +183,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 500); // End setTimeout
             };
 
-            // BULLETPROOF EVENT DELEGATION FOR NAVIGATION ARROWS
-            if (!rootContainer.dataset.hsNavDelegated) {
-                rootContainer.dataset.hsNavDelegated = 'true';
-                rootContainer.addEventListener('click', function(e) {
-                    var nextBtn = e.target.closest('.hs-next, .hs-side-next, [class*="hs-slider-next"], .swiper-button-next');
-                    var prevBtn = e.target.closest('.hs-prev, .hs-side-prev, [class*="hs-slider-prev"], .swiper-button-prev');
-                    if (nextBtn || prevBtn) {
-                        e.preventDefault();
-                        var currentContainer = rootContainer.querySelector('.swiper.hsPostSliderInit-' + rootContainer.id);
-                        if (currentContainer && currentContainer.hsSwiperInstance) {
-                            
-                            // Reset Swiper's autoplay timer so it doesn't jump immediately after a click
-                            if (currentContainer.hsSwiperInstance.autoplay && currentContainer.hsSwiperInstance.autoplay.running) {
-                                currentContainer.hsSwiperInstance.autoplay.stop();
-                                currentContainer.hsSwiperInstance.autoplay.start();
-                            }
-
-                            if (nextBtn) {
-                                currentContainer.hsSwiperInstance.slideNext();
-                            } else {
-                                currentContainer.hsSwiperInstance.slidePrev();
-                            }
-                        }
-                    }
-                });
-            }
 
             try {
                 // Swiper instantiation deferred to inline script in posts-slider-shortcode.code-snippets.php

@@ -105,7 +105,7 @@ function hs_render_post_slider_shortcode($atts) {
     }
     
     // HTML Cache Key (caches the final rendered HTML per page)
-    $html_transient_key = 'hs_slhtml42_' . md5(json_encode($args) . $active_filter . $paged . $seed);
+    $html_transient_key = 'hs_slhtml43_' . md5(json_encode($args) . $active_filter . $paged . $seed);
     
     $cached_html = get_transient($html_transient_key);
     if ($cached_html !== false && empty($active_filter)) {
@@ -581,24 +581,27 @@ function hs_render_post_slider_shortcode($atts) {
                         prevEl: '.hs-slider-prev-%%HS_SLIDER_ID_PLACEHOLDER%%, #%%HS_SLIDER_ID_PLACEHOLDER%% .swiper-button-prev',
                     },
                     breakpoints: {
-                        320: { slidesPerView: 'auto', slidesPerGroup: 1, centeredSlides: true },
-                        640: { slidesPerView: 'auto', slidesPerGroup: 1, centeredSlides: true },
+                        320: { slidesPerView: 'auto', slidesPerGroup: 1, centeredSlides: true, initialSlide: isLooping ? 0 : 1 },
+                        640: { slidesPerView: 'auto', slidesPerGroup: 1, centeredSlides: true, initialSlide: isLooping ? 0 : 1 },
                         768: { 
                             slidesPerView: 'auto', 
                             slidesPerGroup: 1,
                             centeredSlides: false,
+                            initialSlide: 0,
                             enabled: <?php echo ($display === 'slider') ? 'true' : 'false'; ?> 
                         },
                         1024: { 
                             slidesPerView: 'auto', 
                             slidesPerGroup: 1,
                             centeredSlides: false,
+                            initialSlide: 0,
                             enabled: <?php echo ($display === 'slider') ? 'true' : 'false'; ?> 
                         },
                         1400: { 
                             slidesPerView: 'auto', 
                             slidesPerGroup: 1,
                             centeredSlides: false,
+                            initialSlide: 0,
                             enabled: <?php echo ($display === 'slider') ? 'true' : 'false'; ?> 
                         }
                     }
