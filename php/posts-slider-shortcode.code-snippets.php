@@ -105,7 +105,7 @@ function hs_render_post_slider_shortcode($atts) {
     }
     
     // HTML Cache Key (caches the final rendered HTML per page)
-    $html_transient_key = 'hs_slhtml36_' . md5(json_encode($args) . $active_filter . $paged . $seed);
+    $html_transient_key = 'hs_slhtml38_' . md5(json_encode($args) . $active_filter . $paged . $seed);
     
     $cached_html = get_transient($html_transient_key);
     if ($cached_html !== false && empty($active_filter)) {
@@ -492,7 +492,7 @@ function hs_render_post_slider_shortcode($atts) {
                 // Expose Swiper instance on the container so we can destroy it later if needed
                     setTimeout(function() {
                         try {
-                            var totalPosts = <?php echo intval($deep_query->found_posts ?? 0); ?>;
+                            var totalPosts = <?php echo (isset($deep_query) && isset($deep_query->found_posts)) ? intval($deep_query->found_posts) : 0; ?>;
                             var enableLoop = (totalPosts >= 6 && totalPosts <= 20);
                             var isLooping = enableLoop;
                             
@@ -645,7 +645,8 @@ function hs_render_post_slider_shortcode($atts) {
                                 }
                                 
                                 // Clean up Swiper generated classes/attributes
-                                container.className = 'swiper hsPostSliderInit-%%HS_SLIDER_ID_PLACEHOLDER%%';
+                                var isGrid = ('<?php echo esc_js($display); ?>' === 'grid');
+                                container.className = (isGrid ? 'hs-post-grid swiper ' : 'swiper ') + 'hsPostSliderInit-%%HS_SLIDER_ID_PLACEHOLDER%%';
                                 wrapper.className = 'swiper-wrapper';
                                 wrapper.removeAttribute('style');
                                 
