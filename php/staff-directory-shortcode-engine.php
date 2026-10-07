@@ -1,9 +1,6 @@
 <?php
 
 /**
- * Staff-Directory--Shortcode-Engine
- */
-/**
  * =============================================================================
  * HEADSTART STAFF DIRECTORY SHORTCODE ENGINE
  * =============================================================================
@@ -25,14 +22,21 @@ if (!defined('ABSPATH')) {
 // Register Shortcode
 add_shortcode('hs_staff_directory', 'hs_staff_directory_shortcode');
 
-// Clear Staff Directory Cache on Post Save
-function hs_clear_staff_directory_cache($post_id) {
-    if (get_post_type($post_id) !== 'staff') {
+// Clear Staff Directory Cache on Post Save or Taxonomy Update
+function hs_clear_staff_directory_cache($post_id = null) {
+    if ($post_id && get_post_type($post_id) !== 'staff') {
         return;
     }
     delete_transient('hs_staff_directory_data');
 }
 add_action('save_post_staff', 'hs_clear_staff_directory_cache');
+
+// Also clear cache when taxonomies are updated (e.g., Quick Edit, drag-and-drop builder)
+add_action('set_object_terms', function($object_id, $terms, $tt_ids, $taxonomy) {
+    if (in_array($taxonomy, array('staff_department', 'staff_display_group', 'staff_campus'))) {
+        hs_clear_staff_directory_cache();
+    }
+}, 10, 4);
 
 function hs_staff_directory_shortcode() {
     // CSS and JS have been extracted to headstart-core.css and headstart-core.js
@@ -75,11 +79,17 @@ function hs_staff_directory_shortcode() {
                 $reports_to_obj = get_field('reports_to');
                 $manager = '';
                 if ($reports_to_obj) {
-                    // If it returns an array of objects (if multiple allowed), grab the first
+                    // If it returns an array (if multiple allowed), grab the first
                     if (is_array($reports_to_obj)) {
-                        $manager = html_entity_decode(get_the_title($reports_to_obj[0]->ID), ENT_QUOTES, 'UTF-8');
-                    } else {
+                        $reports_to_obj = $reports_to_obj[0];
+                    }
+                    
+                    if (is_object($reports_to_obj) && isset($reports_to_obj->ID)) {
                         $manager = html_entity_decode(get_the_title($reports_to_obj->ID), ENT_QUOTES, 'UTF-8');
+                    } elseif (is_numeric($reports_to_obj)) {
+                        $manager = html_entity_decode(get_the_title($reports_to_obj), ENT_QUOTES, 'UTF-8');
+                    } elseif (is_string($reports_to_obj)) {
+                        $manager = html_entity_decode($reports_to_obj, ENT_QUOTES, 'UTF-8');
                     }
                 }
 

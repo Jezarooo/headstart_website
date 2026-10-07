@@ -390,8 +390,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     thumbImg = link.querySelector('img');
                     const titleTag = obj.el.querySelector('.et_pb_gallery_title');
                     const captionTag = obj.el.querySelector('.et_pb_gallery_caption, p');
-                    titleText = titleTag ? titleTag.innerText.trim() : '';
-                    captionText = captionTag && captionTag !== titleTag ? captionTag.innerText.trim() : '';
+                    titleText = titleTag ? titleTag.textContent.trim() : '';
+                    captionText = captionTag && captionTag !== titleTag ? captionTag.textContent.trim() : '';
                 }
 
                 if (!highResSrc) return resolve(null);

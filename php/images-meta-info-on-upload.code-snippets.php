@@ -13,8 +13,10 @@
 // ==========================================
 add_filter( 'wp_insert_attachment_data', 'agy_auto_strip_image_captions', 10, 2 );
 function agy_auto_strip_image_captions( $data, $postarr ) {
-    // Check if the upload is an attachment and specifically an image
-    if ( $data['post_type'] === 'attachment' && strpos( $data['post_mime_type'], 'image/' ) === 0 ) {
+    // Check if the upload is an attachment and specifically an image.
+    // This filter also fires when an existing image is edited/saved, so only strip
+    // brand-new uploads (no ID yet). Titles/captions added later in the Media Library are kept.
+    if ( empty( $postarr['ID'] ) && $data['post_type'] === 'attachment' && strpos( $data['post_mime_type'], 'image/' ) === 0 ) {
         // Clear the title, excerpt (caption), and content (description)
         $data['post_title']   = '';
         $data['post_excerpt'] = '';

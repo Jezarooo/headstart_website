@@ -144,7 +144,7 @@ function hs_register_post_acf_fields() {
                 'label' => 'Portrait Featured Image (Slider)',
                 'name' => 'hs_portrait_image',
                 'type' => 'image',
-                'instructions' => 'Vertical image specifically for the Post Slider. If left blank, the slider will fall back to the standard Featured Image.',
+                'instructions' => 'Optional. A vertical (portrait) version used only by the Post Slider. The standard Featured Image is required, should be landscape (16:9), and is used as the hero. If this is left blank, the slider uses the Featured Image.',
                 'required' => 0,
                 'conditional_logic' => 0,
                 'wrapper' => array(

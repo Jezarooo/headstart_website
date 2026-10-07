@@ -457,8 +457,12 @@ function hs_render_post_slider_shortcode($atts) {
                 if (!document.getElementById('swiper-js-script')) {
                     var script = document.createElement('script');
                     script.id = 'swiper-js-script';
-                    script.src = '/wp-content/mu-plugins/hs-swiper/swiper-bundle.min.js?ver=11.2.10';
+                    script.src = 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js';
                     document.head.appendChild(script);
+                    var link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css';
+                    document.head.appendChild(link);
                 }
                 // Try again in 100ms
                 setTimeout(init_hs_slider_%%HS_SLIDER_ID_PLACEHOLDER%%, 100);
@@ -667,7 +671,7 @@ function hs_render_post_slider_shortcode($atts) {
         }
 
         // 2. Divi Visual Builder AJAX Support
-        if (typeof jQuery !== 'undefined') {
+        if (typeof jQuery !== 'undefined' && typeof jQuery(document).ajaxComplete === 'function') {
             jQuery(document).ajaxComplete(function(event, xhr, settings) {
                 if (settings.data && typeof settings.data === 'string' && settings.data.indexOf('et_pb_get_shortcode_preview') !== -1) {
                     setTimeout(init_hs_slider_%%HS_SLIDER_ID_PLACEHOLDER%%, 500);

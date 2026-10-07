@@ -44,6 +44,18 @@ function hs_custom_post_columns($columns) {
     return $new_columns;
 }
 
+// 1.6 Row class used by the List View Divi Gatekeeper (Featured Image = landscape hero, required.
+//     The optional Portrait image does not count.)
+add_filter('post_class', 'hs_posts_list_image_row_class', 10, 3);
+function hs_posts_list_image_row_class($classes, $class, $post_id) {
+    if (!is_admin() || !function_exists('get_current_screen')) return $classes;
+    $screen = get_current_screen();
+    if (!$screen || $screen->id !== 'edit-post') return $classes;
+
+    $classes[] = has_post_thumbnail($post_id) ? 'hs-has-image' : 'hs-no-image';
+    return $classes;
+}
+
 // 2. Output Column Content
 add_action('manage_post_posts_custom_column', 'hs_custom_post_column_content', 10, 2);
 function hs_custom_post_column_content($column_name, $post_id) {
@@ -703,23 +715,35 @@ function hs_inject_inline_tax_js() {
         });
         
         // List View Divi Gatekeeper
-        $('a').on('click', function(e) {
+        // Same rules as Posts--Divi-Gatekeeper (hs_post_gate_missing_fields):
+        // Title, Website Section OR Badge Override, Campus OR Location Override,
+        // Featured Image (landscape hero). The server-side guard backs this up.
+        // Delegated so it still works on rows re-rendered by Quick Edit.
+        $(document).on('click', 'a', function(e) {
             var $link = $(this);
-            var isDivi = $link.hasClass('edit_with_builder') || ($link.attr('href') && $link.attr('href').indexOf('et_fb=1') > -1);
+            var href = $link.attr('href') || '';
+            var isDivi = $link.hasClass('edit_with_builder') ||
+                         href.indexOf('et_fb=1') > -1 ||
+                         href.indexOf('et_fb_activation_nonce') > -1; // Posts not yet using Divi
             
             if (isDivi) {
                 var $row = $link.closest('tr');
                 if ($row.length) {
                     var title = $row.find('.row-title').text().trim();
                     var deptDisplay = $row.find('.hs-dept-display').text().trim();
+                    var chipDisplay = $row.find('.hs-chip-display').text().trim();
                     var campusDisplay = $row.find('.hs-campus-display').text().trim();
                     var locOverride = $row.find('.hs-location-display').text().trim();
 
-                    var isTitleOk = title !== '' && title !== '(no title)' && title !== 'Auto Draft';
-                    var isDeptOk = deptDisplay !== 'Required';
-                    var isCampusOk = campusDisplay !== 'Required' || locOverride !== '(Default)';
+                    var hasChipOverride = chipDisplay !== '' && chipDisplay !== '(Default)';
+                    var hasLocOverride = locOverride !== '' && locOverride !== '(Default)';
 
-                    if (isTitleOk && isDeptOk && isCampusOk) {
+                    var isTitleOk = title !== '' && title !== '(no title)' && title !== 'Auto Draft';
+                    var isDeptOk = deptDisplay !== 'Required' || hasChipOverride;
+                    var isCampusOk = campusDisplay !== 'Required' || hasLocOverride;
+                    var isImageOk = !$row.hasClass('hs-no-image'); // Row class set in PHP (hs_posts_list_image_row_class)
+
+                    if (isTitleOk && isDeptOk && isCampusOk && isImageOk) {
                         return true; // Let them through
                     }
 
@@ -728,8 +752,9 @@ function hs_inject_inline_tax_js() {
                     
                     var debugMsg = "🔒 ACTION DENIED: Please complete all required fields before entering the Divi Builder.\n\nMissing:\n";
                     if (!isTitleOk) debugMsg += "❌ Post Title\n";
-                    if (!isDeptOk) debugMsg += "❌ Website Section (Department)\n";
-                    if (!isCampusOk) debugMsg += "❌ Campus Location\n";
+                    if (!isDeptOk) debugMsg += "❌ Website Section (or a Yellow Badge Override)\n";
+                    if (!isCampusOk) debugMsg += "❌ Campus Location (or a Display Location Override)\n";
+                    if (!isImageOk) debugMsg += "❌ Featured Image (landscape, used as the hero)\n";
                     
                     alert(debugMsg);
                     return false;

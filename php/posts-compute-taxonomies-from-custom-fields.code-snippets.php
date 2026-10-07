@@ -11,7 +11,6 @@
  * DEPENDENCIES: WordPress core, Divi
  * =============================================================================
  */
-?>
 
 /**
  * Compute Final Chips for Divi Builder

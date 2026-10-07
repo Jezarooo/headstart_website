@@ -330,28 +330,16 @@ const initDirectory = async () => {
         const accordionOrder = Object.keys(structure);
         
         filtered.forEach(s => {
-            const tierStr = s.tier || '';
-            const isTier123 = tierStr.includes('1.') || tierStr.includes('2.') || tierStr.toLowerCase().includes('senior management');
+            const tierStr = (s.tier || '').trim();
+            const isTier123 = tierStr.startsWith('1.') || tierStr.startsWith('2.') || tierStr.toLowerCase().includes('senior management');
             
             if (currentCampus === 'all') {
-                const isSecretary = tierStr.includes('7.') && (s.title || '').toLowerCase().includes('secretary to');
-                if (!isTier123 && !isSecretary) return; // Only Leadership on all tab
+                if (!isTier123) return; // Only Leadership on all tab
                 
                 // Group by Tier for Leadership page
                 let deptKey = 'Senior Management';
-                if (tierStr.includes('1.')) deptKey = 'Executives';
-                if (tierStr.includes('2.')) deptKey = 'School Directors';
-                
-                if (isSecretary) {
-                    // Find manager's tier so secretary goes to the correct cluster
-                    const managerName = (s.reportsTo || '').toLowerCase().trim();
-                    const manager = staffData.find(m => (m.name || '').toLowerCase().includes(managerName));
-                    if (manager) {
-                        const mTier = manager.tier || '';
-                        if (mTier.includes('1.')) deptKey = 'Executives';
-                        if (mTier.includes('2.')) deptKey = 'School Directors';
-                    }
-                }
+                if (tierStr.startsWith('1.')) deptKey = 'Executives';
+                if (tierStr.startsWith('2.')) deptKey = 'School Directors';
                 
                 if (!depts[deptKey]) depts[deptKey] = [];
                 if (!depts[deptKey].some(existing => existing.name === s.name)) {
@@ -421,7 +409,7 @@ const initDirectory = async () => {
                 const cardsWrap = document.createElement('div');
                 cardsWrap.className = 'hs-cluster-cards';
                 
-                sortAndInjectSecretaries(members).forEach(m => {
+                sortStaff(members).forEach(m => {
                     cardsWrap.appendChild(createCard(m));
                 });
                 
@@ -481,7 +469,7 @@ const initDirectory = async () => {
 
                 sortedGroupNames.forEach(sg => {
                     const groupMembers = subGroups[sg];
-                    const sortedGroup = sortAndInjectSecretaries(groupMembers);
+                    const sortedGroup = sortStaff(groupMembers);
 
                     if (sg !== 'General' && sg !== '') {
                         const clusterWrap = document.createElement('div');
@@ -526,10 +514,10 @@ const initDirectory = async () => {
         }, 50);
     }
 
-    // Master function for Sorting & Secretary Injection
-    function sortAndInjectSecretaries(staffArray) {
+    // Master function for Sorting
+    function sortStaff(staffArray) {
         // 1. Sort by Tier, then by Sort Order, then Alphabetical
-        let sorted = [...staffArray].sort((a, b) => {
+        return [...staffArray].sort((a, b) => {
             // Sort by Tier (e.g. "1. Executive" vs "3. Senior Management")
             const tierA = a.tier || '99';
             const tierB = b.tier || '99';
@@ -545,37 +533,6 @@ const initDirectory = async () => {
             // Alphabetical fallback
             return (a.name || '').localeCompare(b.name || '');
         });
-
-        // 2. The Secretary Injection 
-        // Find anyone who has a 'Reports To'
-        const finalArray = [];
-        const secretaries = [];
-
-        // Pull secretaries out of the main flow
-        sorted.forEach(s => {
-            if (s.reportsTo && s.reportsTo.trim() !== '') {
-                secretaries.push(s);
-            } else {
-                finalArray.push(s);
-            }
-        });
-
-        // Re-inject secretaries directly after their manager
-        secretaries.forEach(sec => {
-            const managerName = sec.reportsTo.toLowerCase().trim();
-            // Find manager in the final array
-            const managerIndex = finalArray.findIndex(m => (m.name || '').toLowerCase().includes(managerName));
-            
-            if (managerIndex !== -1) {
-                // Insert immediately after manager
-                finalArray.splice(managerIndex + 1, 0, sec);
-            } else {
-                // Manager not in this grid, just append to the end of the grid
-                finalArray.push(sec);
-            }
-        });
-
-        return finalArray;
     }
 
     // Event Listeners
