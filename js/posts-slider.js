@@ -232,3 +232,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // CACHE-PROOF DEPARTMENT CONTEXT RELOAD
             // If the URL has ?hs_dept= but the server-rendered slider doesn't match
             // (because a page cache served stale HTML), force an AJAX reload with the correct department.
+        });
+    }
+    initHeadstartSliders();
+});
