@@ -1903,12 +1903,6 @@ body.et-fb #hs-mobile-nav-root {
             display: block !important;
         }
         
-        /* Prevent clicks from falling through to the last post when loading more */
-        .hs-shortcode-slider-wrapper .swiper-button-disabled {
-            opacity: 1 !important;
-            pointer-events: auto !important;
-            cursor: pointer !important;
-        }
         
         /* Loader Spinner Above Arrow (Fallback) */
         .hs-shortcode-slider-wrapper.hs-is-fetching .hs-side-next::before,

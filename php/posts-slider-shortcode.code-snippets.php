@@ -575,7 +575,7 @@ function hs_render_post_slider_shortcode($atts) {
                         loopedSlides: isLooping ? slideCount : null,
                         loopAdditionalSlides: isLooping ? slideCount : 0,
                         loopPreventsSliding: false,
-                        rewind: !isLooping, // If massive feed, allow snapping back to start
+                        rewind: false, // Disabled rewind because it causes a rapid reverse zap when loop is off
                         autoplay: isLooping ? { delay: 3500, disableOnInteraction: true, pauseOnMouseEnter: true } : false,
                         pagination: false,
                     navigation: {
