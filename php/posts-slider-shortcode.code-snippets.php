@@ -105,7 +105,7 @@ function hs_render_post_slider_shortcode($atts) {
     }
     
     // HTML Cache Key (caches the final rendered HTML per page)
-    $html_transient_key = 'hs_slhtml46_' . md5(json_encode($args) . $active_filter . $paged . $seed);
+    $html_transient_key = 'hs_slhtml47_' . md5(json_encode($args) . $active_filter . $paged . $seed);
     
     $cached_html = get_transient($html_transient_key);
     if ($cached_html !== false && empty($active_filter)) {
@@ -509,6 +509,11 @@ function hs_render_post_slider_shortcode($atts) {
                                     isLooping = true;
                                 }
                             }
+                            // Clean up external arrows so Swiper can re-bind them properly
+                            var nextArrow = document.querySelector('.hs-slider-next-%%HS_SLIDER_ID_PLACEHOLDER%%');
+                            var prevArrow = document.querySelector('.hs-slider-prev-%%HS_SLIDER_ID_PLACEHOLDER%%');
+                            if (nextArrow) { nextArrow.classList.remove('swiper-button-disabled', 'swiper-button-lock'); nextArrow.removeAttribute('disabled'); }
+                            if (prevArrow) { prevArrow.classList.remove('swiper-button-disabled', 'swiper-button-lock'); prevArrow.removeAttribute('disabled'); }
                             
                             container.hsSwiperInstance = new Swiper('.hsPostSliderInit-%%HS_SLIDER_ID_PLACEHOLDER%%', {
                             on: {
@@ -577,6 +582,10 @@ function hs_render_post_slider_shortcode($atts) {
                         rewind: false, // Disabled rewind because it causes a rapid reverse zap when loop is off
                         autoplay: isLooping ? { delay: 3500, disableOnInteraction: true, pauseOnMouseEnter: true } : false,
                         pagination: false,
+                    navigation: {
+                        nextEl: '.hs-slider-next-%%HS_SLIDER_ID_PLACEHOLDER%%, #%%HS_SLIDER_ID_PLACEHOLDER%% .swiper-button-next',
+                        prevEl: '.hs-slider-prev-%%HS_SLIDER_ID_PLACEHOLDER%%, #%%HS_SLIDER_ID_PLACEHOLDER%% .swiper-button-prev',
+                    },
                     breakpoints: {
                         320: { slidesPerView: 'auto', slidesPerGroup: 1, centeredSlides: true, initialSlide: isLooping ? 0 : 1 },
                         640: { slidesPerView: 'auto', slidesPerGroup: 1, centeredSlides: true, initialSlide: isLooping ? 0 : 1 },
