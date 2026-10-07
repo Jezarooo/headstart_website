@@ -105,7 +105,7 @@ function hs_render_post_slider_shortcode($atts) {
     }
     
     // HTML Cache Key (caches the final rendered HTML per page)
-    $html_transient_key = 'hs_slhtml39_' . md5(json_encode($args) . $active_filter . $paged . $seed);
+    $html_transient_key = 'hs_slhtml40_' . md5(json_encode($args) . $active_filter . $paged . $seed);
     
     $cached_html = get_transient($html_transient_key);
     if ($cached_html !== false && empty($active_filter)) {
@@ -499,8 +499,18 @@ function hs_render_post_slider_shortcode($atts) {
                                 var meta = wrapper.querySelector('.hs-ajax-meta');
                                 if (meta) totalPosts = parseInt(meta.getAttribute('data-total'), 10) || totalPosts;
                             }
-                            var enableLoop = (totalPosts >= 6 && totalPosts <= 20);
-                            var isLooping = enableLoop && (slideCount >= 6);
+                            var enableLoop = false;
+                            if (totalPosts >= 6) {
+                                if (totalPosts <= 20) {
+                                    enableLoop = true;
+                                }
+                            }
+                            var isLooping = false;
+                            if (enableLoop) {
+                                if (slideCount >= 6) {
+                                    isLooping = true;
+                                }
+                            }
                             
                             container.hsSwiperInstance = new Swiper('.hsPostSliderInit-%%HS_SLIDER_ID_PLACEHOLDER%%', {
                             on: {
