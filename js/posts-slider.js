@@ -36,15 +36,27 @@ document.addEventListener('DOMContentLoaded', function() {
                         e.preventDefault();
                         var currentContainer = rootContainer.querySelector('.swiper.hsPostSliderInit-' + rootContainer.id);
                         if (currentContainer && currentContainer.hsSwiperInstance) {
-                            if (currentContainer.hsSwiperInstance.autoplay && currentContainer.hsSwiperInstance.autoplay.running) {
-                                currentContainer.hsSwiperInstance.autoplay.stop();
-                                currentContainer.hsSwiperInstance.autoplay.start();
+                            var sw = currentContainer.hsSwiperInstance;
+                            // The user has taken control: stop autoplay so it can never move the slider against them
+                            if (sw.autoplay && sw.autoplay.running) {
+                                sw.autoplay.stop();
                             }
-                            if (nextBtn) {
-                                currentContainer.hsSwiperInstance.slideNext();
-                            } else {
-                                currentContainer.hsSwiperInstance.slidePrev();
-                            }
+                            // If a slide is mid-animation (e.g. an autoplay step), queue the press instead of
+                            // letting preventInteractionOnTransition swallow it. Max 2 queued presses.
+                            sw.hsQueuedPresses = sw.hsQueuedPresses || 0;
+                            if (sw.hsQueuedPresses >= 2) return;
+                            sw.hsQueuedPresses++;
+                            var go = function() {
+                                if (sw.destroyed) { sw.hsQueuedPresses = 0; return; }
+                                if (sw.animating) { sw.once('transitionEnd', go); return; }
+                                sw.hsQueuedPresses--;
+                                if (nextBtn) {
+                                    sw.slideNext();
+                                } else {
+                                    sw.slidePrev();
+                                }
+                            };
+                            go();
                         }
                     }
                 });

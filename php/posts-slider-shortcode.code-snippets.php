@@ -105,7 +105,7 @@ function hs_render_post_slider_shortcode($atts) {
     }
     
     // HTML Cache Key (caches the final rendered HTML per page)
-    $html_transient_key = 'hs_slhtml49_' . md5(json_encode($args) . $active_filter . $paged . $seed);
+    $html_transient_key = 'hs_slhtml51_' . md5(json_encode($args) . $active_filter . $paged . $seed);
     
     $cached_html = get_transient($html_transient_key);
     if ($cached_html !== false && empty($active_filter)) {
@@ -287,10 +287,52 @@ function hs_render_post_slider_shortcode($atts) {
         set_transient($list_transient_key, $master_id_list, 5 * MINUTE_IN_SECONDS);
     }
     
-    // 6. Slice out the specific Page for Infinite Scroll
-    $offset = ($paged - 1) * $posts_per_page;
-    $selected_ids = array_slice($master_id_list, $offset, $posts_per_page);
-    $max_pages = (int) ceil(count($master_id_list) / max(1, $posts_per_page));
+    // 6. Slice out the cards to render
+    // Slider initial render: the last few cards + the first batch, so there is always a card to the left.
+    // Slider lazy request (AJAX with offset/limit): an exact slice, loaded in either direction by the JS.
+    // Grid: the classic page slice.
+    $total_posts_count = count($master_id_list);
+    $hs_tail_count = 3;
+    $hs_left_start = $total_posts_count; // first index of the cards rendered at the end of the list
+    $hs_right_end = $total_posts_count;  // one past the last index rendered from the start of the list
+    $selected_indexes = array();
+    $is_offset_request = wp_doing_ajax() && $display === 'slider' && isset($_POST['offset']);
+
+    if ($is_offset_request) {
+        $hs_offset = max(0, intval($_POST['offset']));
+        $hs_limit = isset($_POST['limit']) ? max(1, min(24, intval($_POST['limit']))) : $posts_per_page;
+        for ($i = $hs_offset; $i < min($total_posts_count, $hs_offset + $hs_limit); $i++) {
+            $selected_indexes[] = $i;
+        }
+    } elseif ($display === 'slider') {
+        if ($total_posts_count > $posts_per_page + $hs_tail_count) {
+            for ($i = $total_posts_count - $hs_tail_count; $i < $total_posts_count; $i++) {
+                $selected_indexes[] = $i;
+            }
+            for ($i = 0; $i < $posts_per_page; $i++) {
+                $selected_indexes[] = $i;
+            }
+            $hs_left_start = $total_posts_count - $hs_tail_count;
+            $hs_right_end = $posts_per_page;
+        } else {
+            for ($i = 0; $i < $total_posts_count; $i++) {
+                $selected_indexes[] = $i;
+            }
+        }
+    } else {
+        $offset = ($paged - 1) * $posts_per_page;
+        for ($i = $offset; $i < min($total_posts_count, $offset + $posts_per_page); $i++) {
+            $selected_indexes[] = $i;
+        }
+    }
+
+    $selected_ids = array();
+    $index_by_id = array(); // post ID => position in the shuffled master list
+    foreach ($selected_indexes as $idx) {
+        $selected_ids[] = $master_id_list[$idx];
+        $index_by_id[$master_id_list[$idx]] = $idx;
+    }
+    $max_pages = (int) ceil($total_posts_count / max(1, $posts_per_page));
     
     // 7. Hydrate the sliced IDs into full Post Objects
     $final_posts = array();
@@ -401,7 +443,7 @@ function hs_render_post_slider_shortcode($atts) {
         ?>
         <?php if (!$ajax_cards_only) : ?>
             <?php if ($display === 'slider') : ?>
-            <div class="swiper hsPostSliderInit-<?php echo esc_attr($slider_id); ?>">
+            <div class="swiper hsPostSliderInit-<?php echo esc_attr($slider_id); ?>" data-total="<?php echo intval($total_posts_count); ?>" data-left-start="<?php echo intval($hs_left_start); ?>" data-right-end="<?php echo intval($hs_right_end); ?>">
                 <div class="hs-slider-loader">Loading Posts...</div>
                 <div class="swiper-wrapper">
             <?php else : ?>
@@ -415,7 +457,12 @@ function hs_render_post_slider_shortcode($atts) {
                 global $post;
                 foreach ($final_posts as $post) {
                     setup_postdata($post);
-                    echo hs_get_post_slider_card_html($post, $args['department'], ($display === 'slider'), $args['enforce_context'], $args['campus']);
+                    $card_html = hs_get_post_slider_card_html($post, $args['department'], ($display === 'slider'), $args['enforce_context'], $args['campus']);
+                    if (isset($index_by_id[$post->ID])) {
+                        // data-hs-index = position in the shuffled list (used by the lazy loader)
+                        $card_html = preg_replace('/<div class="swiper-slide"/', '<div class="swiper-slide" data-hs-index="' . intval($index_by_id[$post->ID]) . '"', $card_html, 1);
+                    }
+                    echo $card_html;
                 }
                 wp_reset_postdata(); 
                 ?>
@@ -423,7 +470,7 @@ function hs_render_post_slider_shortcode($atts) {
             $cards_html = ob_get_clean();
             // In AJAX mode, we ONLY want to return the raw HTML of the slides, nothing else.
             // We append a hidden meta tag so the JS knows the true total posts for this filter.
-            $cards_html .= '<div class="hs-ajax-meta" data-total="' . (isset($deep_query) ? intval($deep_query->found_posts) : 0) . '" style="display:none;"></div>';
+            $cards_html .= '<div class="hs-ajax-meta" data-total="' . intval($total_posts_count) . '" data-left-start="' . intval($hs_left_start) . '" data-right-end="' . intval($hs_right_end) . '" style="display:none;"></div>';
             return $cards_html;
         } ?>
 
@@ -494,120 +541,170 @@ function hs_render_post_slider_shortcode($atts) {
                 // Expose Swiper instance on the container so we can destroy it later if needed
                     setTimeout(function() {
                         try {
-                            var totalPosts = <?php echo (isset($deep_query) && isset($deep_query->found_posts)) ? intval($deep_query->found_posts) : 0; ?>;
-                            if (wrapper) {
-                                var meta = wrapper.querySelector('.hs-ajax-meta');
-                                if (meta) totalPosts = parseInt(meta.getAttribute('data-total'), 10) || totalPosts;
+                            // ---- Lazy-load state ----
+                            // The server renders a slice of the shuffled post list: the last few cards (so there is
+                            // always a card to the left) plus the first batch. Loaded = [0, rightEnd) + [leftStart, totalPosts).
+                            // When the two ends meet, every card is in the DOM and the slider switches to a true loop.
+                            var isSlider = <?php echo ($display === 'slider') ? 'true' : 'false'; ?>;
+                            var totalPosts = parseInt(container.getAttribute('data-total'), 10) || 0;
+                            var leftStart = parseInt(container.getAttribute('data-left-start'), 10);
+                            var rightEnd = parseInt(container.getAttribute('data-right-end'), 10);
+                            var meta = wrapper ? wrapper.querySelector('.hs-ajax-meta') : null;
+                            if (meta) {
+                                // Filter dropdown reload: the AJAX response carries its own state
+                                totalPosts = parseInt(meta.getAttribute('data-total'), 10) || 0;
+                                leftStart = parseInt(meta.getAttribute('data-left-start'), 10);
+                                rightEnd = parseInt(meta.getAttribute('data-right-end'), 10);
+                                meta.parentNode.removeChild(meta);
                             }
-                            var enableLoop = false;
-                            if (totalPosts >= 6) {
-                                enableLoop = true;
-                            }
-                            var isLooping = false;
-                            if (enableLoop) {
-                                if (slideCount >= 6) {
-                                    isLooping = true;
-                                }
-                            }
-                            
-                            container.hsSwiperInstance = new Swiper('.hsPostSliderInit-%%HS_SLIDER_ID_PLACEHOLDER%%', {
-                            on: {
-                                init: function () {
-                                    console.log('Swiper INIT event fired!');
-                                    if (this.params.loop) { this.loopDestroy(); this.loopCreate(); this.update(); }
-                                    container.classList.add('hs-swiper-loaded');
-                                    var loader = container.querySelector('.hs-slider-loader');
-                                    if (loader) loader.style.display = 'none';
-                                    this.hsCurrentPage = <?php echo $paged; ?>;
-                                    this.hsIsLoading = false;
+                            if (isNaN(leftStart)) { leftStart = totalPosts; }
+                            if (isNaN(rightEnd)) { rightEnd = totalPosts; }
+                            var HS_BATCH = 12; // cards per lazy request
+                            var HS_EDGE = 4;   // start loading when this close to an edge
+                            var hsAllLoaded = !(leftStart > rightEnd);
+                            var hsLoading = false;
+                            var hsSilent = false; // ignore slideChange caused by our own DOM updates
+                            var hsLeftCount = Math.max(0, totalPosts - leftStart); // cards rendered before card 0
+                            var hs_ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
+                            var swiper = new Swiper(container, {
+                                slidesPerView: 'auto',
+                                slidesPerGroup: 1,
+                                spaceBetween: 10,
+                                speed: 300,
+                                preventInteractionOnTransition: true, // a click mid-transition is ignored instead of stacking
+                                loop: false,   // switched on by hsEnableLoop() once every card is loaded
+                                rewind: false, // rewind jumps from the first card to the last (the old zap)
+                                initialSlide: hsLeftCount,
+                                // stopOnLastSlide: never let autoplay rewind to card 1 if it ever reaches the end
+                                autoplay: isSlider ? { delay: 3500, disableOnInteraction: true, pauseOnMouseEnter: true, stopOnLastSlide: true } : false,
+                                pagination: false,
+                                breakpoints: {
+                                    320: { slidesPerView: 'auto', slidesPerGroup: 1, centeredSlides: true },
+                                    768: { slidesPerView: 'auto', slidesPerGroup: 1, centeredSlides: false, enabled: isSlider },
+                                    1024: { slidesPerView: 'auto', slidesPerGroup: 1, centeredSlides: false, enabled: isSlider },
+                                    1400: { slidesPerView: 'auto', slidesPerGroup: 1, centeredSlides: false, enabled: isSlider }
                                 },
-                                reachEnd: function() {
-                                    // INFINITE SCROLL LOGIC
-                                    <?php if ($display === 'slider') : ?>
-                                    if (this.hsIsLoading || enableLoop) return;
-                                    this.hsIsLoading = true;
-                                    this.hsCurrentPage++;
-                                    console.log('Swiper reached end! Loading page ' + this.hsCurrentPage);
-                                    
+                                on: {
+                                    init: function () {
+                                        container.classList.add('hs-swiper-loaded');
+                                        var loader = container.querySelector('.hs-slider-loader');
+                                        if (loader) loader.style.display = 'none';
+                                    }
+                                }
+                            });
+                            container.hsSwiperInstance = swiper;
+                            function hsVisibleCount() {
+                                var cr = container.getBoundingClientRect();
+                                var n = 0;
+                                for (var i = 0; swiper.slides.length > i; i++) {
+                                    var r = swiper.slides[i].getBoundingClientRect();
+                                    if (r.right > cr.left + 2) { if (cr.right - 2 > r.left) { n++; } }
+                                }
+                                return n;
+                            }
+                            function hsWhenIdle(cb) {
+                                // Re-check after every transitionEnd: a queued arrow press may start a new slide on the same event
+                                if (!swiper.animating) { cb(); return; }
+                                swiper.once('transitionEnd', function () { hsWhenIdle(cb); });
+                            }
+                            function hsFetchRange(offset, limit, cb) {
+                                if (limit > 0) {
+                                    var fs = document.querySelector('select[data-slider-id="%%HS_SLIDER_ID_PLACEHOLDER%%"]');
                                     var data = new URLSearchParams();
                                     data.append('action', 'hs_load_slider_posts');
-                                    data.append('page', this.hsCurrentPage);
-                                    
-                                    var filterSelect = document.querySelector('select[data-slider-id="%%HS_SLIDER_ID_PLACEHOLDER%%"]');
-                                    var dept = filterSelect ? filterSelect.value : (rootContainer.getAttribute('data-dept') || '');
-                                    
-                                    data.append('department', dept);
+                                    data.append('offset', offset);
+                                    data.append('limit', limit);
+                                    data.append('department', fs ? fs.value : (rootContainer.getAttribute('data-dept') || ''));
                                     data.append('campus', rootContainer.getAttribute('data-campus') || '');
                                     data.append('enforce_context', rootContainer.getAttribute('data-enforce-context') || 'false');
                                     data.append('exclude_recent_days', rootContainer.getAttribute('data-exclude-days') || '0');
                                     data.append('seed', rootContainer.getAttribute('data-seed') || '');
                                     data.append('ajax_cards_only', 'true');
-                                    data.append('display', '<?php echo esc_js($display); ?>');
-                                    
-                                    var hs_ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>';
-                                    var swiperInstance = this;
-                                    
+                                    data.append('display', 'slider');
                                     fetch(hs_ajaxurl, { method: 'POST', body: data })
-                                    .then(function(res) { return res.json(); })
-                                    .then(function(res) {
-                                        if (res.success && res.data.html.indexOf('No posts found') === -1) {
-                                            var tempDiv = document.createElement('div');
-                                            tempDiv.innerHTML = res.data.html;
-                                            var slidesArray = Array.prototype.slice.call(tempDiv.children);
-                                            swiperInstance.appendSlide(slidesArray);
-                                            if (swiperInstance.params.loop) {
-                                                swiperInstance.loopDestroy();
-                                                swiperInstance.loopCreate();
-                                            }
-                                            swiperInstance.update();
-                                            swiperInstance.hsIsLoading = false;
+                                    .then(function (res) { return res.json(); })
+                                    .then(function (res) {
+                                        var nodes = [];
+                                        if (res.success) {
+                                            var tmp = document.createElement('div');
+                                            tmp.innerHTML = res.data.html;
+                                            var found = tmp.querySelectorAll('.swiper-slide[data-hs-index]');
+                                            for (var i = 0; found.length > i; i++) { nodes.push(found[i]); }
                                         }
-                                    }).catch(function(err) {
-                                        console.error('Infinite Scroll Error:', err);
-                                        swiperInstance.hsIsLoading = false;
-                                    });
-                                    <?php endif; ?>
+                                        cb(nodes);
+                                    })
+                                    .catch(function (err) { console.error('Slider lazy load error:', err); cb(null); });
+                                } else {
+                                    cb([]);
                                 }
-                            },
-                        slidesPerView: 'auto', 
-                        slidesPerGroup: 1,
-                        preventInteractionOnTransition: true, // Stops double-jumping if clicked during autoplay transition
-                        spaceBetween: 10,
-                        preventInteractionOnTransition: true,
-                        loop: isLooping,
-                        observer: true,
-                        observeParents: true,
-                        loopAdditionalSlides: isLooping ? slideCount : 0,
-                        loopedSlides: isLooping ? slideCount : null,
-                        rewind: false, // Disabled rewind because it causes a rapid reverse zap when loop is off
-                        autoplay: isLooping ? { delay: 3500, disableOnInteraction: true, pauseOnMouseEnter: true } : false,
-                        pagination: false,
-                    breakpoints: {
-                        320: { slidesPerView: 'auto', slidesPerGroup: 1, centeredSlides: true, initialSlide: isLooping ? 0 : 1 },
-                        640: { slidesPerView: 'auto', slidesPerGroup: 1, centeredSlides: true, initialSlide: isLooping ? 0 : 1 },
-                        768: { 
-                            slidesPerView: 'auto', 
-                            slidesPerGroup: 1,
-                            centeredSlides: false,
-                            initialSlide: 0,
-                            enabled: <?php echo ($display === 'slider') ? 'true' : 'false'; ?> 
-                        },
-                        1024: { 
-                            slidesPerView: 'auto', 
-                            slidesPerGroup: 1,
-                            centeredSlides: false,
-                            initialSlide: 0,
-                            enabled: <?php echo ($display === 'slider') ? 'true' : 'false'; ?> 
-                        },
-                        1400: { 
-                            slidesPerView: 'auto', 
-                            slidesPerGroup: 1,
-                            centeredSlides: false,
-                            initialSlide: 0,
-                            enabled: <?php echo ($display === 'slider') ? 'true' : 'false'; ?> 
-                        }
-                    }
-                });
+                            }
+                            function hsEnableLoop() {
+                                hsAllLoaded = true;
+                                var n = swiper.slides.length;
+                                if (isSlider) {
+                                    if (n >= Math.max(6, hsVisibleCount() + 2)) {
+                                        var activeEl = swiper.slides[swiper.activeIndex];
+                                        hsSilent = true;
+                                        swiper.params.loop = true;
+                                        swiper.loopCreate();
+                                        swiper.update();
+                                        swiper.slideToLoop(parseInt(activeEl.getAttribute('data-swiper-slide-index'), 10), 0, false);
+                                        hsSilent = false;
+                                        return;
+                                    }
+                                }
+                                // Too few cards to loop: on mobile start on card 2 so a card fills the left edge
+                                if (swiper.params.centeredSlides) {
+                                    if (n > 1) { if (swiper.activeIndex === 0) { swiper.slideTo(1, 0, false); } }
+                                }
+                            }
+                            function hsAfterLoad(dir) {
+                                if (leftStart > rightEnd) { hsCheckEdges(dir); } else { hsEnableLoop(); }
+                            }
+                            function hsLoadLeft() {
+                                hsLoading = true;
+                                var from = Math.max(leftStart - HS_BATCH, rightEnd);
+                                hsFetchRange(from, leftStart - from, function (nodes) {
+                                    if (nodes === null) { hsLoading = false; return; } // network error: retry on next move
+                                    hsWhenIdle(function () {
+                                        hsSilent = true;
+                                        // prependSlide inserts each node at the front, so pass them in reverse order
+                                        if (nodes.length) { swiper.prependSlide(nodes.slice().reverse()); }
+                                        hsSilent = false;
+                                        leftStart = from;
+                                        hsLoading = false;
+                                        hsAfterLoad('left');
+                                    });
+                                });
+                            }
+                            function hsLoadRight() {
+                                hsLoading = true;
+                                var to = Math.min(rightEnd + HS_BATCH, leftStart);
+                                hsFetchRange(rightEnd, to - rightEnd, function (nodes) {
+                                    if (nodes === null) { hsLoading = false; return; } // network error: retry on next move
+                                    hsWhenIdle(function () {
+                                        hsSilent = true;
+                                        if (nodes.length) { swiper.appendSlide(nodes); }
+                                        hsSilent = false;
+                                        rightEnd = to;
+                                        hsLoading = false;
+                                        hsAfterLoad('right');
+                                    });
+                                });
+                            }
+                            function hsCheckEdges(dir) {
+                                if (hsAllLoaded || hsLoading || !isSlider) { return; }
+                                if (dir === 'left') {
+                                    if (HS_EDGE >= swiper.activeIndex) { hsLoadLeft(); }
+                                } else {
+                                    if (swiper.activeIndex + hsVisibleCount() + HS_EDGE >= swiper.slides.length) { hsLoadRight(); }
+                                }
+                            }
+                            swiper.on('slideChange', function () {
+                                if (hsSilent) { return; }
+                                hsCheckEdges(swiper.activeIndex > swiper.previousIndex ? 'right' : 'left');
+                            });
+                            if (hsAllLoaded) { hsEnableLoop(); }
                 console.log('Swiper instantiation complete.');
                 } catch (e) {
                     console.error('Swiper instantiation error:', e);
