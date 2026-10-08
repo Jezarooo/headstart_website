@@ -13,10 +13,18 @@
  * ====================================================================
  */
 
+// The manual switch for the new logic
+if (!defined('HS_ENABLE_LATEST_STRATEGY')) {
+    define('HS_ENABLE_LATEST_STRATEGY', true);
+}
+
 add_shortcode('hs_post_slider', 'hs_render_post_slider_shortcode');
 
 function hs_render_post_slider_shortcode($atts) {
     // 1. Parse Shortcode Attributes
+    
+    $default_orderby = HS_ENABLE_LATEST_STRATEGY ? 'hybrid' : 'random';
+    
     $args = shortcode_atts(array(
         'department'     => '',       // e.g., 'foundation', 'primary'
         'campus'         => '',       // e.g., 'chaofah', 'cherngtalay'
@@ -27,7 +35,7 @@ function hs_render_post_slider_shortcode($atts) {
         'exclude_recent_days' => '0', // e.g. 14 to exclude posts from last 14 days
         'enforce_context'=> 'false',  // 'true' to append ?hs_campus to all post links
         'ajax_cards_only'=> 'false',  // bypass HTML wrapper
-        'orderby'        => 'random', // 'random' or 'latest'
+        'orderby'        => $default_orderby, // 'random', 'latest', or 'hybrid'
     ), $atts);
 
     // 1.5 Handle Dynamic $_GET Filtering
@@ -231,7 +239,60 @@ function hs_render_post_slider_shortcode($atts) {
         $master_id_list = array();
         $total_posts = count($high_visual) + count($std_visual) + count($text_only);
         
-        if ($args['orderby'] === 'random') {
+        if ($args['orderby'] === 'hybrid') {
+            $latest_pool = $deep_query->posts; // Date ordered natively
+            $gallery_pool = $high_visual; // High visual posts
+            
+            // Shuffle the gallery pool for variety
+            mt_srand($seed);
+            $seeded_shuffle = function(&$items) {
+                for ($i = count($items) - 1; $i > 0; $i--) {
+                    $j = mt_rand(0, $i);
+                    $tmp = $items[$i];
+                    $items[$i] = $items[$j];
+                    $items[$j] = $tmp;
+                }
+            };
+            $seeded_shuffle($gallery_pool);
+            mt_srand();
+            
+            $used_ids = array();
+            $latest_idx = 0;
+            $gallery_idx = 0;
+            $pattern_step = 0;
+            
+            while (count($master_id_list) < $total_posts) {
+                if ($pattern_step < 2) {
+                    while ($latest_idx < count($latest_pool) && isset($used_ids[$latest_pool[$latest_idx]])) {
+                        $latest_idx++;
+                    }
+                    if ($latest_idx < count($latest_pool)) {
+                        $pid = $latest_pool[$latest_idx];
+                        $master_id_list[] = $pid;
+                        $used_ids[$pid] = true;
+                        $latest_idx++;
+                        $pattern_step++;
+                    } else {
+                        $pattern_step = 2; // switch to gallery
+                    }
+                } else {
+                    while ($gallery_idx < count($gallery_pool) && isset($used_ids[$gallery_pool[$gallery_idx]])) {
+                        $gallery_idx++;
+                    }
+                    if ($gallery_idx < count($gallery_pool)) {
+                        $pid = $gallery_pool[$gallery_idx];
+                        $master_id_list[] = $pid;
+                        $used_ids[$pid] = true;
+                        $gallery_idx++;
+                    }
+                    $pattern_step = 0; // reset
+                }
+                
+                if ($latest_idx >= count($latest_pool) && $gallery_idx >= count($gallery_pool)) {
+                    break;
+                }
+            }
+        } elseif ($args['orderby'] === 'random') {
             // BATCH OPTIMIZATION: Cache all terms at once for maximum performance (1 DB query)
             update_object_term_cache($deep_query->posts, 'post');
             
@@ -283,19 +344,26 @@ function hs_render_post_slider_shortcode($atts) {
                 
                 return $pid;
             };
+            
+            while (count($master_id_list) < $total_posts) {
+                if (!empty($high_visual)) $master_id_list[] = $shift_func($high_visual);
+                if (!empty($std_visual)) $master_id_list[] = $shift_func($std_visual);
+                if (!empty($std_visual)) $master_id_list[] = $shift_func($std_visual);
+                if (!empty($text_only)) $master_id_list[] = $shift_func($text_only);
+            }
         } else {
             // For 'latest' ordering, just take the next newest post from the bucket without mixing logic
             $shift_func = function(&$bucket) {
                 if (empty($bucket)) return null;
                 return array_shift($bucket);
             };
-        }
-        
-        while (count($master_id_list) < $total_posts) {
-            if (!empty($high_visual)) $master_id_list[] = $shift_func($high_visual);
-            if (!empty($std_visual)) $master_id_list[] = $shift_func($std_visual);
-            if (!empty($std_visual)) $master_id_list[] = $shift_func($std_visual);
-            if (!empty($text_only)) $master_id_list[] = $shift_func($text_only);
+            
+            while (count($master_id_list) < $total_posts) {
+                if (!empty($high_visual)) $master_id_list[] = $shift_func($high_visual);
+                if (!empty($std_visual)) $master_id_list[] = $shift_func($std_visual);
+                if (!empty($std_visual)) $master_id_list[] = $shift_func($std_visual);
+                if (!empty($text_only)) $master_id_list[] = $shift_func($text_only);
+            }
         }
         
         // Restore normal randomness for rest of WordPress
