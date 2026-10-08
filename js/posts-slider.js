@@ -66,162 +66,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             var wrapper = container.querySelector('.swiper-wrapper');
             var filterSelect = rootContainer.querySelector('select.hs-slider-grid-filter');
-            var display = rootContainer.getAttribute('data-display');
-            var paged = 1;
-
-            var slideNodes = container.querySelectorAll('.swiper-slide:not(.swiper-slide-duplicate)');
-            var slideCount = slideNodes.length;
-            var shouldLoop = slideCount > 3;
-
-            setTimeout(function() { 
-                container.classList.add('hs-swiper-loaded');
-                var loader = container.querySelector('.hs-slider-loader');
-                if (loader) loader.style.display = 'none'; 
-            }, 1000);
-
-            var hsLoadMorePosts = function(swiperInstance) {
-                if (display !== 'slider' || swiperInstance.hsIsLoading || swiperInstance.hsNoMorePosts) return;
-                
-                swiperInstance.hsIsLoading = true;
-                swiperInstance.hsCurrentPage++;
-                
-                // INJECT SKELETON CARDS
-                var skeletonHTML = '<div class="swiper-slide hs-skeleton-wrapper"><div class="hs-skeleton-card hs-slider-skeleton-card"></div></div>';
-                var tempSkeletonDiv = document.createElement('div');
-                tempSkeletonDiv.innerHTML = skeletonHTML + skeletonHTML + skeletonHTML;
-                var skeletonsArray = Array.prototype.slice.call(tempSkeletonDiv.children);
-                swiperInstance.appendSlide(skeletonsArray);
-                swiperInstance.update();
-                swiperInstance.slideNext();
-                
-                var data = new URLSearchParams();
-                data.append('action', 'hs_load_slider_posts');
-                data.append('page', swiperInstance.hsCurrentPage);
-                data.append('count', rootContainer.getAttribute('data-count') || '15');
-                
-                var dept = filterSelect ? filterSelect.value : (rootContainer.getAttribute('data-dept') || '');
-                data.append('department', dept);
-                data.append('campus', rootContainer.getAttribute('data-campus') || '');
-                data.append('enforce_context', rootContainer.getAttribute('data-enforce-context') || 'false');
-                data.append('enforce_dept_context', rootContainer.getAttribute('data-enforce-dept-context') || 'false');
-                data.append('exclude_recent_days', rootContainer.getAttribute('data-exclude-days') || '0');
-                data.append('seed', rootContainer.getAttribute('data-seed') || '');
-                data.append('ajax_cards_only', 'true');
-                data.append('display', display);
-                
-                var hs_ajaxurl = '/wp-admin/admin-ajax.php';
-                if (typeof ajaxurl !== 'undefined') hs_ajaxurl = ajaxurl;
-                
-                // ARTIFICIAL DELAY: 500ms delay so the user can visibly see the skeleton loading animation
-                setTimeout(function() {
-                    fetch(hs_ajaxurl, { method: 'POST', body: data })
-                    .then(function(res) { return res.json(); })
-                    .then(function(res) {
-                        var currentSkeletons = swiperInstance.wrapperEl.querySelectorAll('.hs-skeleton-wrapper');
-                    
-                    if (res.success && res.data.html && res.data.html.trim() !== '' && res.data.html.indexOf('No posts found') === -1) {
-                        var tempDiv = document.createElement('div');
-                        tempDiv.innerHTML = res.data.html;
-                        var slidesArray = Array.prototype.slice.call(tempDiv.children);
-                        
-                        // Bulletproof morph: replace skeletons with the first few real slides
-                        // This prevents Swiper from jumping if the user is currently staring at a skeleton on mobile
-                        var i = 0;
-                        for (; i < currentSkeletons.length; i++) {
-                            if (i < slidesArray.length) {
-                                currentSkeletons[i].className = slidesArray[i].className;
-                                currentSkeletons[i].innerHTML = slidesArray[i].innerHTML;
-                            }
-                        }
-                        
-                        // Remove any leftover skeletons (more skeletons than real slides) using Swiper API
-                        if (slidesArray.length < currentSkeletons.length) {
-                            var leftoverIndices = [];
-                            for (var k = 0; k < swiperInstance.slides.length; k++) {
-                                if (swiperInstance.slides[k].classList.contains('hs-skeleton-wrapper')) {
-                                    leftoverIndices.push(k);
-                                }
-                            }
-                            if (leftoverIndices.length > 0) {
-                                swiperInstance.removeSlide(leftoverIndices);
-                            }
-                        }
-                        
-                        // Append the rest of the slides natively
-                        var remainingSlides = slidesArray.slice(i);
-                        if (remainingSlides.length > 0) {
-                            swiperInstance.appendSlide(remainingSlides);
-                        }
-                        
-                        swiperInstance.update();
-                        hsEnforceDeptLinks();
-                        swiperInstance.hsIsLoading = false;
-                    } else {
-                        // No more posts — slide back to last real card, THEN remove skeletons
-                        var skeletonIndices = [];
-                        for (var j = 0; j < swiperInstance.slides.length; j++) {
-                            if (swiperInstance.slides[j].classList.contains('hs-skeleton-wrapper')) {
-                                skeletonIndices.push(j);
-                            }
-                        }
-                        // Slide to the last real card first (so user isn't staring at a skeleton when it vanishes)
-                        var lastRealIndex = skeletonIndices.length > 0 ? skeletonIndices[0] - 1 : swiperInstance.slides.length - 1;
-                        if (lastRealIndex >= 0) {
-                            swiperInstance.slideTo(lastRealIndex, 300);
-                        }
-                        // After the transition completes, remove the skeletons
-                        setTimeout(function() {
-                            // Re-collect indices since they may have shifted
-                            var freshIndices = [];
-                            for (var k = 0; k < swiperInstance.slides.length; k++) {
-                                if (swiperInstance.slides[k].classList.contains('hs-skeleton-wrapper')) {
-                                    freshIndices.push(k);
-                                }
-                            }
-                            if (freshIndices.length > 0) {
-                                swiperInstance.removeSlide(freshIndices);
-                            }
-                        }, 400);
-                        // No more posts! Just stop gracefully.
-                        swiperInstance.hsNoMorePosts = true;
-                        swiperInstance.hsIsLoading = false;
-                        if (swiperInstance.autoplay && swiperInstance.autoplay.running) {
-                            swiperInstance.autoplay.stop();
-                        }
-                    }
-                }).catch(function(err) {
-                    var skeletonIndices = [];
-                    for (var j = 0; j < swiperInstance.slides.length; j++) {
-                        if (swiperInstance.slides[j].classList.contains('hs-skeleton-wrapper')) {
-                            skeletonIndices.push(j);
-                        }
-                    }
-                    if (skeletonIndices.length > 0) {
-                        var lastRealIndex = skeletonIndices[0] - 1;
-                        if (lastRealIndex >= 0) {
-                            swiperInstance.slideTo(lastRealIndex, 300);
-                        }
-                        setTimeout(function() {
-                            var freshIndices = [];
-                            for (var k = 0; k < swiperInstance.slides.length; k++) {
-                                if (swiperInstance.slides[k].classList.contains('hs-skeleton-wrapper')) {
-                                    freshIndices.push(k);
-                                }
-                            }
-                            if (freshIndices.length > 0) {
-                                swiperInstance.removeSlide(freshIndices);
-                            }
-                        }, 400);
-                    }
-                    swiperInstance.hsIsLoading = false;
-                });
-                }, 500); // End setTimeout
-            };
-
-
-            try {
-                // Swiper instantiation deferred to inline script in posts-slider-shortcode.code-snippets.php
-            } catch (e) { console.error('Swiper instantiation error:', e); }
 
             // CLIENT-SIDE DEPARTMENT CONTEXT ENFORCEMENT
             // Stamps ?hs_dept= onto card links for department-specific sliders.
@@ -238,10 +82,179 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             hsEnforceDeptLinks(); // Run on initial load
 
+            // Cards added later (lazy loading, department reload) are stamped at the moment they are used.
+            // pointerdown/focusin fire before navigation, so this also covers middle-click / open in new tab.
+            if (!rootContainer.dataset.hsDeptStamp) {
+                rootContainer.dataset.hsDeptStamp = 'true';
+                var hsStampOnUse = function(e) {
+                    var card = e.target.closest ? e.target.closest('a.hs-story-card') : null;
+                    if (card) hsEnforceDeptLinks();
+                };
+                rootContainer.addEventListener('pointerdown', hsStampOnUse, true);
+                rootContainer.addEventListener('focusin', hsStampOnUse, true);
+                rootContainer.addEventListener('click', hsStampOnUse, true);
+            }
+
             // CACHE-PROOF DEPARTMENT CONTEXT RELOAD
             // If the URL has ?hs_dept= but the server-rendered slider doesn't match
             // (because a page cache served stale HTML), force an AJAX reload with the correct department.
+            var urlDept = new URLSearchParams(window.location.search).get('hs_dept');
+            if (urlDept && !filterSelect && hsDeptSlug !== urlDept) {
+                rootContainer.setAttribute('data-dept', urlDept); // lazy loads read this, so they follow the new department
+                hsDeptSlug = urlDept; // Update for hsEnforceDeptLinks
+
+                var reloadLoader = container.querySelector('.hs-slider-loader');
+                if (reloadLoader) reloadLoader.style.display = 'flex';
+
+                var reloadData = new URLSearchParams();
+                reloadData.append('action', 'hs_load_slider_posts');
+                reloadData.append('department', urlDept);
+                reloadData.append('campus', rootContainer.getAttribute('data-campus') || '');
+                reloadData.append('enforce_context', rootContainer.getAttribute('data-enforce-context') || 'false');
+                reloadData.append('exclude_recent_days', rootContainer.getAttribute('data-exclude-days') || '0');
+                reloadData.append('count', rootContainer.getAttribute('data-count') || '15');
+                reloadData.append('seed', rootContainer.getAttribute('data-seed') || '');
+                reloadData.append('ajax_cards_only', 'true');
+                reloadData.append('display', display);
+
+                var reloadUrl = '/wp-admin/admin-ajax.php';
+                if (typeof ajaxurl !== 'undefined') reloadUrl = ajaxurl;
+
+                fetch(reloadUrl, { method: 'POST', body: reloadData })
+                .then(function(res) { return res.json(); })
+                .then(function(res) {
+                    if (!res.success || !wrapper) {
+                        if (reloadLoader) reloadLoader.style.display = 'none';
+                        return;
+                    }
+                    // The inline script (posts-slider-shortcode) builds the slider ~0.5s after load.
+                    // Wait for that first build, then rebuild it with the correct department's cards.
+                    var tries = 0;
+                    var swapIn = function() {
+                        if (!container.hsSwiperInstance && tries < 50) { tries++; setTimeout(swapIn, 100); return; }
+                        if (container.hsSwiperInstance) {
+                            container.hsSwiperInstance.destroy(true, true);
+                            container.hsSwiperInstance = null;
+                        }
+                        container.className = (display === 'grid' ? 'hs-post-grid swiper ' : 'swiper ') + 'hsPostSliderInit-' + sliderId;
+                        wrapper.className = 'swiper-wrapper';
+                        wrapper.removeAttribute('style');
+                        wrapper.innerHTML = res.data.html; // includes .hs-ajax-meta, read by the inline init
+                        hsEnforceDeptLinks();
+                        var initFn = window['init_hs_slider_' + sliderId];
+                        if (typeof initFn === 'function') initFn();
+                    };
+                    swapIn();
+                }).catch(function(err) {
+                    console.error('Department reload error:', err);
+                    if (reloadLoader) reloadLoader.style.display = 'none';
+                });
+            }
         });
     }
     initHeadstartSliders();
+
+    // Divi Builder preview: sliders are re-rendered by AJAX, so attach arrow handling to the new markup
+    if (typeof jQuery !== 'undefined' && typeof jQuery(document).ajaxComplete === 'function') {
+        jQuery(document).ajaxComplete(function(event, xhr, settings) {
+            if (settings.data && typeof settings.data === 'string' && settings.data.indexOf('et_pb_get_shortcode_preview') !== -1) {
+                setTimeout(initHeadstartSliders, 500);
+            }
+        });
+    }
 });
+
+// ==========================================
+// [BESPOKE] PARENT FITNESS MODAL LOGIC
+// ==========================================
+window.currentFitnessCampus = window.currentFitnessCampus || 'chaofah';
+
+window.setFitnessCampus = function(campus) {
+    window.currentFitnessCampus = campus;
+
+    // Update Tab Button States (Widget)
+    const fitTabChaofah = document.getElementById('hs-fit-tab-chaofah');
+    const fitTabCherngtalay = document.getElementById('hs-fit-tab-cherngtalay');
+    if (fitTabChaofah) fitTabChaofah.classList.toggle('active', window.currentFitnessCampus === 'chaofah');
+    if (fitTabCherngtalay) fitTabCherngtalay.classList.toggle('active', window.currentFitnessCampus === 'cherngtalay');
+    
+    // Update Tab Button States (Modal)
+    const fitModalTabChaofah = document.getElementById('hs-fit-modal-tab-chaofah');
+    const fitModalTabCherngtalay = document.getElementById('hs-fit-modal-tab-cherngtalay');
+    if (fitModalTabChaofah) fitModalTabChaofah.classList.toggle('active', window.currentFitnessCampus === 'chaofah');
+    if (fitModalTabCherngtalay) fitModalTabCherngtalay.classList.toggle('active', window.currentFitnessCampus === 'cherngtalay');
+
+    // Toggle Widget Elements
+    const avatarsChaofah = document.getElementById('hs-fitness-avatars-chaofah');
+    const avatarsCherngtalay = document.getElementById('hs-fitness-avatars-cherngtalay');
+    if (avatarsChaofah) avatarsChaofah.style.display = (window.currentFitnessCampus === 'chaofah') ? 'flex' : 'none';
+    if (avatarsCherngtalay) avatarsCherngtalay.style.display = (window.currentFitnessCampus === 'chaofah') ? 'none' : 'flex';
+    
+    const scheduleChaofah = document.getElementById('hs-fitness-schedule-chaofah');
+    const scheduleCherngtalay = document.getElementById('hs-fitness-schedule-cherngtalay');
+    if (scheduleChaofah) scheduleChaofah.style.display = (window.currentFitnessCampus === 'chaofah') ? 'block' : 'none';
+    if (scheduleCherngtalay) scheduleCherngtalay.style.display = (window.currentFitnessCampus === 'chaofah') ? 'none' : 'block';
+
+    // Toggle Modal Elements
+    const heroChaofah = document.getElementById('hs-fitness-hero-chaofah');
+    const heroCherngtalay = document.getElementById('hs-fitness-hero-cherngtalay');
+    if (heroChaofah) heroChaofah.style.display = (window.currentFitnessCampus === 'chaofah') ? 'block' : 'none';
+    if (heroCherngtalay) heroCherngtalay.style.display = (window.currentFitnessCampus === 'chaofah') ? 'none' : 'block';
+
+    const timeChaofah = document.getElementById('hs-fitness-timetable-chaofah');
+    const timeCherngtalay = document.getElementById('hs-fitness-timetable-cherngtalay');
+    if (timeChaofah) timeChaofah.style.display = (window.currentFitnessCampus === 'chaofah') ? 'block' : 'none';
+    if (timeCherngtalay) timeCherngtalay.style.display = (window.currentFitnessCampus === 'chaofah') ? 'none' : 'block';
+};
+
+window.openFitnessModal = function() {
+    const modal = document.getElementById('hs-fitness-modal');
+    const container = document.getElementById('hs-fitness-modal-container');
+    if(!modal || !container) return;
+    
+    // Move modal to body to escape Divi's z-index trapping
+    if (modal.parentNode !== document.body) {
+        document.body.appendChild(modal);
+    }
+    
+    modal.style.display = 'flex';
+    void modal.offsetWidth;
+    
+    setTimeout(() => {
+        container.classList.add('is-active');
+    }, 10);
+};
+
+window.closeFitnessModal = function() {
+    const modal = document.getElementById('hs-fitness-modal');
+    const container = document.getElementById('hs-fitness-modal-container');
+    if(!modal || !container) return;
+    
+    container.classList.remove('is-active');
+    
+    setTimeout(() => {
+        modal.style.display = 'none';
+    }, 300);
+};
+
+// ==========================================
+// EVENTS CALENDAR SIDEBAR CAMPUS TOGGLE
+// ==========================================
+window.hsToggleEventsCampus = function() {
+    const wrapper = document.getElementById('hs-events-sidebar-wrapper');
+    const chip = document.getElementById('hs-events-campus-chip');
+    if (!wrapper || !chip) return;
+    
+    let currentCampus = wrapper.getAttribute('data-active-campus');
+    
+    if (currentCampus === 'chaofah') {
+        currentCampus = 'cherngtalay';
+    } else if (currentCampus === 'cherngtalay') {
+        currentCampus = 'chaofah';
+    } else {
+        currentCampus = 'chaofah';
+    }
+    
+    wrapper.setAttribute('data-active-campus', currentCampus);
+    chip.innerText = currentCampus.toUpperCase();
+};

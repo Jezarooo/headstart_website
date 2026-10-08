@@ -27,6 +27,7 @@ function hs_render_post_slider_shortcode($atts) {
         'exclude_recent_days' => '0', // e.g. 14 to exclude posts from last 14 days
         'enforce_context'=> 'false',  // 'true' to append ?hs_campus to all post links
         'ajax_cards_only'=> 'false',  // bypass HTML wrapper
+        'orderby'        => 'random', // 'random' or 'latest'
     ), $atts);
 
     // 1.5 Handle Dynamic $_GET Filtering
@@ -76,6 +77,11 @@ function hs_render_post_slider_shortcode($atts) {
             }
         }
     }
+    
+    // If user explicitly passed campus="all", clear it so it doesn't filter by campus
+    if (strtolower($args['campus']) === 'all') {
+        $args['campus'] = '';
+    }
 
     $is_all_posts_mode = empty($args['department']);
     $is_dept_only_mode = !empty($args['department']) && empty($args['campus']);
@@ -105,13 +111,14 @@ function hs_render_post_slider_shortcode($atts) {
     }
     
     // HTML Cache Key (caches the final rendered HTML per page)
-    $html_transient_key = 'hs_slhtml51_' . md5(json_encode($args) . $active_filter . $paged . $seed);
+    $html_transient_key = 'hs_slhtml54_' . md5(json_encode($args) . $active_filter . $paged . $seed);
     
     $cached_html = get_transient($html_transient_key);
     if ($cached_html !== false && empty($active_filter)) {
         $slider_instance_id = 'hspostslider' . uniqid();
         return str_replace('%%HS_SLIDER_ID_PLACEHOLDER%%', $slider_instance_id, $cached_html);
     }
+
     
     // Master List Cache Key (caches the full shuffled array of ~1000 IDs)
     $list_transient_key = 'hs_sllist33_' . md5(json_encode($args) . $active_filter . $seed);
@@ -202,82 +209,93 @@ function hs_render_post_slider_shortcode($atts) {
             }
         }
         
-        // 4. Seeded Shuffle (Ensures stability for cache, but deep randomness for exploration)
-        mt_srand($seed);
-        $seeded_shuffle = function(&$items) {
-            for ($i = count($items) - 1; $i > 0; $i--) {
-                $j = mt_rand(0, $i);
-                $tmp = $items[$i];
-                $items[$i] = $items[$j];
-                $items[$j] = $tmp;
-            }
-        };
+        // 4. Handle Ordering (Random Seeded vs Latest)
+        if ($args['orderby'] === 'random') {
+            mt_srand($seed);
+            $seeded_shuffle = function(&$items) {
+                for ($i = count($items) - 1; $i > 0; $i--) {
+                    $j = mt_rand(0, $i);
+                    $tmp = $items[$i];
+                    $items[$i] = $items[$j];
+                    $items[$j] = $tmp;
+                }
+            };
+            
+            $seeded_shuffle($high_visual);
+            $seeded_shuffle($std_visual);
+            $seeded_shuffle($text_only);
+            mt_srand();
+        }
         
-        $seeded_shuffle($high_visual);
-        $seeded_shuffle($std_visual);
-        $seeded_shuffle($text_only);
-        
-        // 5. The Weighted Weave with Smart Taxonomy Diversity
+        // 5. The Weighted Weave
         $master_id_list = array();
         $total_posts = count($high_visual) + count($std_visual) + count($text_only);
         
-        // BATCH OPTIMIZATION: Cache all terms at once for maximum performance (1 DB query)
-        update_object_term_cache($deep_query->posts, 'post');
-        
-        // Build a fast lookup map for taxonomies: $tax_map[post_id] = "deptSlug_campusSlug"
-        $tax_map = array();
-        foreach ($deep_query->posts as $pid) {
-            $dept_terms = get_the_terms($pid, 'hs_department');
-            $campus_terms = get_the_terms($pid, 'hs_post_campus');
-            $d = ($dept_terms && !is_wp_error($dept_terms) && !empty($dept_terms)) ? $dept_terms[0]->slug : 'none';
-            $c = ($campus_terms && !is_wp_error($campus_terms) && !empty($campus_terms)) ? $campus_terms[0]->slug : 'none';
-            $tax_map[$pid] = $d . '_' . $c;
-        }
-        
-        $last_dept = '';
-        $last_campus = '';
-        
-        // Helper to intelligently pull the next post from a visual bucket
-        $smart_shift = function(&$bucket) use (&$last_dept, &$last_campus, &$tax_map) {
-            if (empty($bucket)) return null;
+        if ($args['orderby'] === 'random') {
+            // BATCH OPTIMIZATION: Cache all terms at once for maximum performance (1 DB query)
+            update_object_term_cache($deep_query->posts, 'post');
             
-            $chosen_idx = 0; // Fallback to first available if constraints fail
-            
-            // Try Strict Constraint: Different Dept AND Different Campus
-            foreach ($bucket as $idx => $pid) {
-                $parts = explode('_', $tax_map[$pid], 2);
-                if ($parts[0] !== $last_dept && $parts[1] !== $last_campus) {
-                    $chosen_idx = $idx;
-                    break;
-                }
+            // Build a fast lookup map for taxonomies: $tax_map[post_id] = "deptSlug_campusSlug"
+            $tax_map = array();
+            foreach ($deep_query->posts as $pid) {
+                $dept_terms = get_the_terms($pid, 'hs_department');
+                $campus_terms = get_the_terms($pid, 'hs_post_campus');
+                $d = ($dept_terms && !is_wp_error($dept_terms) && !empty($dept_terms)) ? $dept_terms[0]->slug : 'none';
+                $c = ($campus_terms && !is_wp_error($campus_terms) && !empty($campus_terms)) ? $campus_terms[0]->slug : 'none';
+                $tax_map[$pid] = $d . '_' . $c;
             }
             
-            // Try Relaxed Constraint: Different Dept OR Different Campus
-            if ($chosen_idx === 0 && !empty($last_dept)) {
+            $last_dept = '';
+            $last_campus = '';
+            
+            // Helper to intelligently pull the next post from a visual bucket (for randomized layout)
+            $shift_func = function(&$bucket) use (&$last_dept, &$last_campus, &$tax_map) {
+                if (empty($bucket)) return null;
+                
+                $chosen_idx = 0; // Fallback to first available if constraints fail
+                
+                // Try Strict Constraint: Different Dept AND Different Campus
                 foreach ($bucket as $idx => $pid) {
                     $parts = explode('_', $tax_map[$pid], 2);
-                    if ($parts[0] !== $last_dept || $parts[1] !== $last_campus) {
+                    if ($parts[0] !== $last_dept && $parts[1] !== $last_campus) {
                         $chosen_idx = $idx;
                         break;
                     }
                 }
-            }
-            
-            $pid = $bucket[$chosen_idx];
-            array_splice($bucket, $chosen_idx, 1);
-            
-            $parts = explode('_', $tax_map[$pid], 2);
-            $last_dept = $parts[0];
-            $last_campus = $parts[1];
-            
-            return $pid;
-        };
+                
+                // Try Relaxed Constraint: Different Dept OR Different Campus
+                if ($chosen_idx === 0 && !empty($last_dept)) {
+                    foreach ($bucket as $idx => $pid) {
+                        $parts = explode('_', $tax_map[$pid], 2);
+                        if ($parts[0] !== $last_dept || $parts[1] !== $last_campus) {
+                            $chosen_idx = $idx;
+                            break;
+                        }
+                    }
+                }
+                
+                $pid = $bucket[$chosen_idx];
+                array_splice($bucket, $chosen_idx, 1);
+                
+                $parts = explode('_', $tax_map[$pid], 2);
+                $last_dept = $parts[0];
+                $last_campus = $parts[1];
+                
+                return $pid;
+            };
+        } else {
+            // For 'latest' ordering, just take the next newest post from the bucket without mixing logic
+            $shift_func = function(&$bucket) {
+                if (empty($bucket)) return null;
+                return array_shift($bucket);
+            };
+        }
         
         while (count($master_id_list) < $total_posts) {
-            if (!empty($high_visual)) $master_id_list[] = $smart_shift($high_visual);
-            if (!empty($std_visual)) $master_id_list[] = $smart_shift($std_visual);
-            if (!empty($std_visual)) $master_id_list[] = $smart_shift($std_visual);
-            if (!empty($text_only)) $master_id_list[] = $smart_shift($text_only);
+            if (!empty($high_visual)) $master_id_list[] = $shift_func($high_visual);
+            if (!empty($std_visual)) $master_id_list[] = $shift_func($std_visual);
+            if (!empty($std_visual)) $master_id_list[] = $shift_func($std_visual);
+            if (!empty($text_only)) $master_id_list[] = $shift_func($text_only);
         }
         
         // Restore normal randomness for rest of WordPress
@@ -648,14 +666,15 @@ function hs_render_post_slider_shortcode($atts) {
                                         swiper.params.loop = true;
                                         swiper.loopCreate();
                                         swiper.update();
-                                        swiper.slideToLoop(parseInt(activeEl.getAttribute('data-swiper-slide-index'), 10), 0, false);
+                                        swiper.slideToLoop(parseInt(activeEl.getAttribute('data-swiper-slide-index'), 10), 0, false, true); // internal: keeps autoplay running
                                         hsSilent = false;
                                         return;
                                     }
                                 }
                                 // Too few cards to loop: on mobile start on card 2 so a card fills the left edge
                                 if (swiper.params.centeredSlides) {
-                                    if (n > 1) { if (swiper.activeIndex === 0) { swiper.slideTo(1, 0, false); } }
+                                    // slideTo(..., internal = true) so autoplay keeps running
+                                    if (n > 1) { if (swiper.activeIndex === 0) { swiper.slideTo(1, 0, false, true); } }
                                 }
                             }
                             function hsAfterLoad(dir) {
