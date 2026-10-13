@@ -1,0 +1,32 @@
+# HeadStart repo tracks ONLY bespoke code + workflow. Everything else is ignored by default.
+/*
+!/.gitignore
+!/.claude/
+!/CLAUDE.md
+!/README.md
+!/DEPLOY-LOG.md
+!/docs/
+!/tools/
+!/work/
+!/Site-Scripts/
+
+# The local WordPress install: only our mu-plugins are tracked.
+!/app/
+/app/*
+!/app/public/
+/app/public/*
+!/app/public/wp-content/
+/app/public/wp-content/*
+!/app/public/wp-content/mu-plugins/
+/app/public/wp-content/mu-plugins/*
+!/app/public/wp-content/mu-plugins/headstart-*.php
+
+# Site-Scripts: raw drops and big archives stay out.
+/Site-Scripts/Latest-Drop/*
+!/Site-Scripts/Latest-Drop/.gitkeep
+/Site-Scripts/archive/
+
+# Per-machine / junk
+.claude/settings.local.json
+.DS_Store
+__MACOSX/

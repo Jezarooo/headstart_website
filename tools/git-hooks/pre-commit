@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# HeadStart workflow gate — runs on every commit, from any tool (Claude, terminal, GUI).
+set -eu
+ROOT=$(git rev-parse --show-toplevel); cd "$ROOT"
+. "$ROOT/tools/lib.sh"
+
+branch=$(hs_branch)
+staged=$(git diff --cached --name-status --no-renames)
+[ -n "$staged" ] || exit 0
+fail=0
+err() { printf '✖ %s\n' "$*" >&2; fail=1; }
+
+# 1. Live backups are immutable: new files only.
+bad=$(printf '%s\n' "$staged" | awk -F'\t' '$1!="A"{print $2}' | grep -E "$HS_BACKUP_RE" || true)
+[ -n "$bad" ] && err "Live backups are read-only — these commits would change/delete existing backup files:
+$(echo "$bad" | sed 's/^/    /')"
+
+# 2. main only changes through tools/hs (snapshot, finish, deployed).
+if [ "$branch" = main ] && [ "${HS_ALLOW_MAIN:-}" != 1 ]; then
+  err "Direct commits to main are blocked. Open a task: tools/hs start feat <slug> \"Title\""
+fi
+
+# 3. Code changes need an approved plan on a task branch.
+code=$(printf '%s\n' "$staged" | awk -F'\t' '{print $2}' | grep -E "$HS_CODE_RE" || true)
+if [ -n "$code" ] && [ "$branch" != main ]; then
+  if ! echo "$branch" | grep -Eq "$HS_BRANCH_RE"; then
+    err "Code changes must be committed on a feat/<slug> or fix/<slug> branch (on: $branch)."
+  elif ! hs_approved; then
+    err "Plan for $branch is not approved (or work/$(hs_slug)/plan.md changed since approval). Code commits stay blocked until the user approves it."
+  fi
+fi
+
+# 4. Approval / UAT / deploy records are committed on their own (tools/hs does this; hand edits get mixed in).
+prot=$(printf '%s\n' "$staged" | awk -F'\t' '{print $2}' | grep -E "$HS_PROTECTED_RE" || true)
+if [ -n "$prot" ]; then
+  others=$(printf '%s\n' "$staged" | awk -F'\t' '{print $2}' | grep -Ev "$HS_PROTECTED_RE|^work/[^/]+/plan\.md$" || true)
+  [ -n "$others" ] && err "Approval/UAT/deploy records must be committed on their own by tools/hs, not mixed with other changes."
+fi
+
+# 5. Hygiene.
+junk=$(printf '%s\n' "$staged" | awk -F'\t' '$1!="D"{print $2}' | grep -E '(^|/)\.DS_Store$|(^|/)__MACOSX/' || true)
+[ -n "$junk" ] && err "Remove macOS junk from the commit: $junk"
+for f in $(printf '%s\n' "$staged" | awk -F'\t' '$1!="D"{print $2}'); do
+  sz=$(git cat-file -s ":$f" 2>/dev/null || echo 0)
+  [ "$sz" -gt 5242880 ] && err "$f is over 5 MB — keep big binaries out of git."
+done
+
+# 6. Lint staged PHP / JS in the code paths (staged content, not the working copy).
+php=$(hs_find_php); missing=""
+tmpd=$(mktemp -d 2>/dev/null || mktemp -d -t hs)
+for f in $(printf '%s\n' "$staged" | awk -F'\t' '$1!="D"{print $2}' | grep -E "$HS_CODE_RE" || true); do
+  case "$f" in
+    *.php)
+      sha=$(git rev-parse ":$f")
+      hs_has_receipt "$sha" && continue
+      if [ -n "$php" ]; then
+        git show ":$f" > "$tmpd/lint.php"
+        if hs_lint_php "$php" "$tmpd/lint.php" "$f"; then hs_add_receipt "$sha" "$f" "pre-commit"; else fail=1; fi
+      else missing="$missing $f"; fi ;;
+    *.js)
+      if command -v node >/dev/null 2>&1; then
+        git show ":$f" > "$tmpd/lint.js"
+        node --check "$tmpd/lint.js" 2>"$tmpd/err" || { sed "s#$tmpd/lint.js#$f#g" "$tmpd/err" >&2; fail=1; }
+      fi ;;
+  esac
+done
+rm -rf "$tmpd"
+[ -n "$missing" ] && err "No PHP on this machine and no lint receipt for:$missing
+    Lint them with php -l elsewhere, then: HS_EXTERNAL_LINT=\"<php version/where>\" tools/hs receipt$missing"
+
+if [ $fail -ne 0 ]; then
+  printf '\nCommit blocked by HeadStart workflow (tools/git-hooks/pre-commit). Run tools/hs status.\n\n' >&2
+  exit 1
+fi
+exit 0

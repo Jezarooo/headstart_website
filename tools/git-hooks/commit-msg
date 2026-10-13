@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Conventional commit subjects, so history reads cleanly: type(scope): message
+set -eu
+subject=$(grep -v '^#' "$1" | head -1)
+if echo "$subject" | grep -Eq '^(Merge |Revert )'; then exit 0; fi
+if ! echo "$subject" | grep -Eq '^(feat|fix|chore|docs|refactor|test|style|perf|plan|handover|snapshot|deploy)(\([a-z0-9._/-]+\))?!?: .{3,}'; then
+  cat >&2 <<EOF
+
+✖ Commit message must look like:  type(scope): what changed
+  types: feat fix chore docs refactor test style perf plan handover snapshot deploy
+  e.g.   fix(weekly-update-routing): handle %weekly_update% placeholder in sample permalinks
+  got:   $subject
+
+EOF
+  exit 1
+fi
+exit 0

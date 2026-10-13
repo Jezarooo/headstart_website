@@ -1,0 +1,390 @@
+#!/usr/bin/env bash
+# hs — HeadStart workflow CLI. Every key action (start, approve, commit, handover, merge,
+# snapshot, deploy log) goes through here so it happens the same way every time.
+# Run `tools/hs help`. Compatible with macOS bash 3.2.
+set -eu
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "hs: run inside the HeadStart repo" >&2; exit 1; }
+cd "$ROOT"
+. "$ROOT/tools/lib.sh"
+TPL="$ROOT/tools/templates"
+
+usage() { cat <<'EOF'
+HeadStart workflow — tools/hs <command>
+
+  Gate 1  snapshot                 Turn Site-Scripts/Latest-Drop/ into a dated read-only live backup (on main)
+          drift                    Compare working files with the newest live backup
+  Gate 2  start <feat|fix> <slug> ["Title"]   Open a task branch + work/<slug>/plan.md
+          approve --via "<how>"    USER ONLY. Record approval of the current plan.md
+  Gate 3  save -m "<type>(<scope>): <msg>" [-m ...]   Stage everything and commit (hooks enforce rules)
+  Gate 4  lint [files...]          Lint changed PHP/JS (records receipts)
+          receipt <files...>       Record externally-linted PHP (needs HS_EXTERNAL_LINT="<how>")
+  Gate 5  uat --via "<how>"        USER ONLY. Record that UAT passed (or wasn't needed, and why)
+  Gate 6  handover                 Build Site-Scripts/handover/<slug>-<date>/ (run twice: scaffold, then zip)
+          finish                   Merge the task into main and tag it
+  Gate 7  deployed <slug> [--note "..."]   Log a confirmed live deploy (on main) and tag it
+          status [--brief]         Where are we?
+          setup                    One-time: install git hooks + repo settings
+EOF
+}
+
+need_task() {
+  hs_branch | grep -Eq "$HS_BRANCH_RE" || hs_die "No task open (on '$(hs_branch)'). Start one: tools/hs start feat <slug> \"Title\""
+  [ -f "$(hs_workdir)/plan.md" ] || hs_die "Missing $(hs_workdir)/plan.md"
+}
+need_main()  { [ "$(hs_branch)" = main ] || hs_die "This runs on main (you are on $(hs_branch))."; }
+need_clean() { hs_clean || { git status --short | head -20 >&2; hs_die "Working tree not clean. Commit first: tools/hs save -m \"...\""; }; }
+
+changed_code() { # files changed on this task vs main (committed + uncommitted), existing only
+  { git diff --name-only --diff-filter=AMR main...HEAD 2>/dev/null; git diff --name-only --diff-filter=AMR HEAD; git ls-files -o --exclude-standard; } \
+    | grep -E "$HS_CODE_RE" | sort -u | while read -r f; do [ -f "$f" ] && echo "$f"; done
+}
+deleted_code() { git diff --name-only --diff-filter=D main...HEAD 2>/dev/null | grep -E "$HS_CODE_RE" || true; }
+
+gate_name() {
+  local wd; wd=$(hs_workdir)
+  if [ "$(hs_branch)" = main ]; then echo "IDLE — no task open"; return; fi
+  [ -n "$wd" ] && [ -f "$wd/plan.md" ] || { echo "UNKNOWN — not a task branch"; return; }
+  if ! hs_approved; then
+    if [ -f "$wd/APPROVAL" ]; then echo "PLANNING — plan.md changed since approval; needs re-approval"
+    else echo "PLANNING — write plan.md, then get the user's approval"; fi; return
+  fi
+  [ -f "$wd/UAT" ] || { echo "EXECUTING — approved; build, lint, then UAT"; return; }
+  [ -f "$wd/HANDOVER" ] || { echo "HANDOVER — UAT passed; run tools/hs handover"; return; }
+  echo "READY — run tools/hs finish"
+}
+
+cmd_status() {
+  local brief=${1:-}
+  echo "HeadStart workflow status"
+  hs_info "Branch : $(hs_branch)"
+  hs_info "Gate   : $(gate_name)"
+  local n; n=$(git status --porcelain | wc -l | tr -d ' ')
+  hs_info "Uncommitted files: $n"
+  local b; b=$(hs_newest_backup)
+  hs_info "Newest live backup: ${b:-none}"
+  [ "$brief" = --brief ] && return 0
+  local php; php=$(hs_find_php)
+  hs_info "PHP linter: ${php:-none here (lint externally + tools/hs receipt)}"
+  hs_info "Git hooks: $(git config core.hooksPath || echo NOT INSTALLED — run tools/hs setup)"
+  local open; open=$(git branch --list 'feat/*' 'fix/*' | sed 's/^[* ] //' | tr '\n' ' ')
+  hs_info "Open task branches: ${open:-none}"
+  if [ "$(hs_branch)" != main ] && [ -n "$(hs_slug)" ]; then
+    hs_info "Changed code on this task:"; changed_code | sed 's/^/      /'
+  fi
+}
+
+cmd_setup() {
+  chmod +x tools/hs tools/git-hooks/* 2>/dev/null || true
+  git config core.hooksPath tools/git-hooks
+  git config core.fileMode false
+  git config branch.main.mergeoptions --no-ff
+  mkdir -p Site-Scripts/Latest-Drop work; touch Site-Scripts/Latest-Drop/.gitkeep
+  hs_ok "Git hooks installed (core.hooksPath=tools/git-hooks), fileMode off, main merges are --no-ff"
+}
+
+cmd_start() {
+  local type=${1:-} slug=${2:-} title=${3:-}
+  case "$type" in feat|fix) ;; *) hs_die "Usage: tools/hs start <feat|fix> <slug> [\"Title\"]";; esac
+  echo "$type/$slug" | grep -Eq "$HS_BRANCH_RE" || hs_die "Slug must be lowercase letters, digits and hyphens."
+  need_main; need_clean
+  git rev-parse -q --verify "refs/heads/$type/$slug" >/dev/null && hs_die "Branch $type/$slug already exists."
+  local b; b=$(hs_newest_backup)
+  if [ -z "$b" ]; then hs_warn "No live backup exists. Gate 1: drop live exports in Site-Scripts/Latest-Drop/ and run tools/hs snapshot."
+  else
+    local d age; d=$(echo "${b##*live-site-backups-}" | cut -c1-10)
+    age=$(( ( $(date +%s) - $(date -j -f %Y-%m-%d "$d" +%s 2>/dev/null || date -d "$d" +%s) ) / 86400 ))
+    [ "$age" -gt "$HS_STALE_DAYS" ] && hs_warn "Newest live backup is $age days old ($b). Gate 1: ask the user for a fresh export before planning."
+  fi
+  [ -n "$title" ] || title=$slug
+  git checkout -q -b "$type/$slug"
+  mkdir -p "work/$slug"
+  TITLE="$title" SLUG="$slug" TYPE="$type" DATE="$(hs_today)" BASELINE="${b:-NONE — snapshot needed}" \
+    awk '{gsub(/\{\{TITLE\}\}/,ENVIRON["TITLE"]);gsub(/\{\{SLUG\}\}/,ENVIRON["SLUG"]);gsub(/\{\{TYPE\}\}/,ENVIRON["TYPE"]);gsub(/\{\{DATE\}\}/,ENVIRON["DATE"]);gsub(/\{\{BASELINE\}\}/,ENVIRON["BASELINE"]);print}' \
+    "$TPL/plan.md" > "work/$slug/plan.md"
+  git add "work/$slug/plan.md"
+  git commit -q -m "plan($slug): open task — $title"
+  hs_ok "Opened $type/$slug. Next: fill work/$slug/plan.md (no TODO: left), commit it, then ask the user to approve."
+}
+
+cmd_approve() {
+  local via=""
+  [ "${1:-}" = --via ] && via=${2:-}
+  [ -n "$via" ] || hs_die "Usage: tools/hs approve --via \"<how the user approved, quoting them>\""
+  need_task
+  local wd; wd=$(hs_workdir)
+  grep -q 'TODO:' "$wd/plan.md" && hs_die "$wd/plan.md still has TODO: markers. Finish the plan before approval."
+  git diff --quiet HEAD -- "$wd/plan.md" 2>/dev/null || git add "$wd/plan.md"
+  { echo "plan_sha256: $(hs_sha "$wd/plan.md")"
+    echo "approved_at: $(hs_now)"
+    echo "approved_by: $(git config user.name)"
+    echo "via: $via"; } > "$wd/APPROVAL"
+  git add "$wd/APPROVAL" "$wd/plan.md"
+  git commit -q -m "plan($(hs_slug)): approved" -m "Via: $via"
+  hs_ok "Plan approved and recorded. Code commits are now unlocked for $(hs_branch)."
+}
+
+cmd_save() {
+  [ $# -gt 0 ] || hs_die "Usage: tools/hs save -m \"<type>(<scope>): <message>\" [-m \"body\"]"
+  git add -A
+  git diff --cached --quiet && { hs_info "Nothing to commit."; return 0; }
+  git commit -q "$@"
+  hs_ok "Committed: $(git log -1 --format=%s)"
+}
+
+cmd_lint() {
+  local files php fail=0 js=0
+  if [ $# -gt 0 ]; then files=$(printf '%s\n' "$@"); else files=$(changed_code); fi
+  [ -n "$files" ] || { hs_info "No changed code files to lint."; return 0; }
+  php=$(hs_find_php)
+  local missing=""
+  for f in $files; do
+    case "$f" in
+      *.php)
+        if [ -z "$php" ]; then
+          hs_has_receipt "$(git hash-object "$f")" && hs_ok "$f (receipt)" || missing="$missing $f"
+        elif hs_lint_php "$php" "$f" "$f"; then
+          hs_add_receipt "$(git hash-object "$f")" "$f" "hs lint ($("$php" -r 'echo PHP_VERSION;'))"; hs_ok "$f"
+        else fail=1; fi ;;
+      *.js)
+        if command -v node >/dev/null 2>&1; then
+          if node --check "$f" 2>/tmp/hs-js-err.$$; then hs_ok "$f"; else cat /tmp/hs-js-err.$$ >&2; fail=1; fi
+          rm -f /tmp/hs-js-err.$$
+        else hs_warn "$f not checked (no node here)"; fi ;;
+    esac
+  done
+  if [ -n "$missing" ]; then
+    hs_warn "No PHP on this machine. Lint these elsewhere (php -l), then record:"
+    hs_info "HS_EXTERNAL_LINT=\"<php version / where>\" tools/hs receipt$missing"
+    fail=1
+  fi
+  [ $fail -eq 0 ] && hs_ok "Lint passed." || hs_die "Lint failed."
+}
+
+cmd_receipt() {
+  [ -n "${HS_EXTERNAL_LINT:-}" ] || hs_die "Set HS_EXTERNAL_LINT=\"<php version / where it was linted>\" — only after a real php -l pass."
+  [ $# -gt 0 ] || hs_die "Usage: HS_EXTERNAL_LINT=\"...\" tools/hs receipt <file.php...>"
+  local f; for f in "$@"; do
+    [ -f "$f" ] || hs_die "No such file: $f"
+    hs_add_receipt "$(git hash-object "$f")" "$f" "external: $HS_EXTERNAL_LINT"; hs_ok "receipt: $f"
+  done
+}
+
+cmd_uat() {
+  local via=""
+  [ "${1:-}" = --via ] && via=${2:-}
+  [ -n "$via" ] || hs_die "Usage: tools/hs uat --via \"<the user's confirmation, or why UAT wasn't needed>\""
+  need_task; hs_approved || hs_die "Plan not approved — nothing to UAT."
+  local wd; wd=$(hs_workdir)
+  { echo "uat_passed_at: $(hs_now)"; echo "head: $(git rev-parse --short HEAD)"; echo "via: $via"; } > "$wd/UAT"
+  git add "$wd/UAT"; git commit -q -m "test($(hs_slug)): UAT passed" -m "Via: $via"
+  hs_ok "UAT recorded."
+}
+
+handover_subpath() { # repo path -> path inside the package
+  case "$1" in
+    Site-Scripts/*) echo "${1#Site-Scripts/}" ;;
+    app/public/wp-content/mu-plugins/*) echo "mu-plugins/${1#app/public/wp-content/mu-plugins/}" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+cmd_handover() {
+  need_task; hs_approved || hs_die "Plan not approved."
+  local wd slug dir name files
+  wd=$(hs_workdir); slug=$(hs_slug)
+  [ -f "$wd/UAT" ] || hs_die "UAT not recorded yet (Gate 5). The user confirms, then: tools/hs uat --via \"...\""
+  if git status --porcelain | awk '{print $NF}' | grep -Eq "$HS_CODE_RE"; then
+    git status --short | grep -E " (Site-Scripts/(php|js|css)/|app/)" >&2
+    hs_die "Uncommitted code changes. What ships must be committed: tools/hs save -m \"...\""
+  fi
+  files=$(changed_code)
+  [ -n "$files" ] || hs_die "No code changes on this task vs main."
+  cmd_lint $files >/dev/null || hs_die "Lint must pass before handover (tools/hs lint)."
+  if [ -f "$wd/HANDOVER" ]; then dir=$(sed -n 's/^dir: //p' "$wd/HANDOVER")
+  elif [ -f "$wd/HANDOVER.pending" ]; then dir=$(sed -n 's/^dir: //p' "$wd/HANDOVER.pending")
+  else dir="Site-Scripts/handover/$slug-$(hs_today)"; fi
+  name=$(basename "$dir")
+  local backup; backup=$(hs_newest_backup)
+  rm -rf "$dir/files" "$dir/rollback"; mkdir -p "$dir/files"
+  local table="| File | Change | Rollback copy |"$'\n'"|---|---|---|"
+  local f sub base rb change
+  for f in $files; do
+    sub=$(handover_subpath "$f"); mkdir -p "$dir/files/$(dirname "$sub")"; cp "$f" "$dir/files/$sub"
+    base=$(basename "$f"); rb=""
+    [ -n "$backup" ] && rb=$(find "$backup" -type f -name "$base" | head -1)
+    if git cat-file -e "main:$f" 2>/dev/null; then change="modified"; else change="new"; fi
+    if [ -n "$rb" ]; then
+      mkdir -p "$dir/rollback/$(dirname "$sub")"; cp "$rb" "$dir/rollback/$sub"; chmod u+w "$dir/rollback/$sub"
+      rb="rollback/$sub"
+    elif [ "$change" = new ]; then rb="— new: deactivate/remove to roll back"
+    else rb="— no copy in ${backup:-any live backup}: check live before replacing"; fi
+    table="$table"$'\n'"| files/$sub | $change | $rb |"
+  done
+  for f in $(deleted_code); do table="$table"$'\n'"| $(handover_subpath "$f") | DELETED — remove/deactivate on live | — |"; done
+  if [ ! -f "$dir/DEV-NOTES.md" ]; then
+    TITLE="$(sed -n '1s/^# Plan: //p' "$wd/plan.md")" ZIP="$name.zip" DATE="$(hs_today)" BRANCH="$(hs_branch)" TABLE="$table" \
+      awk '{gsub(/\{\{TITLE\}\}/,ENVIRON["TITLE"]);gsub(/\{\{ZIP\}\}/,ENVIRON["ZIP"]);gsub(/\{\{DATE\}\}/,ENVIRON["DATE"]);gsub(/\{\{BRANCH\}\}/,ENVIRON["BRANCH"]);if($0=="{{FILE_TABLE}}"){print ENVIRON["TABLE"];next};print}' \
+      "$TPL/DEV-NOTES.md" > "$dir/DEV-NOTES.md"
+    echo "dir: $dir" > "$wd/HANDOVER.pending"
+    hs_ok "Scaffolded $dir (files/, rollback/, DEV-NOTES.md)."
+    hs_info "Next: complete every TODO: in $dir/DEV-NOTES.md, then run tools/hs handover again to zip + commit."
+    return 0
+  fi
+  grep -q 'TODO:' "$dir/DEV-NOTES.md" && hs_die "$dir/DEV-NOTES.md still has TODO: markers."
+  rm -f "$dir/$name.zip" "$wd/HANDOVER.pending"
+  ( cd "$dir" && zip -qr "$name.zip" DEV-NOTES.md files $( [ -d rollback ] && echo rollback ) -x '*.DS_Store' )
+  { echo "dir: $dir"; echo "zip: $dir/$name.zip"; echo "built_at: $(hs_now)"; echo "head: $(git rev-parse --short HEAD)"; } > "$wd/HANDOVER"
+  git add -A "$dir" "$wd"
+  git commit -q -m "handover($slug): package $name"
+  hs_ok "Handover packaged: $dir/$name.zip"
+  hs_info "Next: tools/hs finish"
+}
+
+cmd_finish() {
+  need_task; hs_approved || hs_die "Plan not approved."
+  local wd slug br zip; wd=$(hs_workdir); slug=$(hs_slug); br=$(hs_branch)
+  [ -f "$wd/UAT" ] || hs_die "UAT not recorded."
+  [ -f "$wd/HANDOVER" ] || hs_die "Handover not built (tools/hs handover)."
+  zip=$(sed -n 's/^zip: //p' "$wd/HANDOVER"); [ -f "$zip" ] || hs_die "Handover zip missing: $zip"
+  need_clean
+  local title; title=$(sed -n '1s/^# Plan: //p' "$wd/plan.md")
+  git checkout -q main
+  HS_ALLOW_MAIN=1 git merge -q --no-ff "$br" -m "${br%%/*}($slug): $title" -m "Handover: $zip"
+  git tag -a "handover/$slug-$(hs_today)" -m "$title — $zip"
+  git branch -q -d "$br"
+  hs_ok "Merged $br into main, tagged handover/$slug-$(hs_today)."
+  hs_info "Send to the dev: $zip"
+  hs_info "When the dev confirms it is live: tools/hs deployed $slug --note \"...\""
+}
+
+cmd_deployed() {
+  local slug=${1:-} note=""
+  [ -n "$slug" ] || hs_die "Usage: tools/hs deployed <slug> [--note \"...\"]"
+  [ "${2:-}" = --note ] && note=${3:-}
+  need_main; need_clean
+  local tag; tag=$(git tag -l "handover/$slug-*" | sort | tail -1)
+  [ -n "$tag" ] || hs_die "No handover tag for '$slug' — finish the task first."
+  [ -f DEPLOY-LOG.md ] || printf '# Deploy log\n\nOne row per change confirmed live. Written by `tools/hs deployed` only.\n\n| Date | Task | Handover | Commit | Note |\n|---|---|---|---|---|\n' > DEPLOY-LOG.md
+  printf '| %s | %s | %s | %s | %s |\n' "$(hs_today)" "$slug" "$tag" "$(git rev-parse --short "$tag^{commit}")" "${note:-—}" >> DEPLOY-LOG.md
+  git add DEPLOY-LOG.md
+  if [ -n "$note" ]; then HS_ALLOW_MAIN=1 git commit -q -m "deploy($slug): confirmed live $(hs_today)" -m "$note"
+  else HS_ALLOW_MAIN=1 git commit -q -m "deploy($slug): confirmed live $(hs_today)"; fi
+  git tag -a "deploy/$slug-$(hs_today)" -m "Live: $slug ${note}"
+  hs_ok "Logged deploy of $slug and tagged deploy/$slug-$(hs_today)."
+  hs_info "Post-deploy reminder: permalinks flushed? WP Super Cache + Cloudflare purged? Smoke URLs checked?"
+}
+
+cmd_drift() {
+  local b=${1:-$(hs_newest_backup)}
+  [ -n "$b" ] && [ -d "$b" ] || hs_die "No live backup to compare against."
+  echo "Drift: working files vs $b"
+  local f base w found
+  find "$b" -type f \( -name '*.php' -o -name '*.js' -o -name '*.css' \) | sort | while read -r f; do
+    base=$(basename "$f"); found=""
+    for w in Site-Scripts/php/"$base" Site-Scripts/js/"$base" Site-Scripts/css/"$base"; do
+      [ -f "$w" ] && { found=$w; break; }
+    done
+    if [ -z "$found" ]; then echo "  LIVE ONLY   $base"
+    elif cmp -s "$f" "$found"; then :
+    else echo "  DIFFERS     $found"; fi
+  done
+  for w in Site-Scripts/php/*.php Site-Scripts/js/*.js Site-Scripts/css/*.css; do
+    [ -f "$w" ] || continue
+    [ -n "$(find "$b" -type f -name "$(basename "$w")" | head -1)" ] || echo "  LOCAL ONLY  $w"
+  done
+}
+
+cmd_snapshot() {
+  need_main; need_clean
+  local drop=Site-Scripts/Latest-Drop d dir items
+  items=$(ls -A "$drop" 2>/dev/null | grep -v -e '^\.DS_Store$' -e '^\.gitkeep$' || true)
+  [ -n "$items" ] || hs_die "Latest-Drop is empty. Put the live exports (Code Snippets, Custom CSS & JS, headstart-global.css) in $drop/ first."
+  d=$(hs_today); dir="Site-Scripts/live-site-backups-$d"
+  [ -e "$dir" ] && dir="$dir-$(date +%H%M)"
+  mkdir -p "$dir"
+  local i
+  echo "$items" | while read -r i; do
+    case "$i" in
+      *.zip) unzip -q -o "$drop/$i" -d "$dir" ;;
+      *) cp -R "$drop/$i" "$dir/" ;;
+    esac
+  done
+  find "$dir" -name '.DS_Store' -exec rm -f {} + ; rm -rf "$dir/__MACOSX"
+  { echo "# Live snapshot $(basename "$dir")"; echo; echo "Taken: $(hs_now)"; echo "Source: $(echo "$items" | tr '\n' ' ')"; echo; echo '```'; cmd_drift "$dir"; echo '```'; } > "$dir/SNAPSHOT.md"
+  git add -A "$dir"
+  HS_ALLOW_MAIN=1 git commit -q -m "snapshot: live export $(basename "$dir")"
+  find "$dir" -type f -exec chmod a-w {} +
+  local arch="$ROOT/_archive/drops/$(basename "$dir")"; mkdir -p "$arch"
+  echo "$items" | while read -r i; do mv "$drop/$i" "$arch/"; done
+  hs_ok "Snapshot committed: $dir (files read-only; originals moved to _archive/drops/)."
+  cat "$dir/SNAPSHOT.md" | sed -n '/^```$/,/^```$/p' | grep -v '^```$' || true
+  hs_info "Bring a DIFFERS/LIVE ONLY file into the working copy by copying it from $dir on a task branch."
+}
+
+# ---------- Claude Code hook entry points ----------
+guard_block() { printf 'BLOCKED by HeadStart workflow: %s\n' "$*" >&2; exit 2; }
+
+cmd_guard() {
+  local kind=${1:-} json path cmd
+  json=$(cat)
+  case "$kind" in
+    edit)
+      path=$(hs_json_get "$json" .tool_input.file_path); [ -n "$path" ] || path=$(hs_json_get "$json" .tool_input.notebook_path)
+      [ -n "$path" ] || exit 0
+      case "$path" in "$ROOT"/*) path=${path#"$ROOT"/} ;; /*) exit 0 ;; esac
+      echo "$path" | grep -Eq "$HS_BACKUP_RE" && guard_block "live-site backups are read-only. Copy the file into Site-Scripts/php|js|css on a task branch and edit that."
+      echo "$path" | grep -Eq "^_archive/" && guard_block "_archive/ is read-only history."
+      echo "$path" | grep -Eq "$HS_PROTECTED_RE" && guard_block "$path is written only by tools/hs (approve/uat/deployed), never edited directly."
+      if echo "$path" | grep -Eq "$HS_CODE_RE"; then
+        [ "$(hs_branch)" = main ] && guard_block "no task open. Run tools/hs start feat <slug> \"Title\" and get the plan approved first."
+        hs_approved || guard_block "plan for $(hs_branch) is not approved (or changed since approval). Finish work/$(hs_slug)/plan.md and ask the user to approve it."
+      fi ;;
+    bash)
+      cmd=$(hs_json_get "$json" .tool_input.command); [ -n "$cmd" ] || exit 0
+      echo "$cmd" | grep -Eq -- '--no-verify|core\.hooksPath|HS_ALLOW_MAIN|HS_NO_PHP' && guard_block "bypassing git hooks / workflow guards is not allowed."
+      echo "$cmd" | grep -Eq '(^|[^a-z])hs +(approve|uat)( |$)' && guard_block "approve/uat record the USER's decision. Ask the user; they type APPROVED or UAT PASSED."
+      echo "$cmd" | grep -Eq 'HS_EXTERNAL_LINT' && [ -n "$(hs_find_php)" ] && guard_block "PHP is available here — use tools/hs lint, not receipts."
+      echo "$cmd" | grep -Eq 'git +push.*(--force|-f( |$)|\+)' && guard_block "force-push is not allowed."
+      echo "$cmd" | grep -Eq 'git +(reset +--hard|clean +-[a-z]*f|checkout +-- +\.|restore +\.)' && guard_block "destructive git command — ask the user first."
+      echo "$cmd" | grep -Eq 'git +(commit|merge)' && [ "$(hs_branch)" = main ] && ! echo "$cmd" | grep -q 'tools/hs' && guard_block "no direct commits/merges on main. Use tools/hs."
+      echo "$cmd" | grep -Eq 'rm +-[a-zA-Z]*r[a-zA-Z]*f|rm +-[a-zA-Z]*f[a-zA-Z]*r' && guard_block "rm -rf is not allowed. Move things to _archive/ instead."
+      if echo "$cmd" | grep -q 'live-site-backups'; then
+        echo "$cmd" | grep -Eq '(>|sed +-i|perl +-[a-z]*i|tee |truncate|chmod|rm |touch |unlink)' && guard_block "live-site backups are read-only."
+        echo "$cmd" | grep -Eq '(cp|mv|rsync)( |$)' && echo "$cmd" | awk '{print $NF}' | grep -q 'live-site-backups' && guard_block "live-site backups are read-only (destination)."
+      fi
+      echo "$cmd" | grep -Eq '(>|tee ).*(work/[^ ]+/(APPROVAL|UAT)|DEPLOY-LOG\.md)' && guard_block "approval/UAT/deploy records are written only by tools/hs." ;;
+  esac
+  exit 0
+}
+
+cmd_hook() {
+  local kind=${1:-} json p
+  json=$(cat)
+  case "$kind" in
+    prompt)
+      p=$(hs_json_get "$json" .prompt)
+      if printf '%s' "$p" | head -1 | grep -Eq '^[[:space:]]*APPROVED([[:space:][:punct:]]|$)'; then
+        echo "[HeadStart workflow] The user typed APPROVED. Recording approval:"
+        ( cmd_approve --via "User typed in Claude Code: $(printf '%s' "$p" | head -c 300 | tr '\n' ' ')" ) 2>&1 || true
+      elif printf '%s' "$p" | head -1 | grep -Eiq '^[[:space:]]*UAT PASSED([[:space:][:punct:]]|$)'; then
+        echo "[HeadStart workflow] The user confirmed UAT. Recording:"
+        ( cmd_uat --via "User typed in Claude Code: $(printf '%s' "$p" | head -c 300 | tr '\n' ' ')" ) 2>&1 || true
+      fi ;;
+    stop)
+      [ "$(hs_json_get "$json" .stop_hook_active)" = true ] && exit 0
+      if hs_branch | grep -Eq "$HS_BRANCH_RE" && ! hs_clean; then
+        printf 'HeadStart workflow: uncommitted work on %s. Commit it with tools/hs save -m "<type>(%s): <msg>" before stopping, or tell the user why it should stay uncommitted.\n' "$(hs_branch)" "$(hs_slug)" >&2
+        exit 2
+      fi ;;
+  esac
+  exit 0
+}
+
+c=${1:-help}; [ $# -gt 0 ] && shift
+case "$c" in
+  status) cmd_status "$@";; setup) cmd_setup;; start) cmd_start "$@";; approve) cmd_approve "$@";;
+  save) cmd_save "$@";; lint) cmd_lint "$@";; receipt) cmd_receipt "$@";; uat) cmd_uat "$@";;
+  handover) cmd_handover;; finish) cmd_finish;; deployed) cmd_deployed "$@";;
+  snapshot) cmd_snapshot;; drift) cmd_drift "$@";; guard) cmd_guard "$@";; hook) cmd_hook "$@";;
+  help|-h|--help) usage;; *) usage; exit 1;;
+esac

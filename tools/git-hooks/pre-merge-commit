@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Merges into main only via tools/hs finish (which has checked approval, UAT and handover).
+set -eu
+ROOT=$(git rev-parse --show-toplevel); . "$ROOT/tools/lib.sh"
+if [ "$(hs_branch)" = main ] && [ "${HS_ALLOW_MAIN:-}" != 1 ]; then
+  printf '\n✖ Merging into main is done by tools/hs finish (after approval, UAT and handover).\n\n' >&2
+  exit 1
+fi
+exit 0
