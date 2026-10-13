@@ -33,3 +33,8 @@ Expect 200, then 301 → the first URL, twice. (`weekly-update-1-chaofah-2026-08
 
 ## Previous version
 `rollback/php/weekly-update-url-routing.code-snippets.php` is the live snippet as of 13 Oct, if you need to revert.
+
+## FYI: block editor issue seen locally (no action needed on live)
+Not part of this package; noting it in case it's useful before the next core update.
+- On a local copy (WordPress 7.1.3, Divi 5.14.0, live database of 13 Oct) the block editor loaded blank. Cause: the inline script in **Weekly-Update--Divi-Gatekeeper** calls `wp.data.dispatch('core/edit-post').removeEditorPanel(...)` from a `wp.data.subscribe` callback before `core/edit-post` is registered, so `dispatch()` returns `null`, the callback throws inside the editor's start-up, and the editor never initialises.
+- Live (7.1.1) works fine, so there's nothing to deploy now. Since WP 6.5 `removeEditorPanel` lives on `core/editor`; null-checking the store (and/or a try/catch) around that call avoids the crash. **Posts--Divi-Gatekeeper** uses the same call, with a guard. We have a tested local patch if you'd like it.
