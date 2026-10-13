@@ -22,13 +22,17 @@ function hs_local_scripts_dir() {
 }
 
 /**
- * TEMPORARY diagnostic switch (feat/workflow-tooling UAT): Site-Scripts/.loader-compat
- * containing "hash-order" and/or "no-css" restores the pre-2.0 behaviour for that part.
+ * Local options: Site-Scripts/.loader-options (not tracked) may contain
+ *   live-order  run JS in live load order (MANIFEST.tsv) instead of the default
+ *   no-css      skip Site-Scripts/css/*.css
+ * Default JS order is alphabetical by live (hash) file name: the order this site
+ * has always used locally. In live order, staff-directory search breaks locally
+ * (scripts run inline in the footer here, as deferred files in the head on live).
  */
-function hs_local_compat( $flag ) {
+function hs_local_option( $flag ) {
 	static $flags = null;
 	if ( null === $flags ) {
-		$f     = hs_local_scripts_dir() . '/.loader-compat';
+		$f     = hs_local_scripts_dir() . '/.loader-options';
 		$flags = is_readable( $f ) ? file_get_contents( $f ) : '';
 	}
 	return false !== strpos( $flags, $flag );
@@ -39,7 +43,7 @@ function hs_local_is_off( $file ) {
 	return (bool) preg_match( '/\.off\.(php|js|css)$/', $file );
 }
 
-/** JS files in live load order (Site-Scripts/js/MANIFEST.tsv), then any unlisted ones A–Z. */
+/** JS files listed in Site-Scripts/js/MANIFEST.tsv (default order: by live hash name; option: live order), then unlisted ones A–Z. */
 function hs_local_js_files() {
 	$dir      = hs_local_scripts_dir() . '/js';
 	$ordered  = array();
@@ -56,8 +60,8 @@ function hs_local_js_files() {
 			}
 		}
 	}
-	if ( hs_local_compat( 'hash-order' ) && $ordered ) {
-		// Old loader order: alphabetical by the live (hash) file name.
+	if ( ! hs_local_option( 'live-order' ) && $ordered ) {
+		// Default: alphabetical by the live (hash) file name.
 		$map = array();
 		foreach ( file( $manifest, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ) as $line ) {
 			if ( '#' !== $line[0] ) {
@@ -107,7 +111,7 @@ add_action(
 add_action(
 	'wp_head',
 	function () {
-		$css = hs_local_compat( 'no-css' ) ? array() : ( glob( hs_local_scripts_dir() . '/css/*.css' ) ?: array() );
+		$css = hs_local_option( 'no-css' ) ? array() : ( glob( hs_local_scripts_dir() . '/css/*.css' ) ?: array() );
 		sort( $css );
 		foreach ( $css as $file ) {
 			if ( ! hs_local_is_off( $file ) ) {
