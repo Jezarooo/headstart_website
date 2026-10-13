@@ -1,0 +1,17 @@
+# HeadStart front-end JS: working name -> live file in wp-content/uploads/hs-head/
+# Rows are in LIVE LOAD ORDER (Divi > Theme Options > Integration > head). The local loader follows this order.
+# clean_name	live_file	purpose
+global-utilities.js	38655745c724b0c052e6a96d91db2ed6.js	Shared DOM helpers, debounce/throttle
+attributes-sidebar.js	3516eede0d9321273e4e6c214655a6dd.js	"Who We Are" sticky sidebar
+form-toggle.js	d59a0e6c80aaec53669725ed175f82c8.js	Book a Tour vs Have a Question form switch
+mega-menu.js	c3bb0d608bd43260768c0fa3ed3368d8.js	Desktop mega menu v16.9
+eca-directory.js	19084ab35ec888dedd4481a7192d8968.js	ECA table, search and filters
+events-calendar.js	d83240b17211e4a2d9fef2bbd3f9f885.js	Events calendar grid, popups, campus filters
+gallery-mosaic.js	a175107c2aea8fc25780095fc0f14383.js	Divi gallery mosaic + lightbox
+staff-directory.js	51351eb14363663926f780d4db943334.js	Staff directory v3 cards and filters
+mobile-navigation.js	f59b92775dddc725dc83d0a1064714e5.js	Mobile drawer, accordion, form teleport
+weekly-update-ajax.js	276837be993b915452487062940e1bb1.js	Weekly update archive AJAX v2
+weekly-update-single.js	d9fe581eac0cacee3ce6939f9a5950d7.js	Weekly update / single post layout v5
+hybrid-tabs.js	828ebaf5c54bcb521999116f8f0605a0.js	Nested sidebar tabs / mobile dropdown v2
+noticeboard.js	6171174eab43d51cf97ae78d87fa59f2.js	Noticeboard campus toggle, AJAX, modals
+posts-slider.js	73edb4097c70fc08b7422567ac15b497.js	Posts slider (Swiper) init
