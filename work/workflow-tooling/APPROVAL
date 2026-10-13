@@ -1,4 +1,4 @@
-plan_sha256: 94328f7ff9ea23ae61493242a9de1d4153b0067af7eabf4fbaf2fd17851a7fe0
-approved_at: 2026-10-13T05:32:04+0000
+plan_sha256: c5790635992c1e444f2168ae7544a11605f14129235c7349deed22a18e7288b8
+approved_at: 2026-10-13T06:25:25+0000
 approved_by: Jezarooo
-via: User replied 'approved' in the Claude chat, 2026-10-13 12:31 +07, after the plan summary, the four commands were explained and the roadmap line was added
+via: User replied 'approved' in the Claude chat, 2026-10-13 13:25 +07, to the plan amendment (keep old JS order locally; local-only issues become separate roadmap items)
