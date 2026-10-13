@@ -21,7 +21,7 @@ Package `weekly-update-permalinks-2026-10-13.zip` · 2026-10-13 · branch `fix/w
 ## Watch out for
 - **Purge WP Super Cache and Cloudflare APO after saving the snippet.** The duplicate URLs are probably cached as 200s and will keep serving until purged.
 - Cloudflare challenges plain `curl` (403); send a browser user agent when checking.
-- Tested: PHP 8.3 lint; 15-case unit run with WP stubs (published / `$leavename` / draft / no campus / legacy slug; preferred URL never redirects incl. no trailing slash and `?utm_*`; raw, raw+query, no-date, wrong-campus → 301); on Local (PHP 8.2) 200 / 301 / 301 with query kept and REST `link` = preferred URL.
+- Tested: PHP 8.3 lint; 15-case unit run with WP stubs (published / `$leavename` / draft / no campus / legacy slug; preferred URL never redirects incl. no trailing slash and `?utm_*`; raw, raw+query, no-date, wrong-campus → 301); on Local (PHP 8.2) 200 / 301 / 301 with query kept and REST `link` = preferred URL; after refreshing Local from the live database (13 Oct), the block editor shows `/cherngtalay/weekly-update/2026/10/weekly-update-7/` for week 7 and "View" opens it.
 
 ## Quick check after deploy (optional)
 ```
@@ -29,7 +29,7 @@ UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 Chrome/128 S
 for u in /chaofah/weekly-update/2026/08/weekly-update-1/ /weekly-update/weekly-update-1-chaofah-2026-08/ /chaofah/weekly-update/weekly-update-1/; do
   printf '%-55s ' "$u"; curl -s -A "$UA" -o /dev/null -w '%{http_code} %{redirect_url}\n' "https://headstartphuket.com$u"; done
 ```
-Expect 200, then 301 → the first URL, twice. (The second URL assumes week 1's DB slug is `weekly-update-1-chaofah-2026-08`; if it 404s, check the post's slug in the DB rather than the fix.)
+Expect 200, then 301 → the first URL, twice. (`weekly-update-1-chaofah-2026-08` is week 1's DB slug, confirmed from the live database of 13 Oct.)
 
 ## Previous version
 `rollback/php/weekly-update-url-routing.code-snippets.php` is the live snippet as of 13 Oct, if you need to revert.
