@@ -1,0 +1,3 @@
+local_only: Kept local by user decision (13 Oct): live editor works on WP 7.1.1; fix keeps the local editor (WP 7.1.3) working. Notes in work/editor-panels-wp7/DEV-NOTES-not-sent.md if live ever needs it.
+built_at: 2026-10-13T08:59:54+0000
+head: 048271d0

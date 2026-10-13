@@ -523,22 +523,44 @@ function hs_posts_gatekeeper() {
                 wp.data.dispatch('core/notices').createErrorNotice(HS_GATE_NOTICE, { id: 'hs-post-gate', isDismissible: true });
             }
 
-            // Clean up Gutenberg sidebar panels safely natively via API
-            var hs_panels_removed = false;
-            if (window.wp && wp.data) {
-                wp.data.subscribe(function () {
-                    if (!hs_panels_removed && wp.data.select('core/edit-post')) {
-                        // Check if one of them exists before attempting removal
-                        if (wp.data.select('core/edit-post').isEditorPanelEnabled('taxonomy-panel-category')) {
-                            wp.data.dispatch('core/edit-post').removeEditorPanel('taxonomy-panel-category');
-                            wp.data.dispatch('core/edit-post').removeEditorPanel('taxonomy-panel-post_tag');
-                            wp.data.dispatch('core/edit-post').removeEditorPanel('taxonomy-panel-hs_department');
-                            wp.data.dispatch('core/edit-post').removeEditorPanel('taxonomy-panel-hs_post_campus');
-                            hs_panels_removed = true;
+            // Hide native editor panels without ever breaking the editor (2026-10-13).
+            // WP 6.5+ keeps removeEditorPanel on core/editor; older WP on core/edit-post.
+            // Never call a store that isn't registered yet, and never let an error escape
+            // into the editor's own start-up (that blanked the block editor on WP 7.1.3).
+            function hsRemoveEditorPanels(panels) {
+                try {
+                    if (!window.wp || !wp.data) return false;
+                    var stores = ['core/editor', 'core/edit-post'];
+                    for (var i = 0; i < stores.length; i++) {
+                        var d = wp.data.dispatch(stores[i]);
+                        if (d && typeof d.removeEditorPanel === 'function') {
+                            panels.forEach(function (p) { d.removeEditorPanel(p); });
+                            return true;
                         }
                     }
+                } catch (e) {
+                    if (window.console) console.warn('HeadStart: could not hide editor panels', e);
+                }
+                return false;
+            }
+            // Run once the post has loaded, outside the editor's update cycle; retry once if no store was ready.
+            function hsWhenEditorReady(panels) {
+                if (!window.wp || !wp.data || !wp.data.subscribe) return;
+                var done = false, unsub = null;
+                unsub = wp.data.subscribe(function () {
+                    if (done) return;
+                    var ed = wp.data.select('core/editor');
+                    if (!ed || typeof ed.getCurrentPostId !== 'function' || !ed.getCurrentPostId()) return;
+                    done = true;
+                    setTimeout(function () {
+                        if (typeof unsub === 'function') unsub();
+                        if (!hsRemoveEditorPanels(panels)) {
+                            setTimeout(function () { hsRemoveEditorPanels(panels); }, 1000);
+                        }
+                    }, 0);
                 });
             }
+            hsWhenEditorReady(['taxonomy-panel-category', 'taxonomy-panel-post_tag', 'taxonomy-panel-hs_department', 'taxonomy-panel-hs_post_campus']);
         });
 
         // ==========================================
