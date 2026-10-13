@@ -21,6 +21,19 @@ function hs_local_scripts_dir() {
 	return dirname( __DIR__, 4 ) . '/Site-Scripts';
 }
 
+/**
+ * TEMPORARY diagnostic switch (feat/workflow-tooling UAT): Site-Scripts/.loader-compat
+ * containing "hash-order" and/or "no-css" restores the pre-2.0 behaviour for that part.
+ */
+function hs_local_compat( $flag ) {
+	static $flags = null;
+	if ( null === $flags ) {
+		$f     = hs_local_scripts_dir() . '/.loader-compat';
+		$flags = is_readable( $f ) ? file_get_contents( $f ) : '';
+	}
+	return false !== strpos( $flags, $flag );
+}
+
 /** Files named *.off.php / *.off.js / *.off.css are switched off locally. */
 function hs_local_is_off( $file ) {
 	return (bool) preg_match( '/\.off\.(php|js|css)$/', $file );
@@ -42,6 +55,21 @@ function hs_local_js_files() {
 				$ordered[ $path ] = true;
 			}
 		}
+	}
+	if ( hs_local_compat( 'hash-order' ) && $ordered ) {
+		// Old loader order: alphabetical by the live (hash) file name.
+		$map = array();
+		foreach ( file( $manifest, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ) as $line ) {
+			if ( '#' !== $line[0] ) {
+				$cols = explode( "\t", $line );
+				if ( isset( $cols[1] ) ) {
+					$map[ $dir . '/' . trim( $cols[0] ) ] = trim( $cols[1] );
+				}
+			}
+		}
+		uksort( $ordered, function ( $a, $b ) use ( $map ) {
+			return strcmp( $map[ $a ] ?? basename( $a ), $map[ $b ] ?? basename( $b ) );
+		} );
 	}
 	$rest = glob( $dir . '/*.js' ) ?: array();
 	sort( $rest );
@@ -79,7 +107,7 @@ add_action(
 add_action(
 	'wp_head',
 	function () {
-		$css = glob( hs_local_scripts_dir() . '/css/*.css' ) ?: array();
+		$css = hs_local_compat( 'no-css' ) ? array() : ( glob( hs_local_scripts_dir() . '/css/*.css' ) ?: array() );
 		sort( $css );
 		foreach ( $css as $file ) {
 			if ( ! hs_local_is_off( $file ) ) {
