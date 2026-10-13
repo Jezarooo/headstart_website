@@ -1,33 +1,123 @@
 <?php
 /*
-Plugin Name: HeadStart Local Site-Scripts Auto-Loader
-Description: Bypasses the database Snippets plugin and dynamically loads raw PHP/JS from the local Site-Scripts repository for active development.
-Author: Antigravity
-Version: 1.0
+Plugin Name: HeadStart Local Site-Scripts Loader
+Description: LOCAL ONLY — never deploy. Loads PHP snippets, JS and CSS straight from the repo's Site-Scripts folder so an edit shows on the next reload.
+Version: 2.0
 */
 
-// 1. Load all PHP Snippets dynamically from our Git folder
-$php_dir = '/Users/jeremylinay-mason/Desktop/Websites/HeadStart/Site-Scripts/php';
-foreach (glob($php_dir . '/*.php') as $file) {
-    require_once $file;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
-// 2. Inject Local JS into the Footer
-add_action('wp_footer', function() {
-    $js_dir = '/Users/jeremylinay-mason/Desktop/Websites/HeadStart/Site-Scripts/js';
-    echo "<!-- HeadStart Local JS Auto-Loader -->\n";
-    foreach (glob($js_dir . '/*.js') as $file) {
-        echo "<script>\n" . file_get_contents($file) . "\n</script>\n";
-    }
-}, 9999);
+/**
+ * Where Site-Scripts lives. Defaults to the repo root (four levels above this
+ * file: app/public/wp-content/mu-plugins). Override with HS_SITE_SCRIPTS_DIR
+ * in wp-config.php if the folders ever move.
+ */
+function hs_local_scripts_dir() {
+	if ( defined( 'HS_SITE_SCRIPTS_DIR' ) ) {
+		return rtrim( HS_SITE_SCRIPTS_DIR, '/' );
+	}
+	return dirname( __DIR__, 4 ) . '/Site-Scripts';
+}
 
-// 3. Inject CSS overrides for local testing
-add_action('wp_head', function() {
-    echo "<style>\n/* Local override for staff hover effect */\n.hs-staff-directory .hs-staff-card.hs-has-profile:hover img { filter: none !important; }\n</style>\n";
-    
-    // Auto-load core CSS file
-    $css_dir = '/Users/jeremylinay-mason/Desktop/Websites/HeadStart/Site-Scripts/css';
-    if (file_exists($css_dir . '/core-site.css')) {
-        echo "<style>\n" . file_get_contents($css_dir . '/core-site.css') . "\n</style>\n";
-    }
-});
+/**
+ * Local options: Site-Scripts/.loader-options (not tracked) may contain
+ *   live-order  run JS in live load order (MANIFEST.tsv) instead of the default
+ *   no-css      skip Site-Scripts/css/*.css
+ * Default JS order is alphabetical by live (hash) file name: the order this site
+ * has always used locally. In live order, staff-directory search breaks locally
+ * (scripts run inline in the footer here, as deferred files in the head on live).
+ */
+function hs_local_option( $flag ) {
+	static $flags = null;
+	if ( null === $flags ) {
+		$f     = hs_local_scripts_dir() . '/.loader-options';
+		$flags = is_readable( $f ) ? file_get_contents( $f ) : '';
+	}
+	return false !== strpos( $flags, $flag );
+}
+
+/** Files named *.off.php / *.off.js / *.off.css are switched off locally. */
+function hs_local_is_off( $file ) {
+	return (bool) preg_match( '/\.off\.(php|js|css)$/', $file );
+}
+
+/** JS files listed in Site-Scripts/js/MANIFEST.tsv (default order: by live hash name; option: live order), then unlisted ones A–Z. */
+function hs_local_js_files() {
+	$dir      = hs_local_scripts_dir() . '/js';
+	$ordered  = array();
+	$manifest = $dir . '/MANIFEST.tsv';
+	if ( is_readable( $manifest ) ) {
+		foreach ( file( $manifest, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ) as $line ) {
+			if ( '' === trim( $line ) || '#' === $line[0] ) {
+				continue;
+			}
+			$clean = trim( explode( "\t", $line )[0] );
+			$path  = $dir . '/' . $clean;
+			if ( '' !== $clean && is_file( $path ) && ! hs_local_is_off( $path ) ) {
+				$ordered[ $path ] = true;
+			}
+		}
+	}
+	if ( ! hs_local_option( 'live-order' ) && $ordered ) {
+		// Default: alphabetical by the live (hash) file name.
+		$map = array();
+		foreach ( file( $manifest, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ) as $line ) {
+			if ( '#' !== $line[0] ) {
+				$cols = explode( "\t", $line );
+				if ( isset( $cols[1] ) ) {
+					$map[ $dir . '/' . trim( $cols[0] ) ] = trim( $cols[1] );
+				}
+			}
+		}
+		uksort( $ordered, function ( $a, $b ) use ( $map ) {
+			return strcmp( $map[ $a ] ?? basename( $a ), $map[ $b ] ?? basename( $b ) );
+		} );
+	}
+	$rest = glob( $dir . '/*.js' ) ?: array();
+	sort( $rest );
+	foreach ( $rest as $path ) {
+		if ( ! isset( $ordered[ $path ] ) && ! hs_local_is_off( $path ) ) {
+			$ordered[ $path ] = true;
+		}
+	}
+	return array_keys( $ordered );
+}
+
+// 1. PHP snippets (A–Z), as Code Snippets runs them on live.
+$hs_php = glob( hs_local_scripts_dir() . '/php/*.php' ) ?: array();
+sort( $hs_php );
+foreach ( $hs_php as $hs_file ) {
+	if ( ! hs_local_is_off( $hs_file ) ) {
+		require_once $hs_file;
+	}
+}
+unset( $hs_php, $hs_file );
+
+// 2. JS in the footer, in live load order.
+add_action(
+	'wp_footer',
+	function () {
+		echo "<!-- HeadStart local JS loader -->\n";
+		foreach ( hs_local_js_files() as $file ) {
+			echo '<script data-hs-src="' . esc_attr( basename( $file ) ) . "\">\n" . file_get_contents( $file ) . "\n</script>\n";
+		}
+	},
+	9999
+);
+
+// 3. CSS in the head: every Site-Scripts/css/*.css, then local-only overrides.
+add_action(
+	'wp_head',
+	function () {
+		$css = hs_local_option( 'no-css' ) ? array() : ( glob( hs_local_scripts_dir() . '/css/*.css' ) ?: array() );
+		sort( $css );
+		foreach ( $css as $file ) {
+			if ( ! hs_local_is_off( $file ) ) {
+				echo '<style data-hs-src="' . esc_attr( basename( $file ) ) . "\">\n" . file_get_contents( $file ) . "\n</style>\n";
+			}
+		}
+		echo "<style data-hs-src=\"local-overrides\">\n/* Local override for staff hover effect */\n.hs-staff-directory .hs-staff-card.hs-has-profile:hover img { filter: none !important; }\n</style>\n";
+	}
+);

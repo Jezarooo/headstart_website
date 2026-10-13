@@ -7,6 +7,8 @@ HS_PROTECTED_RE='^(work/[^/]+/(APPROVAL|UAT)|DEPLOY-LOG\.md)$'
 HS_BRANCH_RE='^(feat|fix)/[a-z0-9][a-z0-9-]*$'
 HS_LOCAL_PHP_GLOB='/Applications/Local.app/Contents/Resources/extraResources/lightning-services/php-*/bin/darwin-arm64/bin/php'
 HS_STALE_DAYS=7
+HS_JS_MANIFEST='Site-Scripts/js/MANIFEST.tsv'
+HS_OUTBOX='.hs-outbox'
 
 hs_die()  { printf '\n✖ %s\n\n' "$*" >&2; exit 1; }
 hs_ok()   { printf '✔ %s\n' "$*"; }
@@ -69,4 +71,28 @@ hs_json_get() { # $1 json, $2 jq path like .tool_input.command
   fi
   local key="${2##*.}"
   printf '%s' "$1" | sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1
+}
+
+# JS manifest: working (clean) name <-> live file name in uploads/hs-head/.
+hs_live_name() { # repo path -> the file's name on live
+  local b h; b=$(basename "$1")
+  case "$1" in
+    Site-Scripts/js/*.js)
+      h=$(awk -F'\t' -v c="$b" '$1==c{print $2; exit}' "$HS_JS_MANIFEST" 2>/dev/null)
+      [ -n "$h" ] && { echo "$h"; return; } ;;
+  esac
+  echo "$b"
+}
+hs_clean_name() { # live file name -> working name (unchanged if not in the manifest)
+  local c; c=$(awk -F'\t' -v x="$1" '$2==x{print $1; exit}' "$HS_JS_MANIFEST" 2>/dev/null)
+  echo "${c:-$1}"
+}
+hs_live_location() { # repo path -> where it goes on live, for DEV-NOTES
+  case "$1" in
+    Site-Scripts/js/*) echo "wp-content/uploads/hs-head/$(hs_live_name "$1")" ;;
+    Site-Scripts/php/*) echo "Code Snippets: $(basename "$1" .code-snippets.php)" ;;
+    Site-Scripts/css/*) echo "Global stylesheet ($(basename "$1"))" ;;
+    app/public/wp-content/mu-plugins/*) echo "wp-content/mu-plugins/$(basename "$1")" ;;
+    *) echo "$1" ;;
+  esac
 }
