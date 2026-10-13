@@ -16,7 +16,7 @@ No live-site change. Nothing in this task is deployed.
 
 ## Proposed changes
 1. `Site-Scripts/js/` — rename the 14 hash files to clean names (`mega-menu.js`, `staff-directory.js`, …) with `git mv` (history follows). Add `Site-Scripts/js/MANIFEST.tsv`: `clean name ⇥ live hash file ⇥ purpose`, rows in **live load order** (as in the Divi head code).
-2. `app/public/wp-content/mu-plugins/headstart-local-loader.php` — load JS in MANIFEST order (then any unlisted `*.js` alphabetically); load every `Site-Scripts/css/*.css` instead of the missing `core-site.css`; derive paths from the repo location instead of hard-coding `/Users/...`; skip files ending `.off.php` / `.off.js` so a snippet can be disabled locally without deleting it. Keep the existing staff-hover CSS override.
+2. `app/public/wp-content/mu-plugins/headstart-local-loader.php` — load JS in the **old order (alphabetical by live hash name)** by default, because UAT showed staff-directory search breaks locally in live order (scripts run inline in the footer locally vs deferred files on live); live order stays available by putting `live-order` in `Site-Scripts/.loader-options`. Then any unlisted `*.js` alphabetically; load every `Site-Scripts/css/*.css` instead of the missing `core-site.css`; derive paths from the repo location instead of hard-coding `/Users/...`; skip files ending `.off.php` / `.off.js` so a snippet can be disabled locally without deleting it. Keep the existing staff-hover CSS override.
 3. `Site-Scripts/css/core.css` — working copy of live `core.css` from the 13 Oct backup.
 4. `tools/hs`:
    - `fetch-js` (run in Terminal on the Mac): reads the Divi head export in `Latest-Drop/js/`, downloads every `uploads/hs-head/*.js` with its hash name, rejects HTML/Cloudflare responses, prints a count.
@@ -26,7 +26,7 @@ No live-site change. Nothing in this task is deployed.
 5. `tools/git-hooks/pre-commit` — block any commit deleting more than 10 tracked files unless `HS_ALLOW_BULK_DELETE=1` (the Claude Code guard blocks agents from setting it). The rename in step 1 is a rename, not a delete, so it is unaffected.
 6. `CLAUDE.md` (+ project copy) — Antigravity retired; one agent at a time; Gate 1 uses `tools/hs fetch-js`; Nick (firedev) edits live directly, so snapshot before every task; how to push (cloud: bundle → push; Mac: `git push`). Roadmap: https://claude.ai/artifact/VtLKZu5yuna4oAVV8GNXUb is the backlog; every task links to a roadmap item, and Claude moves its status at each gate (Planning → Approved → Building → UAT → Ready for dev → Live).
 
-Out of scope (own tasks): the `?>` bug in posts-compute on live; syncing the local CSV importer with Nick's live version; deciding what to do with the undeployed cross-campus snippet.
+Out of scope (own tasks): local-only issues found in UAT that predate this task — gallery portrait images, posts slider, blank admin editor (roadmap items); the `?>` bug in posts-compute on live; syncing the local CSV importer with Nick's live version; deciding what to do with the undeployed cross-campus snippet.
 
 ## Risks & rollback
 - Local only. Risk: a loader bug breaks the local site (white screen) or a script loads in the wrong order. Rollback: `git revert` the merge, or restore the loader file from `main`.
