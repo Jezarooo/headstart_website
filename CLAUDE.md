@@ -23,6 +23,7 @@ Read this first, every session. The rules below are enforced by git hooks (`tool
 ## Where you are running
 - **Claude Code on the Mac**: repo is the project dir; run `tools/hs …` directly. PHP lint uses Local's PHP automatically.
 - **Claude (cloud) linked to the Mac**: use the device shell; repo is at `$HOME/mnt/HeadStart` → `cd "$HOME/mnt/HeadStart" && tools/hs status`. That shell has **no PHP and no network**, so for lint: stage the changed PHP files into the cloud container, run `php -l` there, and only if they pass record it in the device shell with `HS_EXTERNAL_LINT="php <version> (cloud container)" tools/hs receipt <files>`. To check pages on `http://headstart.local`, use the built-in browser on the Mac (or ask the user); the device shell can't reach it.
+- **Cloud sessions: verify every file copied to the Mac.** A copy can report success before the file lands. After each copy, compare `shasum -a 256` of the source with the file in `$HOME/mnt/HeadStart`; re-copy until they match, before committing.
 - Start every session with `tools/hs status`, then open the roadmap (below).
 - **One agent at a time.** Antigravity is retired (13 Oct 2026). Two agents in this repo at once emptied git's index once already; if the user has another agent open, ask them to close it before you commit.
 
@@ -54,7 +55,7 @@ The backlog lives at https://claude.ai/artifact/VtLKZu5yuna4oAVV8GNXUb (items in
 ## Getting work to GitHub (github.com/Jezarooo/headstart_website)
 After `snapshot`, `finish` and `deployed`, get `main` onto GitHub the same turn:
 - **Mac (Claude Code or the user):** `git push origin main --follow-tags`.
-- **Cloud session:** the device shell has no network. Run `tools/hs publish` (writes `.hs-outbox/push-*.bundle`), stage that file into the container, `git fetch <bundle> main:refs/remotes/mac/main` plus the tags in a clone of the GitHub repo, `git push origin mac/main:main` and the tags, then `tools/hs publish --done` in the device shell. The cloud session cannot delete remote branches.
+- **Cloud session:** the device shell has no network. Run `tools/hs publish` (writes `.hs-outbox/push-*.bundle`), stage that file into the container, `git fetch <bundle> main:refs/remotes/mac/main` plus the tags in a clone of the GitHub repo, `git push origin mac/main:main` and the tags, then `tools/hs publish --done` in the device shell. The cloud session cannot delete remote branches or push tags: task tags reach GitHub when the user runs, on the Mac, `git push origin 'refs/tags/local/*' 'refs/tags/handover/*' 'refs/tags/deploy/*'` (never `--tags`: the archive tag is ~300 MB).
 
 ## Never
 - Edit anything in `live-site-backups-*` or `_archive/`.
