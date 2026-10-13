@@ -88,37 +88,114 @@ function hs_phantom_rewrite_rules() {
     );
 }
 
-// 4. THE OUTBOUND INJECTOR: Clean up the permalink shown to the user
-add_filter( 'post_type_link', 'hs_phantom_link_injector', 10, 2 );
-function hs_phantom_link_injector( $post_link, $post ) {
-    
-    if ( is_object( $post ) && 'weekly_update' === $post->post_type ) {
-        
-        // A. Get Campus Slug
-        $terms = wp_get_object_terms( $post->ID, 'hs_campus' );
-        $campus_slug = ( ! is_wp_error( $terms ) && ! empty( $terms ) && is_object( $terms[0] ) ) ? $terms[0]->slug : 'general';
+// 4. THE OUTBOUND INJECTOR: every weekly update link is built as
+//    /{campus}/weekly-update/{YYYY}/{MM}/{clean-slug}/  (the preferred URL).
+//    Built from scratch (not string-replaced), so it also covers the editable
+//    form WordPress asks for in the block editor ($leavename = true).
 
-        // B. Get Post Year and Month
-        $time = strtotime( $post->post_date );
-        $year = date( 'Y', $time );
-        $month = date( 'm', $time );
-
-        // C. Strip the phantom suffix out of the slug for the clean URL
-        $suffix = '-' . $campus_slug . '-' . $year . '-' . $month;
-        $clean_slug = str_replace( $suffix, '', $post->post_name );
-        
-        // D. Build the new base
-        $new_base = '/' . $campus_slug . '/weekly-update/' . $year . '/' . $month . '/';
-        
-        // E. Replace the default structure with the clean one
-        // The default permalink gives us something like /weekly-update/weekly-update-1-chaofah-2026-08/
-        $target = '/weekly-update/' . $post->post_name . '/';
-        $replacement = $new_base . $clean_slug . '/';
-        
-        return str_replace( $target, $replacement, $post_link );
+/**
+ * Campus, year, month and clean slug for a weekly update: the one place these rules live.
+ * Returns null when the post has no slug yet.
+ */
+function hs_weekly_update_parts( $post ) {
+    $post = get_post( $post );
+    if ( ! $post || 'weekly_update' !== $post->post_type || '' === (string) $post->post_name ) {
+        return null;
     }
+    $terms  = wp_get_object_terms( $post->ID, 'hs_campus' );
+    $campus = ( ! is_wp_error( $terms ) && ! empty( $terms ) && is_object( $terms[0] ) ) ? $terms[0]->slug : 'general';
+    $time   = strtotime( $post->post_date );
+    $year   = date( 'Y', $time );
+    $month  = date( 'm', $time );
+    $suffix = '-' . $campus . '-' . $year . '-' . $month;
+    $slug   = $post->post_name;
+    if ( strlen( $slug ) > strlen( $suffix ) && substr( $slug, -strlen( $suffix ) ) === $suffix ) {
+        $slug = substr( $slug, 0, -strlen( $suffix ) );
+    }
+    return array( 'campus' => $campus, 'year' => $year, 'month' => $month, 'slug' => $slug );
+}
 
-    return $post_link;
+/** Site-relative preferred path, e.g. /cherngtalay/weekly-update/2026/10/weekly-update-7/ */
+function hs_weekly_update_path( $parts, $last_segment = null ) {
+    return '/' . $parts['campus'] . '/weekly-update/' . $parts['year'] . '/' . $parts['month'] . '/'
+        . ( null === $last_segment ? $parts['slug'] : $last_segment ) . '/';
+}
+
+add_filter( 'post_type_link', 'hs_phantom_link_injector', 10, 3 );
+function hs_phantom_link_injector( $post_link, $post, $leavename = false ) {
+    if ( ! is_object( $post ) || 'weekly_update' !== $post->post_type ) {
+        return $post_link;
+    }
+    // Unpublished posts keep WordPress's own link (?post_type=…&p=…) so previews work.
+    if ( ! $leavename && in_array( $post->post_status, array( 'draft', 'pending', 'auto-draft' ), true ) ) {
+        return $post_link;
+    }
+    $parts = hs_weekly_update_parts( $post );
+    if ( ! $parts ) {
+        return $post_link;
+    }
+    return home_url( hs_weekly_update_path( $parts, $leavename ? '%weekly_update%' : null ) );
+}
+
+// 4b. EDITOR SLUG: show the clean slug (weekly-update-7), not the stored one
+//     (weekly-update-7-cherngtalay-2026-10). Saving still works: section 2 strips
+//     and re-adds the suffix on every save.
+function hs_weekly_update_strip_suffix( $slug ) {
+    return preg_replace( '/-[a-z0-9]+-20\d{2}-\d{2}$/', '', (string) $slug );
+}
+
+add_filter( 'get_sample_permalink', 'hs_weekly_update_sample_permalink', 10, 5 );
+function hs_weekly_update_sample_permalink( $permalink, $post_id, $title, $name, $post ) {
+    if ( is_object( $post ) && 'weekly_update' === $post->post_type && is_array( $permalink ) && isset( $permalink[1] ) ) {
+        $permalink[1] = hs_weekly_update_strip_suffix( $permalink[1] );
+    }
+    return $permalink;
+}
+
+// The block editor reads a saved post's slug from the REST API (context=edit only;
+// the public API is untouched).
+add_filter( 'rest_prepare_weekly_update', 'hs_weekly_update_rest_slug', 10, 3 );
+function hs_weekly_update_rest_slug( $response, $post, $request ) {
+    if ( 'edit' === $request['context'] && isset( $response->data['slug'] ) ) {
+        $response->data['slug'] = hs_weekly_update_strip_suffix( $response->data['slug'] );
+    }
+    return $response;
+}
+
+// 4c. CANONICAL REDIRECT: any other address for a weekly update (the raw
+//     /weekly-update/{db-slug}/ form, or the older /{campus}/weekly-update/{slug}/
+//     form) gets a 301 to the preferred URL, keeping the query string (UTM tags).
+//     The preferred URL itself is never redirected.
+
+/** Decide the redirect target for a request path. Returns null when no redirect is needed. */
+function hs_weekly_update_redirect_target( $request_uri, $preferred_url ) {
+    $req_path  = rawurldecode( (string) parse_url( $request_uri, PHP_URL_PATH ) );
+    $want_path = rawurldecode( (string) parse_url( $preferred_url, PHP_URL_PATH ) );
+    if ( '' === $want_path || untrailingslashit( strtolower( $req_path ) ) === untrailingslashit( strtolower( $want_path ) ) ) {
+        return null;
+    }
+    $query = (string) parse_url( $request_uri, PHP_URL_QUERY );
+    return $preferred_url . ( '' !== $query ? '?' . $query : '' );
+}
+
+add_action( 'template_redirect', 'hs_weekly_update_canonical_redirect', 5 );
+function hs_weekly_update_canonical_redirect() {
+    if ( ! is_singular( 'weekly_update' ) || is_preview() || is_feed() || is_admin() || wp_doing_ajax() ) {
+        return;
+    }
+    if ( isset( $_GET['et_fb'] ) || isset( $_GET['et_tb'] ) || isset( $_GET['preview'] ) ) {
+        return; // Divi builder and previews stay where they are.
+    }
+    $post = get_queried_object();
+    if ( ! $post || 'publish' !== $post->post_status ) {
+        return;
+    }
+    $preferred = get_permalink( $post );
+    $target    = $preferred ? hs_weekly_update_redirect_target( $_SERVER['REQUEST_URI'] ?? '', $preferred ) : null;
+    if ( $target ) {
+        wp_safe_redirect( $target, 301 );
+        exit;
+    }
 }
 
 // 5. LEGACY/IMPORTED POST FALLBACK
