@@ -64,18 +64,44 @@ function hs_weekly_update_gatekeeper() {
         // ==========================================
         // REMOVE NATIVE SIDEBAR PANELS VIA REACT
         // ==========================================
-        let hs_panel_removed = false;
-        wp.data.subscribe(function() {
-            if (hs_panel_removed) return;
-            
-            let isReady = wp.data.select('core/editor') && wp.data.select('core/editor').isCleanNewPost() !== null;
-            if (isReady) {
-                // Remove the native "In This Issue" taxonomy panels
-                wp.data.dispatch('core/edit-post').removeEditorPanel('taxonomy-panel-in_this_issue');
-                wp.data.dispatch('core/edit-post').removeEditorPanel('taxonomy-panel-in-this-issue');
-                hs_panel_removed = true;
+        // Hide native editor panels without ever breaking the editor (2026-10-13).
+        // WP 6.5+ keeps removeEditorPanel on core/editor; older WP on core/edit-post.
+        // Never call a store that isn't registered yet, and never let an error escape
+        // into the editor's own start-up (that blanked the block editor on WP 7.1.3).
+        function hsRemoveEditorPanels(panels) {
+            try {
+                if (!window.wp || !wp.data) return false;
+                var stores = ['core/editor', 'core/edit-post'];
+                for (var i = 0; i < stores.length; i++) {
+                    var d = wp.data.dispatch(stores[i]);
+                    if (d && typeof d.removeEditorPanel === 'function') {
+                        panels.forEach(function (p) { d.removeEditorPanel(p); });
+                        return true;
+                    }
+                }
+            } catch (e) {
+                if (window.console) console.warn('HeadStart: could not hide editor panels', e);
             }
-        });
+            return false;
+        }
+        // Run once the post has loaded, outside the editor's update cycle; retry once if no store was ready.
+        function hsWhenEditorReady(panels) {
+            if (!window.wp || !wp.data || !wp.data.subscribe) return;
+            var done = false, unsub = null;
+            unsub = wp.data.subscribe(function () {
+                if (done) return;
+                var ed = wp.data.select('core/editor');
+                if (!ed || typeof ed.getCurrentPostId !== 'function' || !ed.getCurrentPostId()) return;
+                done = true;
+                setTimeout(function () {
+                    if (typeof unsub === 'function') unsub();
+                    if (!hsRemoveEditorPanels(panels)) {
+                        setTimeout(function () { hsRemoveEditorPanels(panels); }, 1000);
+                    }
+                }, 0);
+            });
+        }
+        hsWhenEditorReady(['taxonomy-panel-in_this_issue', 'taxonomy-panel-in-this-issue']);
         // ==========================================
         // VISUAL OBSERVER (Turns boxes Green/Red for the humans)
         // ==========================================
