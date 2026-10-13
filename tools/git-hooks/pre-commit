@@ -37,7 +37,13 @@ if [ -n "$prot" ]; then
   [ -n "$others" ] && err "Approval/UAT/deploy records must be committed on their own by tools/hs, not mixed with other changes."
 fi
 
-# 5. Hygiene.
+# 5. No bulk deletes (renames don't count). Protects against an emptied index or a stray `git rm -r`.
+ndel=$(git diff --cached --name-status -M | awk '$1=="D"' | wc -l | tr -d ' ')
+if [ "$ndel" -gt 10 ] && [ "${HS_ALLOW_BULK_DELETE:-}" != 1 ]; then
+  err "This commit deletes $ndel tracked files. If that is really intended, the user runs it with HS_ALLOW_BULK_DELETE=1."
+fi
+
+# 6. Hygiene.
 junk=$(printf '%s\n' "$staged" | awk -F'\t' '$1!="D"{print $2}' | grep -E '(^|/)\.DS_Store$|(^|/)__MACOSX/' || true)
 [ -n "$junk" ] && err "Remove macOS junk from the commit: $junk"
 for f in $(printf '%s\n' "$staged" | awk -F'\t' '$1!="D"{print $2}'); do
@@ -45,7 +51,7 @@ for f in $(printf '%s\n' "$staged" | awk -F'\t' '$1!="D"{print $2}'); do
   [ "$sz" -gt 5242880 ] && err "$f is over 5 MB — keep big binaries out of git."
 done
 
-# 6. Lint staged PHP / JS in the code paths (staged content, not the working copy).
+# 7. Lint staged PHP / JS in the code paths (staged content, not the working copy).
 php=$(hs_find_php); missing=""
 tmpd=$(mktemp -d 2>/dev/null || mktemp -d -t hs)
 for f in $(printf '%s\n' "$staged" | awk -F'\t' '$1!="D"{print $2}' | grep -E "$HS_CODE_RE" || true); do
