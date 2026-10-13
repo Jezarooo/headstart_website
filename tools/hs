@@ -353,8 +353,9 @@ cmd_snapshot() {
 
 cmd_fetch_js() {
   local drop=Site-Scripts/Latest-Drop html u f n=0 bad=0 base
+  mkdir -p "$drop/js"
   html=$(ls "$drop"/js/*.html "$drop"/*.html 2>/dev/null | head -1 || true)
-  [ -n "$html" ] || hs_die "Save the Divi head code (Divi → Theme Options → Integration → <head>) as an .html file in $drop/js/ first."
+  [ -n "$html" ] || hs_die "No Divi head code found. Copy it from live (Divi → Theme Options → Integration → 'Add code to the <head>'), save it as $ROOT/$drop/js/divi-head-integration.html, then run tools/hs fetch-js again."
   command -v curl >/dev/null 2>&1 || hs_die "curl not found."
   mkdir -p "$drop/js"
   for u in $(grep -oE 'https?://[^"'"'"' >]+/uploads/hs-head/[a-f0-9]+\.js' "$html" | sort -u); do
