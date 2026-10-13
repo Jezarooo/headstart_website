@@ -1,47 +1,35 @@
-# Weekly update permalinks: clean editor link + 301s to the dated URL — developer handover
+# Weekly update permalinks — dev notes
 
 Package `weekly-update-permalinks-2026-10-13.zip` · 2026-10-13 · branch `fix/weekly-update-permalinks`
 
-## Summary
-Each weekly update keeps its one preferred URL, e.g. `/chaofah/weekly-update/2026/08/weekly-update-1/` (unchanged). This update makes the block editor show and link that URL instead of the raw database address, and adds a **301** from the two duplicate forms to it: the raw `/weekly-update/{db-slug}/` (e.g. `/weekly-update/weekly-update-1-chaofah-2026-08/`) and the older no-date `/{campus}/weekly-update/{slug}/`. Query strings (UTM tags) are kept. Rewrite rules, the unique-slug logic and the legacy-slug fallback are unchanged.
+## Problem
+- `weekly_update` is registered in CPT UI (rewrite slug `weekly-update`, query var on, REST base `weekly-update`). The Code Snippet **Weekly-Update--URL-Routing** serves the public URL `/{campus}/weekly-update/{YYYY}/{MM}/{slug}/`: a top rewrite rule maps it to a "phantom" DB slug `{slug}-{campus}-{YYYY}-{MM}`, which `hs_force_unique_weekly_slug` (`wp_insert_post_data`) writes on save so both campuses can use the same slug in the same month. Campus comes from the `hs_campus` term (`general` if none).
+- **Bug 1, editor link.** `hs_phantom_link_injector` was hooked to `post_type_link` with 2 args and did `str_replace('/weekly-update/{post_name}/', <clean path>, $post_link)`. When core builds the editable permalink (`get_sample_permalink()` → `get_permalink($post, true)`), `$post_link` contains `%weekly_update%` instead of the post name, so nothing matched and the block editor's permalink panel / "View" showed the raw `/weekly-update/{db-slug}/`.
+- **Bug 2, duplicate URLs.** The CPT's default single route `/weekly-update/{db-slug}/` and the legacy no-date rule `^([^/]+)/weekly-update/([^/]+)/?$` (kept for old links) both resolve with 200, so each update exists at up to three URLs. `redirect_canonical` doesn't catch either.
+
+## Change (one snippet; sections 1, 2, 3 and 5 unchanged)
+- **Link building.** `post_type_link` now takes 3 args and builds the URL from scratch with `home_url()` using the helper `hs_weekly_update_parts()` (campus term → `general`; Y/m from `post_date`; the phantom suffix is stripped only when it is a true suffix, so legacy slugs without one pass through). With `$leavename` the last segment is `%weekly_update%`. Draft / pending / auto-draft posts keep core's `?post_type=…&p=…` link so previews work.
+- **Editor slug.** `get_sample_permalink` and `rest_prepare_weekly_update` (`context=edit` only; public REST untouched) strip the phantom suffix, so the editor shows `weekly-update-7`. On save, the existing unique-slug filter re-appends it as before.
+- **Canonical 301.** `template_redirect` at priority 5 (before core's `redirect_canonical`): on a published singular `weekly_update`, if the request path ≠ the preferred path (compared case-insensitively, trailing slash ignored) → `wp_safe_redirect( preferred + original query string, 301 )`. Skips previews, `et_fb`/`et_tb` (Divi builder), feeds, admin and AJAX. Decision logic is the pure function `hs_weekly_update_redirect_target()`.
+- **Unchanged:** rewrite tag and rules, `hs_force_unique_weekly_slug`, the legacy `request` fallback. No rewrite flush needed.
 
 ## Files
-| File in package | Change | Goes on live as | Rollback copy |
+| File in package | Change | Goes on live as | Previous version |
 |---|---|---|---|
-| files/php/weekly-update-url-routing.code-snippets.php | modified | `Code Snippets: weekly-update-url-routing` | rollback/php/weekly-update-url-routing.code-snippets.php |
+| files/php/weekly-update-url-routing.code-snippets.php | modified | Code Snippet **Weekly-Update--URL-Routing** (replace its code) | rollback/php/weekly-update-url-routing.code-snippets.php |
 
-## Deploy steps
-1. WordPress admin → Snippets → open **Weekly-Update--URL-Routing**.
-2. Replace its entire code with `files/php/weekly-update-url-routing.code-snippets.php` (paste everything after the opening `<?php` line if the editor adds its own), keep it active, Save.
-3. Load any weekly update on the front end to confirm no error before purging.
+## Watch out for
+- **Purge WP Super Cache and Cloudflare APO after saving the snippet.** The duplicate URLs are probably cached as 200s and will keep serving until purged.
+- Cloudflare challenges plain `curl` (403); send a browser user agent when checking.
+- Tested: PHP 8.3 lint; 15-case unit run with WP stubs (published / `$leavename` / draft / no campus / legacy slug; preferred URL never redirects incl. no trailing slash and `?utm_*`; raw, raw+query, no-date, wrong-campus → 301); on Local (PHP 8.2) 200 / 301 / 301 with query kept and REST `link` = preferred URL.
 
-No other snippet changes. No new rewrite rules (a Permalinks save below is harmless but optional).
-
-Always, after the steps above:
-1. If any routing or rewrite rule changed: Settings → Permalinks → Save Changes.
-2. Purge WP Super Cache (Settings → WP Super Cache → Delete Cache).
-3. Purge Cloudflare (APO): purge everything, or at least the affected URLs.
-4. Run the smoke checks below.
-
-## Smoke checks
-Cloudflare blocks plain `curl`, so send a browser user agent:
-
+## Quick check after deploy (optional)
 ```
 UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 Chrome/128 Safari/537.36"
-for u in /chaofah/weekly-update/2026/08/weekly-update-1/ \
-         /weekly-update/weekly-update-1-chaofah-2026-08/ \
-         "/weekly-update/weekly-update-1-chaofah-2026-08/?utm_source=test" \
-         /chaofah/weekly-update/weekly-update-1/ ; do
-  printf '%-60s ' "$u"; curl -s -A "$UA" -o /dev/null -w '%{http_code} %{redirect_url}\n' "https://headstartphuket.com$u"; done
+for u in /chaofah/weekly-update/2026/08/weekly-update-1/ /weekly-update/weekly-update-1-chaofah-2026-08/ /chaofah/weekly-update/weekly-update-1/; do
+  printf '%-55s ' "$u"; curl -s -A "$UA" -o /dev/null -w '%{http_code} %{redirect_url}\n' "https://headstartphuket.com$u"; done
 ```
+Expect 200, then 301 → the first URL, twice. (The second URL assumes week 1's DB slug is `weekly-update-1-chaofah-2026-08`; if it 404s, check the post's slug in the DB rather than the fix.)
 
-Expected, in order:
-- **200** (preferred URL, no redirect)
-- **301** → `https://headstartphuket.com/chaofah/weekly-update/2026/08/weekly-update-1/`
-- **301** → same URL with `?utm_source=test`
-- **301** → same URL
-
-If a duplicate still answers 200, the cache wasn't purged. In the block editor, the permalink shown for a published weekly update should be the preferred URL with the short slug (`weekly-update-1`).
-
-## Rollback
-Paste each file in `rollback/` back over its snippet (these are the live versions from before this change). For files marked *new*, deactivate the snippet. Then purge the caches again.
+## Previous version
+`rollback/php/weekly-update-url-routing.code-snippets.php` is the live snippet as of 13 Oct, if you need to revert.
