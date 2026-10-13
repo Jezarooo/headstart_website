@@ -46,7 +46,7 @@ add_action('manage_weekly_update_posts_custom_column', 'hs_weekly_update_column_
 function hs_weekly_update_column_content($column_name, $post_id) {
     // BLURB (Meta Field)
     if ($column_name === 'hs_blurb_col') {
-        $blurb = get_field('blurb', $post_id);
+        $blurb = get_field('hs_weekly_update_blurb', $post_id);
         
         echo '<div class="hs-blurb-wrapper" style="position:relative; width: 100%; min-width: 150px;">';
         
@@ -285,7 +285,7 @@ function hs_inject_weekly_update_tax_js() {
                     action: 'hs_inline_meta_update',
                     security: '<?php echo wp_create_nonce("hs_inline_tax_nonce"); ?>',
                     post_id: post_id,
-                    meta_key: 'blurb',
+                    meta_key: 'hs_weekly_update_blurb',
                     meta_value: val
                 },
                 success: function(response) {
@@ -469,8 +469,7 @@ function hs_inject_weekly_update_tax_js() {
         // List View Divi Gatekeeper
         $('a').on('click', function(e) {
             var $link = $(this);
-            var href = $link.attr('href') || '';
-            var isDivi = $link.hasClass('edit_with_builder') || href.indexOf('et_fb=1') > -1 || href.indexOf('et_fb_activation_nonce') > -1;
+            var isDivi = $link.hasClass('edit_with_builder') || ($link.attr('href') && $link.attr('href').indexOf('et_fb=1') > -1);
             
             if (isDivi) {
                 var $row = $link.closest('tr');

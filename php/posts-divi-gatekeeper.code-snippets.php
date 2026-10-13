@@ -27,8 +27,8 @@
  *      Builder (?et_fb=1 / ?et_fb_activation_nonce) for an incomplete
  *      post is redirected back to the post editor with a notice.
  *   C. Publish guard (server)        - newly publishing an incomplete post
- *      from Divi's own Publish button, the block editor, Quick Edit or
- *      Bulk Edit leaves it as a Draft with a notice. Divi layout content
+ *      from Divi's own Publish button, Quick Edit or Bulk Edit is held
+ *      as a Draft before it is saved, with a notice. Divi layout content
  *      is still saved. Already-live posts are never unpublished.
  *
  * The list-view alert lives in Posts--Admin-Columns (same rules).
@@ -221,16 +221,12 @@ function hs_post_gate_divi_publish_guard( $response, $handler, $request ) {
         return $response;
     }
 
-    // Values Divi may be saving in this same request (Page Settings).
-    $overrides     = array();
-    $page_settings = $request->get_param( 'pageSettings' );
-    if ( is_array( $page_settings ) ) {
-        if ( isset( $page_settings['postTitle'] ) ) {
-            $overrides['title'] = (string) $page_settings['postTitle'];
-        }
-        if ( array_key_exists( 'postImage', $page_settings ) ) {
-            $overrides['has_thumbnail'] = ! empty( $page_settings['postImage'] );
-        }
+    // A title Divi may be saving in this same request (Divi 5.13: pageSettingsByLayout.postContent).
+    // Divi's sync route does not set the Featured Image, so only the title can change here.
+    $overrides = array();
+    $by_layout = $request->get_param( 'pageSettingsByLayout' );
+    if ( isset( $by_layout['postContent']['postTitle'] ) ) {
+        $overrides['title'] = (string) $by_layout['postContent']['postTitle'];
     }
 
     $missing = hs_post_gate_missing_fields( $post->ID, $overrides );
@@ -245,109 +241,37 @@ function hs_post_gate_divi_publish_guard( $response, $handler, $request ) {
 }
 
 /**
- * C2/C3. Everything else (block editor fallback, Quick Edit, Bulk Edit).
- * Track posts that become published in this request...
+ * C2. Quick Edit, Bulk Edit and other non-REST saves.
+ * Keeps an incomplete post as a Draft BEFORE it is written, so it is never
+ * live (no IndexNow ping, no APO purge, no publish hooks).
+ * REST saves are skipped: Divi is handled by C1, and the block editor saves
+ * ACF terms in a second request, so its publish can't be judged here. Layer A
+ * blocks the block editor's Publish button.
  */
-add_action( 'transition_post_status', 'hs_post_gate_track_new_publish', 10, 3 );
+add_filter( 'wp_insert_post_data', 'hs_post_gate_hold_publish', 99, 2 );
 
-function hs_post_gate_track_new_publish( $new_status, $old_status, $post ) {
-    if ( ! empty( $GLOBALS['hs_post_gate_reverting'] ) ) {
-        return;
+function hs_post_gate_hold_publish( $data, $postarr ) {
+    if ( 'post' !== $data['post_type'] || ! in_array( $data['post_status'], array( 'publish', 'future' ), true ) ) {
+        return $data;
     }
-    if ( ! $post || 'post' !== $post->post_type ) {
-        return;
+    if ( ( defined( 'REST_REQUEST' ) && REST_REQUEST ) || ! is_user_logged_in() ) {
+        return $data;
     }
-    if ( ! in_array( $new_status, array( 'publish', 'future' ), true ) ) {
-        return;
-    }
+    $post_id = empty( $postarr['ID'] ) ? 0 : (int) $postarr['ID'];
     // Only NEW publishes. Updates to live posts and scheduled posts going live are left alone.
-    if ( in_array( $old_status, array( 'publish', 'future' ), true ) ) {
-        return;
-    }
-    if ( ! is_user_logged_in() ) {
-        return;
+    if ( ! $post_id || in_array( get_post_status( $post_id ), array( 'publish', 'future' ), true ) ) {
+        return $data;
     }
 
-    $GLOBALS['hs_post_gate_new_publish'][ $post->ID ] = true;
-
-    // Block editor: the post is published via REST *before* the ACF fields are
-    // saved by a second (meta box) request. Defer the check to that request.
-    if ( hs_post_gate_is_block_editor_rest() ) {
-        set_transient( 'hs_post_gate_pending_' . $post->ID, get_current_user_id(), 2 * MINUTE_IN_SECONDS );
-    }
-}
-
-/**
- * ...then check once everything (incl. ACF fields and terms) has been saved.
- */
-add_action( 'wp_after_insert_post', 'hs_post_gate_after_insert', 99, 4 );
-
-function hs_post_gate_after_insert( $post_id, $post, $update, $post_before ) {
-    if ( ! empty( $GLOBALS['hs_post_gate_reverting'] ) ) {
-        return;
-    }
-    if ( ! $post || 'post' !== $post->post_type ) {
-        return;
-    }
-
-    // Block editor REST save: wait for the meta box request (handled below).
-    if ( hs_post_gate_is_block_editor_rest() ) {
-        return;
-    }
-    // Divi save: already handled by C1, before Divi's Page Settings were saved.
-    if ( hs_post_gate_current_rest_route() === '/divi/v1/sync-to-server' ) {
-        unset( $GLOBALS['hs_post_gate_new_publish'][ $post_id ] );
-        return;
-    }
-
-    $is_new_publish = ! empty( $GLOBALS['hs_post_gate_new_publish'][ $post_id ] );
-    $pending_key    = 'hs_post_gate_pending_' . $post_id;
-    $is_pending     = ( false !== get_transient( $pending_key ) );
-
-    if ( ! $is_new_publish && ! $is_pending ) {
-        return;
-    }
-
-    unset( $GLOBALS['hs_post_gate_new_publish'][ $post_id ] );
-    if ( $is_pending ) {
-        delete_transient( $pending_key );
-    }
-
-    hs_post_gate_enforce( $post_id );
-}
-
-function hs_post_gate_enforce( $post_id ) {
-    if ( ! in_array( get_post_status( $post_id ), array( 'publish', 'future' ), true ) ) {
-        return;
-    }
-    $missing = hs_post_gate_missing_fields( $post_id );
+    // ponytail: reads saved terms, so ticking a Section in the same Quick Edit as Publish holds it once; read $postarr['tax_input'] if editors hit that
+    $missing = hs_post_gate_missing_fields( $post_id, array( 'title' => wp_unslash( $data['post_title'] ) ) );
     if ( empty( $missing ) ) {
-        return;
+        return $data;
     }
 
-    $GLOBALS['hs_post_gate_reverting'] = true;
-    wp_update_post(
-        array(
-            'ID'          => $post_id,
-            'post_status' => 'draft',
-        )
-    );
-    $GLOBALS['hs_post_gate_reverting'] = false;
-
+    $data['post_status'] = 'draft';
     hs_post_gate_set_notice( $missing, 'publish', $post_id );
-}
-
-function hs_post_gate_current_rest_route() {
-    if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) {
-        return '';
-    }
-    global $wp;
-    $route = ( isset( $wp->query_vars['rest_route'] ) ) ? $wp->query_vars['rest_route'] : '';
-    return '/' . ltrim( (string) $route, '/' );
-}
-
-function hs_post_gate_is_block_editor_rest() {
-    return 0 === strpos( hs_post_gate_current_rest_route(), '/wp/v2/' );
+    return $data;
 }
 
 

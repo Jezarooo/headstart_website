@@ -117,6 +117,9 @@ function hs_render_post_slider_shortcode($atts) {
     } else {
         $seed = is_singular() ? get_the_ID() : intval(date('G'));
     }
+
+    // The post being read is left out of its own slider. AJAX requests are not is_single(), so the JS sends it back.
+    $exclude_id = is_single() ? get_the_ID() : ((wp_doing_ajax() && !empty($_POST['exclude_id'])) ? intval($_POST['exclude_id']) : 0);
     
     // HTML Cache Key (caches the final rendered HTML per page)
     $html_transient_key = 'hs_slhtml54_' . md5(json_encode($args) . $active_filter . $paged . $seed);
@@ -129,7 +132,7 @@ function hs_render_post_slider_shortcode($atts) {
 
     
     // Master List Cache Key (caches the full shuffled array of ~1000 IDs)
-    $list_transient_key = 'hs_sllist33_' . md5(json_encode($args) . $active_filter . $seed);
+    $list_transient_key = 'hs_sllist33_' . md5(json_encode($args) . $active_filter . $seed . '_' . $exclude_id);
     $master_id_list = get_transient($list_transient_key);
     
     if ($master_id_list === false) {
@@ -143,8 +146,8 @@ function hs_render_post_slider_shortcode($atts) {
         );
         
         // EXCLUDE CURRENT POST
-        if (is_single()) {
-            $query_args['post__not_in'] = array(get_the_ID());
+        if ($exclude_id) {
+            $query_args['post__not_in'] = array($exclude_id);
         }
 
         // EXCLUDE RECENT POSTS (e.g. 14 days for Weekly Update)
@@ -463,7 +466,7 @@ function hs_render_post_slider_shortcode($atts) {
         /* Kill pagination dots universally */
         .hs-shortcode-slider-wrapper .swiper-pagination { display: none !important; }
     </style>
-    <div class="hs-shortcode-slider-wrapper" id="<?php echo esc_attr($slider_id); ?>" data-display="<?php echo esc_attr($display); ?>" data-dept="<?php echo esc_attr(isset($args['department']) ? $args['department'] : ''); ?>" data-campus="<?php echo esc_attr(isset($args['campus']) ? $args['campus'] : ''); ?>" data-enforce-context="<?php echo esc_attr($args['enforce_context']); ?>" data-exclude-days="<?php echo esc_attr($args['exclude_recent_days']); ?>" data-count="<?php echo esc_attr($args['posts_per_page']); ?>" data-title="<?php echo esc_attr($args['title']); ?>" data-seed="<?php echo esc_attr($seed); ?>">
+    <div class="hs-shortcode-slider-wrapper" id="<?php echo esc_attr($slider_id); ?>" data-display="<?php echo esc_attr($display); ?>" data-dept="<?php echo esc_attr(isset($args['department']) ? $args['department'] : ''); ?>" data-campus="<?php echo esc_attr(isset($args['campus']) ? $args['campus'] : ''); ?>" data-enforce-context="<?php echo esc_attr($args['enforce_context']); ?>" data-exclude-days="<?php echo esc_attr($args['exclude_recent_days']); ?>" data-count="<?php echo esc_attr($args['posts_per_page']); ?>" data-title="<?php echo esc_attr($args['title']); ?>" data-seed="<?php echo esc_attr($seed); ?>" data-orderby="<?php echo esc_attr($args['orderby']); ?>" data-exclude-id="<?php echo intval($exclude_id); ?>">
     <?php endif; ?>
         
         <?php
@@ -592,12 +595,8 @@ function hs_render_post_slider_shortcode($atts) {
                 if (!document.getElementById('swiper-js-script')) {
                     var script = document.createElement('script');
                     script.id = 'swiper-js-script';
-                    script.src = 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js';
+                    script.src = '/wp-content/mu-plugins/hs-swiper/swiper-bundle.min.js?ver=11.2.10';
                     document.head.appendChild(script);
-                    var link = document.createElement('link');
-                    link.rel = 'stylesheet';
-                    link.href = 'https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css';
-                    document.head.appendChild(link);
                 }
                 // Try again in 100ms
                 setTimeout(init_hs_slider_%%HS_SLIDER_ID_PLACEHOLDER%%, 100);
@@ -705,6 +704,8 @@ function hs_render_post_slider_shortcode($atts) {
                                     data.append('enforce_context', rootContainer.getAttribute('data-enforce-context') || 'false');
                                     data.append('exclude_recent_days', rootContainer.getAttribute('data-exclude-days') || '0');
                                     data.append('seed', rootContainer.getAttribute('data-seed') || '');
+                                    data.append('orderby', rootContainer.getAttribute('data-orderby') || '');
+                                    data.append('exclude_id', rootContainer.getAttribute('data-exclude-id') || '');
                                     data.append('ajax_cards_only', 'true');
                                     data.append('display', 'slider');
                                     fetch(hs_ajaxurl, { method: 'POST', body: data })
@@ -824,6 +825,8 @@ function hs_render_post_slider_shortcode($atts) {
                         data.append('count', count);
                         data.append('title', title);
                         data.append('seed', seed);
+                        data.append('orderby', rootContainer.getAttribute('data-orderby') || '');
+                        data.append('exclude_id', rootContainer.getAttribute('data-exclude-id') || '');
                         data.append('ajax_cards_only', 'true');
                         data.append('display', '<?php echo esc_js($display); ?>');
                         
@@ -1059,6 +1062,9 @@ function hs_ajax_load_slider_posts() {
         'exclude_recent_days' => isset($_POST['exclude_recent_days']) ? sanitize_text_field($_POST['exclude_recent_days']) : '0',
         'ajax_cards_only'     => 'true' // Trigger the bypass to only return the raw slides
     );
+    if (!empty($_POST['orderby'])) {
+        $args['orderby'] = sanitize_key($_POST['orderby']);
+    }
 
     // Render the shortcode using our bypass to get JUST the cards HTML
     $cards_html = hs_render_post_slider_shortcode($args);
