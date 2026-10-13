@@ -31,14 +31,9 @@ Galleries whose thumbnails don't get those attributes fall through to step 3 and
 | files/php/gallery-image-real-size.code-snippets.php | new | Code Snippets: `gallery-image-real-size` (front end) | — new: deactivate to roll back |
 
 ## Watch out for
-- **The JS lives in the Divi head.** It is linked from Divi → Theme Options → Integration → head as `<script src=".../uploads/hs-head/a175107c2aea8fc25780095fc0f14383.js" defer>`.
-  - The `hs-head` file names match the MD5 of their content. The new file's MD5 is `0ecd9c6cd7c2af8261644a9e84e666b3`.
-  - If you publish it under that new name, update that `<script src>` to match.
-  - If you overwrite the old file in place instead, the old name stays cached at Cloudflare and in browsers, so purge it.
-  - Please use whichever way these head files are normally generated.
-- The two parts are independent. The JS change works without the snippet (it just measures originals), and the snippet is harmless without the JS change. Deploy order doesn't matter.
-- Page HTML changes (new data attributes on content images), so purge WP Super Cache and Cloudflare APO after deploying.
-- Cloudflare challenges plain `curl` (403); send a browser user agent when checking.
+- `gallery-mosaic.js` is the head script `uploads/hs-head/a175107c….js` (Divi → Integration → head). New content MD5: `0ecd9c6cd7c2af8261644a9e84e666b3`.
+- The snippet and the JS change are independent; any order.
+- Purge WP Super Cache + Cloudflare APO (page HTML changes).
 
 ## Quick check after deploy (optional)
 On a weekly update with a gallery, run this in the browser console:
