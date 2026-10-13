@@ -24,7 +24,7 @@ No live-site change. Nothing in this task is deployed.
    - `handover --local-only "reason"`: for tasks that ship nothing to live (like this one) — records HANDOVER with the reason instead of building a zip, so `finish` can merge.
    - `publish`: after `finish`/`deployed`/`snapshot`, writes a git bundle of commits not yet on GitHub so a cloud session can push them (Mac sessions just `git push`).
 5. `tools/git-hooks/pre-commit` — block any commit deleting more than 10 tracked files unless `HS_ALLOW_BULK_DELETE=1` (the Claude Code guard blocks agents from setting it). The rename in step 1 is a rename, not a delete, so it is unaffected.
-6. `CLAUDE.md` (+ project copy) — Antigravity retired; one agent at a time; Gate 1 uses `tools/hs fetch-js`; Nick (firedev) edits live directly, so snapshot before every task; how to push (cloud: bundle → push; Mac: `git push`).
+6. `CLAUDE.md` (+ project copy) — Antigravity retired; one agent at a time; Gate 1 uses `tools/hs fetch-js`; Nick (firedev) edits live directly, so snapshot before every task; how to push (cloud: bundle → push; Mac: `git push`). Roadmap: https://claude.ai/artifact/VtLKZu5yuna4oAVV8GNXUb is the backlog; every task links to a roadmap item, and Claude moves its status at each gate (Planning → Approved → Building → UAT → Ready for dev → Live).
 
 Out of scope (own tasks): the `?>` bug in posts-compute on live; syncing the local CSV importer with Nick's live version; deciding what to do with the undeployed cross-campus snippet.
 
