@@ -220,7 +220,7 @@ cmd_handover() {
   name=$(basename "$dir")
   local backup; backup=$(hs_newest_backup)
   rm -rf "$dir/files" "$dir/rollback"; mkdir -p "$dir/files"
-  local table="| File in package | Change | Goes on live as | Rollback copy |"$'\n'"|---|---|---|---|"
+  local table="| File in package | Change | Goes on live as | Previous version |"$'\n'"|---|---|---|---|"
   local f sub base rb change
   for f in $files; do
     sub=$(handover_subpath "$f"); mkdir -p "$dir/files/$(dirname "$sub")"; cp "$f" "$dir/files/$sub"
@@ -241,7 +241,7 @@ cmd_handover() {
       "$TPL/DEV-NOTES.md" > "$dir/DEV-NOTES.md"
     echo "dir: $dir" > "$wd/HANDOVER.pending"
     if printf '%s\n' "$files" | grep -q '^Site-Scripts/js/'; then
-      awk '/^Always, after the steps above:/{print "JS files keep their live hash names: upload each `files/js/<name>.js` to `wp-content/uploads/hs-head/` under the name in the \"Goes on live as\" column, overwriting the old file.\n"} {print}' "$dir/DEV-NOTES.md" > "$dir/DEV-NOTES.md.tmp" && mv "$dir/DEV-NOTES.md.tmp" "$dir/DEV-NOTES.md"
+      awk '{print} /^## Watch out for/{print "- JS files keep their live hash names: upload each `files/js/<name>.js` to `wp-content/uploads/hs-head/` under the name in the \"Goes on live as\" column, overwriting the old file."}' "$dir/DEV-NOTES.md" > "$dir/DEV-NOTES.md.tmp" && mv "$dir/DEV-NOTES.md.tmp" "$dir/DEV-NOTES.md"
     fi
     hs_ok "Scaffolded $dir (files/, rollback/, DEV-NOTES.md)."
     hs_info "Next: complete every TODO: in $dir/DEV-NOTES.md, then run tools/hs handover again to zip + commit."

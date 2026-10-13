@@ -1,24 +1,23 @@
-# {{TITLE}} — developer handover
+# {{TITLE}} — dev notes
 
 Package `{{ZIP}}` · {{DATE}} · branch `{{BRANCH}}`
 
-## Summary
-TODO: 2–4 sentences — what changes on the live site and why.
+## Problem
+TODO: technical description for a developer: what was wrong, where (snippet / function / hook / file), and why it happened.
+
+## Change
+TODO: what the code does now, function by function, and what is deliberately unchanged.
 
 ## Files
 {{FILE_TABLE}}
 
-## Deploy steps
-TODO: numbered steps naming the exact Code Snippets / Custom CSS & JS entries to replace, activate or deactivate.
+## Watch out for
+TODO: anything unusual about deploying this (a new snippet, activation order, rewrite flush, files in uploads/hs-head); delete this line if nothing.
+- Purge WP Super Cache and Cloudflare APO after deploying if URLs, redirects or page output changed.
+- Cloudflare challenges plain `curl` (403); send a browser user agent when checking.
 
-Always, after the steps above:
-1. If any routing or rewrite rule changed: Settings → Permalinks → Save Changes.
-2. Purge WP Super Cache (Settings → WP Super Cache → Delete Cache).
-3. Purge Cloudflare (APO): purge everything, or at least the affected URLs.
-4. Run the smoke checks below.
+## Quick check after deploy (optional)
+TODO: one short command or click-path, with the expected result.
 
-## Smoke checks
-TODO: URL → expected result (status code / what you should see), e.g. `curl -sI <url>`.
-
-## Rollback
-Paste each file in `rollback/` back over its snippet (these are the live versions from before this change). For files marked *new*, deactivate the snippet. Then purge the caches again.
+## Previous version
+`rollback/` holds the live files as they were before this change, if you need to revert. Files marked *new* have no previous version: deactivate them instead.
