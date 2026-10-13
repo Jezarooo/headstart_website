@@ -21,6 +21,7 @@ No live-site change. Nothing in this task is deployed.
 4. `tools/hs`:
    - `fetch-js` (run in Terminal on the Mac): reads the Divi head export in `Latest-Drop/js/`, downloads every `uploads/hs-head/*.js` with its hash name, rejects HTML/Cloudflare responses, prints a count.
    - `handover` + `drift`: translate clean JS names ↔ live hash names via MANIFEST, so rollback copies are found and DEV-NOTES say "replace `uploads/hs-head/<hash>.js` with `files/js/<clean>.js`".
+   - `handover --local-only "reason"`: for tasks that ship nothing to live (like this one) — records HANDOVER with the reason instead of building a zip, so `finish` can merge.
    - `publish`: after `finish`/`deployed`/`snapshot`, writes a git bundle of commits not yet on GitHub so a cloud session can push them (Mac sessions just `git push`).
 5. `tools/git-hooks/pre-commit` — block any commit deleting more than 10 tracked files unless `HS_ALLOW_BULK_DELETE=1` (the Claude Code guard blocks agents from setting it). The rename in step 1 is a rename, not a delete, so it is unaffected.
 6. `CLAUDE.md` (+ project copy) — Antigravity retired; one agent at a time; Gate 1 uses `tools/hs fetch-js`; Nick (firedev) edits live directly, so snapshot before every task; how to push (cloud: bundle → push; Mac: `git push`).
