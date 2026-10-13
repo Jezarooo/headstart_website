@@ -415,8 +415,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Standalone Divi images carry width/height attributes; loading the original
                 // here would defeat loading="lazy" and pull every full-size file at once.
-                const attrW = thumbImg && +thumbImg.getAttribute('width');
-                const attrH = thumbImg && +thumbImg.getAttribute('height');
+                // Never for gallery items: their width/height describe the cropped thumbnail
+                // (e.g. 400x284), which would make every portrait read as landscape.
+                const attrW = obj.type === 'standalone' && thumbImg && +thumbImg.getAttribute('width');
+                const attrH = obj.type === 'standalone' && thumbImg && +thumbImg.getAttribute('height');
                 if (attrW && attrH) {
                     data.isPortrait = attrH > attrW;
                     return resolve(data);
