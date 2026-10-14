@@ -1,0 +1,136 @@
+{
+ "context": "et_builder_layouts",
+ "data": {
+  "990001": {
+   "ID": 990001,
+   "post_date": "2026-10-01 09:00:00",
+   "post_date_gmt": "2026-10-01 02:00:00",
+   "post_content": "<!-- wp:divi/placeholder --><!-- wp:divi/section {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Alumni Stories\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"ngj9uaujzt\",\"name\":\"class\",\"value\":\"hs-alumni-stories-section\",\"adminLabel\":\"hs-alumni-stories-section\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"ngj9uaujzt\",\"name\":\"class\",\"value\":\"hs-alumni-stories-section\",\"adminLabel\":\"hs-alumni-stories-section\",\"targetElement\":\"main\"}]}}},\"spacing\":{\"desktop\":{\"value\":{\"padding\":{\"top\":\"3rem\",\"bottom\":\"3rem\",\"syncVertical\":\"off\",\"syncHorizontal\":\"off\"}}}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} --><!-- wp:divi/row {\"module\":{\"advanced\":{\"flexColumnStructure\":{\"desktop\":{\"value\":\"equal-columns_1\"}}},\"decoration\":{\"layout\":{\"desktop\":{\"value\":{\"flexWrap\":\"nowrap\"}}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} --><!-- wp:divi/column {\"module\":{\"decoration\":{\"sizing\":{\"desktop\":{\"value\":{\"flexType\":\"24_24\"}}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} --><!-- wp:divi/group {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Alumni stories — add, reorder or duplicate story groups inside\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"tnwl3p0k89\",\"name\":\"class\",\"value\":\"hs-alumni-stories\",\"adminLabel\":\"hs-alumni-stories\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"tnwl3p0k89\",\"name\":\"class\",\"value\":\"hs-alumni-stories\",\"adminLabel\":\"hs-alumni-stories\",\"targetElement\":\"main\"}]}}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} --><!-- wp:divi/group {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Story — Carol\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"ccke7m7zxe\",\"name\":\"class\",\"value\":\"hs-alumni-story\",\"adminLabel\":\"hs-alumni-story\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"ccke7m7zxe\",\"name\":\"class\",\"value\":\"hs-alumni-story\",\"adminLabel\":\"hs-alumni-story\",\"targetElement\":\"main\"}]}}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} --><!-- wp:divi/gallery {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Slides — Instagram graphics (4:5, in order)\"}}},\"advanced\":{\"showTitleAndCaption\":{\"desktop\":{\"value\":\"off\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"17bso97brj\",\"name\":\"class\",\"value\":\"hs-story-slides\",\"adminLabel\":\"hs-story-slides\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"17bso97brj\",\"name\":\"class\",\"value\":\"hs-story-slides\",\"adminLabel\":\"hs-story-slides\",\"targetElement\":\"main\"}]}}}}},\"pagination\":{\"advanced\":{\"showPagination\":{\"desktop\":{\"value\":\"off\"}}}},\"image\":{\"advanced\":{\"galleryIds\":{\"desktop\":{\"value\":\"__IDS_CAROL__\"}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} /--><!-- wp:divi/image {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Card photo (optional — blank uses slide 1)\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"z9gz7h2my2\",\"name\":\"class\",\"value\":\"hs-story-card\",\"adminLabel\":\"hs-story-card\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"z9gz7h2my2\",\"name\":\"class\",\"value\":\"hs-story-card\",\"adminLabel\":\"hs-story-card\",\"targetElement\":\"main\"}]}}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} /--><!-- wp:divi/text {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Story text — H3 name, meta line, blurb, IG link\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"qmk7buuqy8\",\"name\":\"class\",\"value\":\"hs-story-text\",\"adminLabel\":\"hs-story-text\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"qmk7buuqy8\",\"name\":\"class\",\"value\":\"hs-story-text\",\"adminLabel\":\"hs-story-text\",\"targetElement\":\"main\"}]}}}}},\"content\":{\"innerContent\":{\"desktop\":{\"value\":\"<h3>Carol</h3>\\n<p>Class of 2014 · Documentary producer and editor, Southeast Asia</p>\\n<p>After moving from Manila to Phuket, Carol discovered a lifelong passion for visual storytelling and, in 2011, became HeadStart’s first ever Head Girl.</p>\\n<p>A degree in Communication Arts at Stamford International University led to years filming for major outlets such as DW and Vice World News. Today, Carol and her husband, Dennis, travel across Southeast Asia producing and editing documentaries that bring overlooked stories and history to light.</p>\\n<p><a href=\\\"https://www.instagram.com/headstartalumni/\\\" target=\\\"_blank\\\" rel=\\\"noopener\\\">View on Instagram</a></p>\"}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} /--><!-- /wp:divi/group --><!-- wp:divi/group {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Story — Nick\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"jlgi2aa8al\",\"name\":\"class\",\"value\":\"hs-alumni-story\",\"adminLabel\":\"hs-alumni-story\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"jlgi2aa8al\",\"name\":\"class\",\"value\":\"hs-alumni-story\",\"adminLabel\":\"hs-alumni-story\",\"targetElement\":\"main\"}]}}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} --><!-- wp:divi/gallery {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Slides — Instagram graphics (4:5, in order)\"}}},\"advanced\":{\"showTitleAndCaption\":{\"desktop\":{\"value\":\"off\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"dqdtw8dyo0\",\"name\":\"class\",\"value\":\"hs-story-slides\",\"adminLabel\":\"hs-story-slides\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"dqdtw8dyo0\",\"name\":\"class\",\"value\":\"hs-story-slides\",\"adminLabel\":\"hs-story-slides\",\"targetElement\":\"main\"}]}}}}},\"pagination\":{\"advanced\":{\"showPagination\":{\"desktop\":{\"value\":\"off\"}}}},\"image\":{\"advanced\":{\"galleryIds\":{\"desktop\":{\"value\":\"__IDS_NICK__\"}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} /--><!-- wp:divi/image {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Card photo (optional — blank uses slide 1)\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"j1ae3q0r5i\",\"name\":\"class\",\"value\":\"hs-story-card\",\"adminLabel\":\"hs-story-card\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"j1ae3q0r5i\",\"name\":\"class\",\"value\":\"hs-story-card\",\"adminLabel\":\"hs-story-card\",\"targetElement\":\"main\"}]}}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} /--><!-- wp:divi/text {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Story text — H3 name, meta line, blurb, IG link\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"wtu7jy92in\",\"name\":\"class\",\"value\":\"hs-story-text\",\"adminLabel\":\"hs-story-text\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"wtu7jy92in\",\"name\":\"class\",\"value\":\"hs-story-text\",\"adminLabel\":\"hs-story-text\",\"targetElement\":\"main\"}]}}}}},\"content\":{\"innerContent\":{\"desktop\":{\"value\":\"<h3>Nick</h3>\\n<p>Class of 2022 · From Lancaster University to Washington DC</p>\\n<p>For Nick, HeadStart meant DoE adventures, CAPA performances and lifelong friendships. After graduating, he became a Divemaster and travelled the world before studying History and International Relations at Lancaster University in the UK.</p>\\n<p>Today, Nick has visited 47 countries and worked at major events in the US, and he hopes to build a career in politics or international affairs. His advice to current students: stay open-minded, take risks and say yes to opportunities.</p>\\n<p><a href=\\\"https://www.instagram.com/headstartalumni/\\\" target=\\\"_blank\\\" rel=\\\"noopener\\\">View on Instagram</a></p>\"}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} /--><!-- /wp:divi/group --><!-- wp:divi/group {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Story — Pea\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"vfsrsg6nce\",\"name\":\"class\",\"value\":\"hs-alumni-story\",\"adminLabel\":\"hs-alumni-story\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"vfsrsg6nce\",\"name\":\"class\",\"value\":\"hs-alumni-story\",\"adminLabel\":\"hs-alumni-story\",\"targetElement\":\"main\"}]}}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} --><!-- wp:divi/gallery {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Slides — Instagram graphics (4:5, in order)\"}}},\"advanced\":{\"showTitleAndCaption\":{\"desktop\":{\"value\":\"off\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"whfqnoifm5\",\"name\":\"class\",\"value\":\"hs-story-slides\",\"adminLabel\":\"hs-story-slides\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"whfqnoifm5\",\"name\":\"class\",\"value\":\"hs-story-slides\",\"adminLabel\":\"hs-story-slides\",\"targetElement\":\"main\"}]}}}}},\"pagination\":{\"advanced\":{\"showPagination\":{\"desktop\":{\"value\":\"off\"}}}},\"image\":{\"advanced\":{\"galleryIds\":{\"desktop\":{\"value\":\"__IDS_PEA__\"}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} /--><!-- wp:divi/image {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Card photo (optional — blank uses slide 1)\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"k516i830ve\",\"name\":\"class\",\"value\":\"hs-story-card\",\"adminLabel\":\"hs-story-card\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"k516i830ve\",\"name\":\"class\",\"value\":\"hs-story-card\",\"adminLabel\":\"hs-story-card\",\"targetElement\":\"main\"}]}}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} /--><!-- wp:divi/text {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Story text — H3 name, meta line, blurb, IG link\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"7tzq2z8imt\",\"name\":\"class\",\"value\":\"hs-story-text\",\"adminLabel\":\"hs-story-text\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"7tzq2z8imt\",\"name\":\"class\",\"value\":\"hs-story-text\",\"adminLabel\":\"hs-story-text\",\"targetElement\":\"main\"}]}}}}},\"content\":{\"innerContent\":{\"desktop\":{\"value\":\"<h3>Pea</h3>\\n<p>Class of 2020 · Master’s student in Germany</p>\\n<p>Pea spent 10 years at HeadStart, beginning with her first day at the old campus without knowing a word of English. She went on to earn a Bachelor’s degree in the Netherlands, discovering her own resilience along the way.</p>\\n<p>Now studying for a Master’s degree in Germany, Pea is taking time to slow down, rediscovering her love of basketball and learning to take life one day at a time.</p>\\n<p><a href=\\\"https://www.instagram.com/headstartalumni/\\\" target=\\\"_blank\\\" rel=\\\"noopener\\\">View on Instagram</a></p>\"}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} /--><!-- /wp:divi/group --><!-- wp:divi/group {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Story — Reece\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"9n2ac7l1br\",\"name\":\"class\",\"value\":\"hs-alumni-story\",\"adminLabel\":\"hs-alumni-story\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"9n2ac7l1br\",\"name\":\"class\",\"value\":\"hs-alumni-story\",\"adminLabel\":\"hs-alumni-story\",\"targetElement\":\"main\"}]}}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} --><!-- wp:divi/gallery {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Slides — Instagram graphics (4:5, in order)\"}}},\"advanced\":{\"showTitleAndCaption\":{\"desktop\":{\"value\":\"off\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"8vnr5nben0\",\"name\":\"class\",\"value\":\"hs-story-slides\",\"adminLabel\":\"hs-story-slides\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"8vnr5nben0\",\"name\":\"class\",\"value\":\"hs-story-slides\",\"adminLabel\":\"hs-story-slides\",\"targetElement\":\"main\"}]}}}}},\"pagination\":{\"advanced\":{\"showPagination\":{\"desktop\":{\"value\":\"off\"}}}},\"image\":{\"advanced\":{\"galleryIds\":{\"desktop\":{\"value\":\"__IDS_REECE__\"}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} /--><!-- wp:divi/image {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Card photo (optional — blank uses slide 1)\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"btfvbbpbus\",\"name\":\"class\",\"value\":\"hs-story-card\",\"adminLabel\":\"hs-story-card\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"btfvbbpbus\",\"name\":\"class\",\"value\":\"hs-story-card\",\"adminLabel\":\"hs-story-card\",\"targetElement\":\"main\"}]}}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} /--><!-- wp:divi/text {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Story text — H3 name, meta line, blurb, IG link\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"lth4am2ror\",\"name\":\"class\",\"value\":\"hs-story-text\",\"adminLabel\":\"hs-story-text\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"lth4am2ror\",\"name\":\"class\",\"value\":\"hs-story-text\",\"adminLabel\":\"hs-story-text\",\"targetElement\":\"main\"}]}}}}},\"content\":{\"innerContent\":{\"desktop\":{\"value\":\"<h3>Reece</h3>\\n<p>Class of 2022 · Back at HeadStart, Business and Economics BTEC</p>\\n<p>Reece’s story is one that comes full circle. After HeadStart, he went on to university [check: where and what he studied], an experience that brought its share of homesickness. It is a story many of our Sixth Form students heading to university will recognise.</p>\\n<p>Now he is back at what he calls his “second home”, passing on his real-world experience to our Business and Economics BTEC students [check: his role, e.g. teacher or visiting speaker].</p>\\n<p><a href=\\\"https://www.instagram.com/headstartalumni/\\\" target=\\\"_blank\\\" rel=\\\"noopener\\\">View on Instagram</a></p>\"}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} /--><!-- /wp:divi/group --><!-- wp:divi/text {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"“Your story next?” tile — heading, one line, email link (shown on the tile)\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"rnc9irrmvx\",\"name\":\"class\",\"value\":\"hs-story-invite\",\"adminLabel\":\"hs-story-invite\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"rnc9irrmvx\",\"name\":\"class\",\"value\":\"hs-story-invite\",\"adminLabel\":\"hs-story-invite\",\"targetElement\":\"main\"}]}}}}},\"content\":{\"innerContent\":{\"desktop\":{\"value\":\"<h3>Your story next?</h3>\\n<p>Share where life has taken you since HeadStart. We’d love to hear.</p>\\n<p><a href=\\\"mailto:marcom@headstartphuket.com\\\">marcom@headstartphuket.com</a></p>\"}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} /--><!-- /wp:divi/group --><!-- /wp:divi/column --><!-- /wp:divi/row --><!-- /wp:divi/section --><!-- /wp:divi/placeholder -->",
+   "post_title": "Alumni stories (section)",
+   "post_excerpt": "",
+   "post_status": "publish",
+   "comment_status": "closed",
+   "ping_status": "closed",
+   "post_password": "",
+   "post_name": "alumni-stories-section",
+   "to_ping": "",
+   "pinged": "",
+   "post_modified": "2026-10-01 09:00:00",
+   "post_modified_gmt": "2026-10-01 02:00:00",
+   "post_content_filtered": "",
+   "post_parent": 0,
+   "menu_order": 0,
+   "post_type": "et_pb_layout",
+   "post_mime_type": "",
+   "comment_count": "0",
+   "filter": "raw",
+   "post_meta": {
+    "_et_pb_excluded_global_options": [
+     "[]"
+    ],
+    "_et_pb_built_for_post_type": [
+     "page"
+    ],
+    "_et_pb_template_type": [
+     "section"
+    ]
+   },
+   "terms": {
+    "1": {
+     "name": "not_global",
+     "slug": "not_global",
+     "taxonomy": "scope",
+     "parent": 0,
+     "all_parents": [],
+     "description": ""
+    },
+    "2": {
+     "name": "section",
+     "slug": "section",
+     "taxonomy": "layout_type",
+     "parent": 0,
+     "all_parents": [],
+     "description": ""
+    },
+    "3": {
+     "name": "regular",
+     "slug": "regular",
+     "taxonomy": "module_width",
+     "parent": 0,
+     "all_parents": [],
+     "description": ""
+    }
+   }
+  },
+  "990002": {
+   "ID": 990002,
+   "post_date": "2026-10-01 09:00:00",
+   "post_date_gmt": "2026-10-01 02:00:00",
+   "post_content": "<!-- wp:divi/placeholder --><!-- wp:divi/group {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Story — [Name]\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"4jq9lfe2fi\",\"name\":\"class\",\"value\":\"hs-alumni-story\",\"adminLabel\":\"hs-alumni-story\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"4jq9lfe2fi\",\"name\":\"class\",\"value\":\"hs-alumni-story\",\"adminLabel\":\"hs-alumni-story\",\"targetElement\":\"main\"}]}}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} --><!-- wp:divi/gallery {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Slides — Instagram graphics (4:5, in order)\"}}},\"advanced\":{\"showTitleAndCaption\":{\"desktop\":{\"value\":\"off\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"a1a3f3hngw\",\"name\":\"class\",\"value\":\"hs-story-slides\",\"adminLabel\":\"hs-story-slides\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"a1a3f3hngw\",\"name\":\"class\",\"value\":\"hs-story-slides\",\"adminLabel\":\"hs-story-slides\",\"targetElement\":\"main\"}]}}}}},\"pagination\":{\"advanced\":{\"showPagination\":{\"desktop\":{\"value\":\"off\"}}}},\"image\":{\"advanced\":{\"galleryIds\":{\"desktop\":{\"value\":\"\"}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} /--><!-- wp:divi/image {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Card photo (optional — blank uses slide 1)\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"losmc2cq6x\",\"name\":\"class\",\"value\":\"hs-story-card\",\"adminLabel\":\"hs-story-card\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"losmc2cq6x\",\"name\":\"class\",\"value\":\"hs-story-card\",\"adminLabel\":\"hs-story-card\",\"targetElement\":\"main\"}]}}}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} /--><!-- wp:divi/text {\"module\":{\"meta\":{\"adminLabel\":{\"desktop\":{\"value\":\"Story text — H3 name, meta line, blurb, IG link\"}}},\"decoration\":{\"attributes\":{\"attributes\":[{\"id\":\"ue5zzibihn\",\"name\":\"class\",\"value\":\"hs-story-text\",\"adminLabel\":\"hs-story-text\",\"targetElement\":\"main\"}],\"desktop\":{\"value\":{\"attributes\":[{\"id\":\"ue5zzibihn\",\"name\":\"class\",\"value\":\"hs-story-text\",\"adminLabel\":\"hs-story-text\",\"targetElement\":\"main\"}]}}}}},\"content\":{\"innerContent\":{\"desktop\":{\"value\":\"\\u003ch3\\u003e[Name]\\u003c/h3\\u003e\\n\\u003cp\\u003eClass of [Year] · [University / role]\\u003c/p\\u003e\\n\\u003cp\\u003e[Overview blurb from the Instagram caption.]\\u003c/p\\u003e\\n\\u003cp\\u003e\\u003ca href=\\\"https://www.instagram.com/headstartalumni/\\\" target=\\\"_blank\\\" rel=\\\"noopener\\\"\\u003eView on Instagram\\u003c/a\\u003e\\u003c/p\\u003e\"}}},\"builderVersion\":\"5.0.0-public-beta.4.1\"} /--><!-- /wp:divi/group --><!-- /wp:divi/placeholder -->",
+   "post_title": "Alumni story (template)",
+   "post_excerpt": "",
+   "post_status": "publish",
+   "comment_status": "closed",
+   "ping_status": "closed",
+   "post_password": "",
+   "post_name": "alumni-story-template",
+   "to_ping": "",
+   "pinged": "",
+   "post_modified": "2026-10-01 09:00:00",
+   "post_modified_gmt": "2026-10-01 02:00:00",
+   "post_content_filtered": "",
+   "post_parent": 0,
+   "menu_order": 0,
+   "post_type": "et_pb_layout",
+   "post_mime_type": "",
+   "comment_count": "0",
+   "filter": "raw",
+   "post_meta": {
+    "_et_pb_module_type": [
+     "divi/group"
+    ],
+    "_et_pb_excluded_global_options": [
+     "[]"
+    ],
+    "_et_pb_built_for_post_type": [
+     "page"
+    ],
+    "_et_pb_template_type": [
+     "module"
+    ]
+   },
+   "terms": {
+    "1": {
+     "name": "not_global",
+     "slug": "not_global",
+     "taxonomy": "scope",
+     "parent": 0,
+     "all_parents": [],
+     "description": ""
+    },
+    "2": {
+     "name": "module",
+     "slug": "module",
+     "taxonomy": "layout_type",
+     "parent": 0,
+     "all_parents": [],
+     "description": ""
+    },
+    "3": {
+     "name": "regular",
+     "slug": "regular",
+     "taxonomy": "module_width",
+     "parent": 0,
+     "all_parents": [],
+     "description": ""
+    }
+   }
+  }
+ },
+ "presets": "",
+ "global_colors": [],
+ "global_variables": [],
+ "canvases": [],
+ "images": [],
+ "thumbnails": []
+}

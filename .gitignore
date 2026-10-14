@@ -26,6 +26,9 @@
 !/Site-Scripts/Latest-Drop/.gitkeep
 /Site-Scripts/archive/
 
+# Alumni stories source material (saved Instagram pages, raw and prepared images): local only.
+/work/alumni-stories/Alumni-Stories/
+
 # Per-machine / junk
 .claude/settings.local.json
 .DS_Store
