@@ -1,6 +1,6 @@
 /**
  * =============================================================================
- * HEADSTART ALUMNI STORIES (V1, 14 Oct 2026)
+ * HEADSTART ALUMNI STORIES (V2, 14 Oct 2026)
  * =============================================================================
  * PURPOSE: Turns the Divi "Alumni stories" Groups into the story slider layout.
  * DIVI STRUCTURE (built and edited in Divi 5, no code):
@@ -10,8 +10,12 @@
  *       Image   .hs-story-card              plain photo for the story card
  *       Text    .hs-story-text              H3 name, 1st paragraph = meta line,
  *                                           further paragraphs = blurb, a link = Instagram
+ *     Text    .hs-story-invite              optional "Your story next?" tile: heading,
+ *                                           one paragraph, a link (where the tile goes)
  * OUTPUT: slider (arrows, dots, swipe, keyboard) + joined navy blurb panel +
- *         a two-row strip of story cards with its own controls. Stacks below 981px.
+ *         cards for the OTHER stories (+ the invite tile): a 2x2 grid when there are
+ *         4 tiles or fewer, otherwise a two-row strip with its own controls.
+ *         Below 981px: stacked, with a one-row card strip and its own controls.
  * Without this script the Groups stay visible as plain stacked content.
  * Not run in the Visual Builder, so editors see the plain Groups.
  * =============================================================================
@@ -96,6 +100,36 @@
         };
     }
 
+    /* ---------- Read the optional invite tile ---------- */
+    function readInvite(wrapper) {
+        var el = Array.prototype.filter.call(wrapper.querySelectorAll('.hs-story-invite'), function (t) {
+            return t.closest('.hs-alumni-stories') === wrapper && !t.closest('.hs-alumni-story');
+        })[0];
+        if (!el) return null;
+        var box = el.querySelector('.et_pb_text_inner') || el;
+        var h = box.querySelector('h1, h2, h3, h4, h5, h6');
+        var a = box.querySelector('a[href]');
+        var line = '';
+        Array.prototype.some.call(box.querySelectorAll('p'), function (p) {
+            var t = p.textContent.trim();
+            if (!t || (a && p.contains(a) && t === a.textContent.trim())) return false;
+            line = t;
+            return true;
+        });
+        var heading = h ? h.textContent.trim() : '';
+        if (!heading && !line) return null;
+        var cut = line.search(/[.!?]\s/);
+        return {
+            el: el,
+            heading: heading,
+            first: cut > -1 ? line.slice(0, cut + 1) : line,
+            rest: cut > -1 ? line.slice(cut + 2) : '',
+            href: a ? a.getAttribute('href') : ''
+        };
+    }
+
+    var ICON_GO = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>';
+
     /* ---------- Build the widget ---------- */
     function build(wrapper) {
         if (wrapper.dataset.hsAsReady) return;
@@ -104,6 +138,7 @@
         });
         var stories = groups.map(readStory).filter(Boolean);
         if (!stories.length) return;
+        var invite = readInvite(wrapper);
         wrapper.dataset.hsAsReady = '1';
 
         var root = document.createElement('div');
@@ -127,12 +162,12 @@
                         '<div class="hs-as-blurb-fade" aria-hidden="true"></div>' +
                         '<button type="button" class="hs-as-blurb-more" aria-label="Scroll down to read more"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>' +
                     '</div>' +
-                    '<a class="hs-as-ig" target="_blank" rel="noopener">View the original post on Instagram</a>' +
+                    '<a class="hs-as-ig" target="_blank" rel="noopener">View on Instagram</a>' +
                 '</div>' +
             '</div>' +
             '<div class="hs-as-more">' +
                 '<div class="hs-as-more-head">' +
-                    '<p class="hs-as-more-title">More stories <span>&middot; ' + stories.length + ' ' + (stories.length === 1 ? 'story' : 'stories') + '</span></p>' +
+                    '<p class="hs-as-more-title">More stories</p>' +
                     '<button type="button" class="hs-as-cbtn hs-as-cprev" aria-label="Show earlier stories">' + ICON_PREV + '</button>' +
                     '<button type="button" class="hs-as-cbtn hs-as-cnext" aria-label="Show more stories">' + ICON_NEXT + '</button>' +
                 '</div>' +
@@ -144,16 +179,30 @@
         var track = q('.hs-as-track'), dotsBox = q('.hs-as-dots'), strip = q('.hs-as-strip');
         var slider = q('.hs-as-slider'), viewport = q('.hs-as-viewport');
 
-        strip.innerHTML = stories.map(function (st, k) {
-            return '<button type="button" class="hs-as-card" data-k="' + k + '" aria-pressed="false" aria-label="Show the story of ' + esc(st.name) + '">' +
-                '<img src="' + esc(st.card.src) + '"' + (st.card.srcset ? ' srcset="' + esc(st.card.srcset) + '" sizes="200px"' : '') +
-                ' alt="" loading="lazy" decoding="async" draggable="false">' +
-                '<span class="hs-as-card-label"><span class="hs-as-card-name">' + esc(st.name) + '</span>' +
-                (st.year ? '<span class="hs-as-card-year">' + esc(st.year) + '</span>' : '') + '</span>' +
-                '<span class="hs-as-now">Now showing</span>' +
-                '</button>';
-        }).join('');
-        var cards = Array.prototype.slice.call(strip.querySelectorAll('.hs-as-card'));
+        var tiles = [];
+        function renderTiles() {
+            var html = stories.map(function (st, k) {
+                if (k === s) return '';
+                return '<button type="button" class="hs-as-tile hs-as-card" data-k="' + k + '" aria-label="Show the story of ' + esc(st.name) + '">' +
+                    '<img src="' + esc(st.card.src) + '"' + (st.card.srcset ? ' srcset="' + esc(st.card.srcset) + '" sizes="260px"' : '') +
+                    ' alt="" loading="lazy" decoding="async" draggable="false">' +
+                    '<span class="hs-as-card-label"><span class="hs-as-card-name">' + esc(st.name) + '</span>' +
+                    (st.year ? '<span class="hs-as-card-year">' + esc(st.year) + '</span>' : '') + '</span>' +
+                    '</button>';
+            }).join('');
+            if (invite) {
+                var tag = invite.href ? 'a' : 'div';
+                html += '<' + tag + ' class="hs-as-tile hs-as-invite"' + (invite.href ? ' href="' + esc(invite.href) + '" draggable="false"' : '') + '>' +
+                    '<span class="hs-as-invite-top"><span class="hs-as-quote" aria-hidden="true">&ldquo;</span>' +
+                    (invite.href ? '<span class="hs-as-invite-go" aria-hidden="true">' + ICON_GO + '</span>' : '') + '</span>' +
+                    (invite.heading ? '<span class="hs-as-invite-h">' + esc(invite.heading) + '</span>' : '') +
+                    (invite.first ? '<span class="hs-as-invite-p">' + esc(invite.first) +
+                        (invite.rest ? ' <span class="hs-as-invite-rest">' + esc(invite.rest) + '</span>' : '') + '</span>' : '') +
+                    '</' + tag + '>';
+            }
+            strip.innerHTML = html;
+            tiles = Array.prototype.slice.call(strip.children);
+        }
 
         var s = 0, i = 0, c = 0;
         var mq = window.matchMedia('(max-width: ' + (BREAKPOINT - 1) + 'px)');
@@ -180,10 +229,7 @@
             updateBlurbHint();
             var ig = q('.hs-as-ig');
             if (st.link) { ig.href = st.link; ig.hidden = false; } else { ig.hidden = true; }
-            cards.forEach(function (card, k) {
-                card.classList.toggle('is-active', k === s);
-                card.setAttribute('aria-pressed', k === s ? 'true' : 'false');
-            });
+            renderTiles();
             i = 0;
             renderSlide();
             void track.offsetWidth;
@@ -220,52 +266,44 @@
 
         function pickStory(k) {
             s = (k + stories.length) % stories.length;
+            c = 0;
             renderStory();
-            followCard();
+            renderStrip();
         }
 
-        /* Card strip: translate by column on desktop, native scroll on mobile */
+        /* Tiles: 2x2 grid (desktop, 4 tiles or fewer), else a strip moved by column.
+           Desktop strip: two rows, one column per step. Mobile: one row, one card per step. */
         function stepPx() {
-            return cards.length ? cards[0].getBoundingClientRect().width + CARD_GAP : 1;
-        }
-        function cols() { return Math.ceil(cards.length / 2); }
-        function maxCol() {
-            var visible = Math.max(1, Math.floor((viewport.clientWidth + CARD_GAP) / stepPx()));
-            return Math.max(0, cols() - visible);
+            return tiles.length ? tiles[0].getBoundingClientRect().width + CARD_GAP : 1;
         }
         function renderStrip() {
-            if (mq.matches) {
+            var mobile = mq.matches;
+            var grid = !mobile && tiles.length <= 4;
+            root.classList.toggle('hs-as-grid', grid);
+            if (grid) {
                 strip.style.transform = '';
                 root.classList.remove('hs-as-has-more');
                 return;
             }
-            var m = maxCol();
+            var step = stepPx();
+            var perCol = mobile ? 1 : 2;
+            var total = Math.ceil(tiles.length / perCol);
+            var maxOff = Math.max(0, total * step - CARD_GAP - viewport.clientWidth);
+            var m = Math.ceil(maxOff / step - 0.01);
             c = Math.max(0, Math.min(m, c));
-            strip.style.transform = 'translateX(' + (-c * stepPx()) + 'px)';
+            strip.style.transform = 'translateX(' + (-Math.min(c * step, maxOff)) + 'px)';
             q('.hs-as-cprev').disabled = c === 0;
             q('.hs-as-cnext').disabled = c >= m;
             q('.hs-as-fade').hidden = c >= m;
             root.classList.toggle('hs-as-has-more', m > 0);
-            var total = cols();
-            var visible = total - m;
-            var w = Math.min(100, (visible / total) * 100);
+            var visibleW = viewport.clientWidth;
+            var fullW = Math.max(visibleW, total * step - CARD_GAP);
+            var w = Math.min(100, (visibleW / fullW) * 100);
             var thumb = q('.hs-as-thumb');
             thumb.style.width = w + '%';
-            thumb.style.left = (m === 0 ? 0 : (c / m) * (100 - w)) + '%';
+            thumb.style.left = (m === 0 ? 0 : (Math.min(c * step, maxOff) / maxOff) * (100 - w)) + '%';
         }
         function goCol(k) { c = k; renderStrip(); }
-        function followCard() {
-            if (mq.matches) {
-                var card = cards[s];
-                if (card) strip.scrollTo({ left: Math.max(0, card.offsetLeft - 8), behavior: 'smooth' });
-                return;
-            }
-            var col = Math.floor(s / 2);
-            var visible = cols() - maxCol();
-            if (col < c) c = col;
-            else if (col > c + visible - 1) c = col - visible + 1;
-            renderStrip();
-        }
 
         /* Events */
         q('.hs-as-prev').addEventListener('click', function () { goSlide(i - 1); });
@@ -276,7 +314,7 @@
             if (d) goSlide(+d.dataset.i);
         });
         strip.addEventListener('click', function (e) {
-            if (strip.dataset.dragged) return;
+            if (strip.dataset.dragged) { e.preventDefault(); return; }
             var card = e.target.closest('.hs-as-card');
             if (card) pickStory(+card.dataset.k);
         });
@@ -313,7 +351,7 @@
             el.addEventListener('pointercancel', function () { x0 = null; });
         }
         swipe(slider, function () { goSlide(i + 1); }, function () { goSlide(i - 1); }, false);
-        swipe(strip, function () { if (!mq.matches) goCol(c + 1); }, function () { if (!mq.matches) goCol(c - 1); }, true);
+        swipe(strip, function () { goCol(c + 1); }, function () { goCol(c - 1); }, true);
 
         var resizeTimer;
         window.addEventListener('resize', function () {
@@ -325,6 +363,7 @@
         /* Mount: widget first, original Groups hidden (kept in the page) */
         wrapper.insertBefore(root, wrapper.firstChild);
         groups.forEach(function (g) { g.hidden = true; g.setAttribute('aria-hidden', 'true'); });
+        if (invite) { invite.el.hidden = true; invite.el.setAttribute('aria-hidden', 'true'); }
         wrapper.classList.add('hs-as-ready');
         renderStory();
         renderStrip();

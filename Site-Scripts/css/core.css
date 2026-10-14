@@ -13467,7 +13467,8 @@ body.logged-in:not(.et-fb) .mobile-menu-section {
 /* Once the script has built the widget, the original story Groups are hidden (Divi's own
    group display:flex would otherwise override the hidden attribute). */
 html body .hs-alumni-stories.hs-as-ready .hs-alumni-story,
-html body .hs-alumni-stories .hs-alumni-story[hidden] { display: none !important; }
+html body .hs-alumni-stories .hs-alumni-story[hidden],
+html body .hs-alumni-stories.hs-as-ready .hs-story-invite { display: none !important; }
 .hs-as [hidden] { display: none !important; }
 
 /* Feature: slider + joined navy panel */
@@ -13499,16 +13500,21 @@ html body .hs-alumni-stories .hs-alumni-story[hidden] { display: none !important
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  border: none;
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
   padding: 0;
-  background: #ffffff;
-  color: var(--hs-dark, #003057);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background: rgba(0, 48, 87, 0.28);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  color: #ffffff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: background 0.2s ease;
 }
+.hs-as-arrow:hover { background: rgba(0, 48, 87, 0.5); }
+.hs-as-arrow:focus-visible { outline: 3px solid var(--hs-gold, #f0b323); outline-offset: 2px; }
 .hs-as-prev { left: 10px; }
 .hs-as-next { right: 10px; }
 .hs-as-nextstory {
@@ -13630,8 +13636,25 @@ html body .hs-alumni-stories .hs-alumni-story[hidden] { display: none !important
 .hs-as-blurb-wrap.is-overflow:not(.is-end) .hs-as-blurb-more { display: inline-flex; }
 .hs-as-blurb-wrap.is-scrolled .hs-as-blurb-more { display: none; }
 .hs-as-blurb p { margin: 0; font-size: 14px; line-height: 1.6; }
-.hs-as-ig { font-family: var(--hs-font-head, "Montserrat", sans-serif); font-weight: 600; font-size: 13px; color: var(--hs-gold, #f0b323) !important; }
-.hs-as-ig:hover { color: #ffd56a !important; }
+.hs-as-ig {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 18%, #dc2743 42%, #cc2366 70%, #bc1888 100%);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  font-family: var(--hs-font-head, "Montserrat", sans-serif);
+  font-weight: 700;
+  font-size: 14px;
+  color: #ffffff !important;
+  text-decoration: none !important;
+  transition: filter 0.2s ease;
+}
+.hs-as-ig:hover { filter: brightness(1.08); }
+.hs-as-ig:focus-visible { outline: 3px solid var(--hs-gold, #f0b323); outline-offset: 2px; }
 
 /* More stories: two-row card strip with its own controls */
 .hs-as-more { flex: 1; min-width: 0; height: var(--hs-as-h); display: flex; flex-direction: column; gap: 12px; }
@@ -13675,10 +13698,9 @@ html body .hs-alumni-stories .hs-alumni-story[hidden] { display: none !important
 .hs-as-bar { position: relative; height: 4px; border-radius: 2px; background: #e2e8f0; }
 .hs-as-thumb { position: absolute; top: 0; height: 4px; border-radius: 2px; background: var(--hs-dark, #003057); transition: left 0.45s ease, width 0.45s ease; }
 
-.hs-as-card { position: relative; padding: 0; border: none; border-radius: 8px; overflow: hidden; background: #e2e8f0; cursor: pointer; text-align: left; }
+.hs-as-tile { position: relative; box-sizing: border-box; min-width: 0; min-height: 0; padding: 0; border: none; border-radius: 8px; overflow: hidden; background: #e2e8f0; cursor: pointer; text-align: left; }
 .hs-as-card img { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
-.hs-as-card.is-active { outline: 4px solid var(--hs-gold, #f0b323); outline-offset: -4px; }
-.hs-as-card:focus-visible { outline: 3px solid var(--hs-dark, #003057); outline-offset: 2px; }
+.hs-as-tile:focus-visible { outline: 3px solid var(--hs-dark, #003057); outline-offset: -3px; }
 .hs-as-card-label {
   position: absolute;
   left: 0;
@@ -13693,20 +13715,44 @@ html body .hs-alumni-stories .hs-alumni-story[hidden] { display: none !important
 }
 .hs-as-card-name { font-family: var(--hs-font-head, "Montserrat", sans-serif); font-weight: 700; font-size: 14px; line-height: 1.25; }
 .hs-as-card-year { font-size: 12px; }
-.hs-as-now {
-  display: none;
-  position: absolute;
-  left: 8px;
-  top: 8px;
-  padding: 4px 8px;
-  border-radius: 3px;
+/* "Your story next?" invite tile (text and link from the Divi Text module .hs-story-invite) */
+.hs-as-invite {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 16px 14px;
   background: var(--hs-gold, #f0b323);
-  color: var(--hs-dark, #003057);
-  font-family: var(--hs-font-head, "Montserrat", sans-serif);
-  font-weight: 700;
-  font-size: 11px;
+  color: var(--hs-dark, #003057) !important;
+  text-decoration: none !important;
+  cursor: default;
 }
-.hs-as-card.is-active .hs-as-now { display: block; }
+a.hs-as-invite { cursor: pointer; }
+.hs-as-invite-top { margin-bottom: auto; display: flex; justify-content: space-between; align-items: flex-start; }
+.hs-as-quote { display: block; height: 0.55em; font-family: var(--hs-font-head, "Montserrat", sans-serif); font-weight: 800; font-size: 72px; line-height: 1; color: var(--hs-dark, #003057); }
+.hs-as-invite-go { display: none; flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; background: var(--hs-dark, #003057); color: var(--hs-gold, #f0b323); align-items: center; justify-content: center; }
+.hs-as-invite-h { font-family: var(--hs-font-head, "Montserrat", sans-serif); font-weight: 800; font-size: 18px; line-height: 1.15; }
+.hs-as-invite-p { font-size: 13px; line-height: 1.4; font-weight: 600; }
+
+/* 4 tiles or fewer: a flush 2x2 grid filling the space beside the feature */
+.hs-as-grid .hs-as-more-head,
+.hs-as-grid .hs-as-bar,
+.hs-as-grid .hs-as-fade { display: none !important; }
+.hs-as-grid .hs-as-strip {
+  height: 100%;
+  grid-auto-flow: row;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  grid-auto-columns: auto;
+  transform: none !important;
+}
+.hs-as-grid .hs-as-card-label { padding: 32px 12px 12px; }
+.hs-as-grid .hs-as-card-name { font-size: 15px; }
+.hs-as-grid .hs-as-invite { padding: 22px 18px; gap: 8px; }
+.hs-as-grid .hs-as-quote { font-size: 96px; }
+.hs-as-grid .hs-as-invite-go { display: flex; }
+.hs-as-grid .hs-as-invite-h { font-size: 22px; }
+.hs-as-grid .hs-as-invite-p { font-size: 14px; line-height: 1.45; }
 
 @media (min-width: 981px) and (max-width: 1199px) {
   .hs-as { --hs-as-h: 440px; --hs-as-panel: 240px; }
@@ -13721,18 +13767,22 @@ html body .hs-alumni-stories .hs-alumni-story[hidden] { display: none !important
   .hs-as-blurb { overflow: visible; }
   .hs-as-blurb-fade, .hs-as-blurb-more { display: none !important; }
   .hs-as-blurb p { font-size: 15px; line-height: 1.65; }
-  .hs-as-more { height: auto; width: 100%; max-width: 480px; margin: 0 auto; }
-  .hs-as-cbtn, .hs-as-bar, .hs-as-fade { display: none !important; }
-  .hs-as-viewport { overflow: visible; }
-  .hs-as-strip {
-    grid-template-rows: 165px;
-    grid-auto-columns: 132px;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    padding-bottom: 6px;
-    transform: none !important;
-  }
-  .hs-as-card { scroll-snap-align: start; }
+  .hs-as-arrow { width: 40px; height: 40px; left: auto; }
+  .hs-as-prev { left: 8px; }
+  .hs-as-next, .hs-as-nextstory { right: 8px; }
+  .hs-as-more { height: auto; width: 100%; max-width: 480px; margin: 0 auto; gap: 10px; }
+  .hs-as-more-head { height: 36px; }
+  .hs-as-cbtn { width: 36px; height: 36px; }
+  .hs-as-bar, .hs-as-fade { display: none !important; }
+  .hs-as-strip { grid-template-rows: 165px; grid-auto-columns: 132px; padding-bottom: 6px; }
+  .hs-as-card-label { padding: 24px 8px 8px; }
+  .hs-as-card-name { font-size: 12px; }
+  .hs-as-card-year { display: none; }
+  .hs-as-invite { padding: 12px; gap: 4px; }
+  .hs-as-quote { font-size: 60px; }
+  .hs-as-invite-h { font-size: 15px; }
+  .hs-as-invite-p { font-size: 12px; line-height: 1.35; }
+  .hs-as-invite-rest { display: none; }
 }
 
 /* Part 2: "story rows" in the Divi builder (body.et-fb) and as the no-JS fallback.
@@ -13809,6 +13859,30 @@ html body .hs-alumni-stories .hs-alumni-story[hidden] { display: none !important
 .hs-alumni-stories:not(.hs-as-ready) .hs-story-text a { color: var(--hs-gold, #f0b323) !important; font-weight: 600; }
 .hs-alumni-stories:not(.hs-as-ready) .hs-story-card img { display: block; width: 176px !important; height: 220px !important; object-fit: cover; border-radius: 8px; }
 
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-invite {
+  max-width: 262px;
+  box-sizing: border-box;
+  padding: 22px 18px !important;
+  border-radius: 8px;
+  background: var(--hs-gold, #f0b323);
+  color: var(--hs-dark, #003057) !important;
+}
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-invite h1,
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-invite h2,
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-invite h3,
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-invite h4 {
+  margin: 0 0 8px !important;
+  padding: 0 !important;
+  border: none !important;
+  font-family: var(--hs-font-head, "Montserrat", sans-serif) !important;
+  font-weight: 800 !important;
+  font-size: 22px !important;
+  line-height: 1.15 !important;
+  color: var(--hs-dark, #003057) !important;
+}
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-invite p { margin: 0 0 8px !important; padding: 0 !important; font-size: 14px; font-weight: 600; color: var(--hs-dark, #003057) !important; }
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-invite a { color: var(--hs-dark, #003057) !important; text-decoration: underline; }
+
 /* Builder only: outline and number each story so editors can find them */
 body.et-fb .hs-alumni-stories > .hs-alumni-story { outline: 2px dashed rgba(240, 179, 35, 0.8); outline-offset: 10px; margin-top: 28px !important; }
 body.et-fb .hs-alumni-stories > .hs-alumni-story::before {
@@ -13816,6 +13890,17 @@ body.et-fb .hs-alumni-stories > .hs-alumni-story::before {
   position: absolute;
   left: 0;
   top: -30px;
+  font: 700 12px/1 var(--hs-font-head, "Montserrat", sans-serif);
+  letter-spacing: 0.06em;
+  color: var(--hs-dark, #003057);
+}
+body.et-fb .hs-alumni-stories .hs-story-invite { position: relative; margin-top: 28px !important; outline: 2px dashed rgba(0, 48, 87, 0.5); outline-offset: 10px; }
+body.et-fb .hs-alumni-stories .hs-story-invite::before {
+  content: "\"Your story next?\" tile  ·  heading, one line, a link";
+  position: absolute;
+  left: 0;
+  top: -30px;
+  white-space: nowrap;
   font: 700 12px/1 var(--hs-font-head, "Montserrat", sans-serif);
   letter-spacing: 0.06em;
   color: var(--hs-dark, #003057);
