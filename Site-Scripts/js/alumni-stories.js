@@ -125,7 +125,7 @@
                     '<div class="hs-as-blurb-wrap">' +
                         '<div class="hs-as-blurb" tabindex="0"></div>' +
                         '<div class="hs-as-blurb-fade" aria-hidden="true"></div>' +
-                        '<button type="button" class="hs-as-blurb-more" aria-label="Scroll down to read more">More <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>' +
+                        '<button type="button" class="hs-as-blurb-more" aria-label="Scroll down to read more"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>' +
                     '</div>' +
                     '<a class="hs-as-ig" target="_blank" rel="noopener">View the original post on Instagram</a>' +
                 '</div>' +

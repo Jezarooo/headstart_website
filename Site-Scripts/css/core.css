@@ -13604,21 +13604,27 @@ html body .hs-alumni-stories .hs-alumni-story[hidden] { display: none !important
 .hs-as-blurb-more {
   position: absolute;
   left: 50%;
-  bottom: 4px;
+  bottom: 0;
   transform: translateX(-50%);
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(240, 179, 35, 0.6);
-  background: var(--hs-dark, #003057);
+  width: 44px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
   color: var(--hs-gold, #f0b323);
-  font-family: var(--hs-font-head, "Montserrat", sans-serif) !important;
-  font-weight: 700;
-  font-size: 12px;
   display: none;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
   cursor: pointer;
+  animation: hs-as-bob 1.6s ease-in-out infinite;
+}
+.hs-as-blurb-more:focus-visible { outline: 2px solid var(--hs-gold, #f0b323); outline-offset: 2px; border-radius: 4px; }
+@keyframes hs-as-bob {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, 4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hs-as-blurb-more { animation: none; }
 }
 .hs-as-blurb-wrap.is-overflow:not(.is-end) .hs-as-blurb-fade { opacity: 1; }
 .hs-as-blurb-wrap.is-overflow:not(.is-end) .hs-as-blurb-more { display: inline-flex; }
