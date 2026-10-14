@@ -6,8 +6,8 @@
 /**
  * Short links for weekly updates, a per-channel click counter, and GTM data.
  *
- *   /{campus}/{2026-27}/weekly-update-{N}            WhatsApp
- *   /{campus}/{2026-27}/weekly-update-{N}/facebook   Facebook
+ *   /{campus}/{2026-27}/weekly-update-{N}   WhatsApp
+ *   /{campus}/{2026-27}/update-{N}          Facebook
  *
  * Each link counts the click (bots and link previews excluded) and 302-redirects to the
  * update's permalink with UTM tags. School year = publish date, August cut-off.
@@ -59,10 +59,8 @@ function hs_sl_url( $post, $channel = 'whatsapp' ) {
     if ( ! $p ) {
         return '';
     }
-    $path = $p['campus'] . '/' . $p['year'] . '/weekly-update-' . $p['week'];
-    if ( 'whatsapp' !== $channel ) {
-        $path .= '/' . $channel;
-    }
+    $word = ( 'facebook' === $channel ) ? 'update-' : 'weekly-update-';
+    $path = $p['campus'] . '/' . $p['year'] . '/' . $word . $p['week'];
     return home_url( '/' . $path );
 }
 
@@ -86,13 +84,13 @@ function hs_sl_handle_request() {
     if ( '' !== $home && '/' !== $home && 0 === strpos( $path, rtrim( $home, '/' ) ) ) {
         $path = substr( $path, strlen( rtrim( $home, '/' ) ) );
     }
-    if ( ! preg_match( '#^/(' . implode( '|', hs_sl_campuses() ) . ')/(\d{4})-(\d{2})/weekly-update-(\d{1,3})(?:/(facebook))?/?$#', $path, $m ) ) {
+    if ( ! preg_match( '#^/(' . implode( '|', hs_sl_campuses() ) . ')/(\d{4})-(\d{2})/(weekly-)?update-(\d{1,3})/?$#', $path, $m ) ) {
         return;
     }
     $campus  = $m[1];
     $start   = (int) $m[2];
-    $week    = (int) $m[4];
-    $channel = ! empty( $m[5] ) ? $m[5] : 'whatsapp';
+    $week    = (int) $m[5];
+    $channel = ( 'weekly-' === $m[4] ) ? 'whatsapp' : 'facebook';
     if ( (int) $m[3] !== ( $start + 1 ) % 100 || $week < 1 ) {
         return; // Not a valid school year: let WordPress 404 it.
     }
