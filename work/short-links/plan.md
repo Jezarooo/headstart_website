@@ -11,13 +11,13 @@ Weekly updates go out mainly on WhatsApp and are shared on Facebook. We want sho
 
 Decisions (user, 13–14 Oct):
 - Link format: `headstartphuket.com/{campus}/{school-year}/weekly-update-{N}`, e.g. `/cherngtalay/2026-27/weekly-update-7`.
-- Channels: **WhatsApp** `/{campus}/2026-27/weekly-update-{N}`; **Facebook** `/{campus}/26-27/update-{N}` (short year + shorter word, chosen 14 Oct instead of a `/facebook` suffix). The word decides the channel; either year form is accepted on both. No email or LINE links.
+- Channels: the **year form** decides the channel. **WhatsApp** `/{campus}/2026-27/weekly-update-{N}`; **Facebook** `/{campus}/26-27/weekly-update-{N}` (chosen 14 Oct instead of a `/facebook` suffix). No email or LINE links.
 - School year: from the publish date, August cut-off (Aug 2026 – Jul 2027 = `2026-27`).
 - GTM events in this task (not deferred to the consent banner).
 
 ## Proposed changes
 **New snippet `weekly-update-short-links.code-snippets.php`**
-1. **Redirect.** Matches the request path `^/(chaofah|cherngtalay|both-campuses)/(\d{4}|\d{2})-(\d{2})/(weekly-)?update-(\d+)/?$` (with `weekly-` = WhatsApp, without = Facebook) early (`parse_request`). No rewrite rules, so no permalink flush.
+1. **Redirect.** Matches the request path `^/(chaofah|cherngtalay|both-campuses)/(\d{4}|\d{2})-(\d{2})/weekly-update-(\d+)/?$` (4-digit start year = WhatsApp, 2-digit = Facebook) early (`parse_request`). No rewrite rules, so no permalink flush.
    - Finds the published `weekly_update` with that campus (`hs_campus`), `hs_week_number` = N, published within that school year.
    - Sends a **302** (temporary, not cached) with `Cache-Control: no-store` to its permalink plus:
      - `utm_source` = `whatsapp` or `facebook`;
@@ -55,7 +55,7 @@ Decisions (user, 13–14 Oct):
 - `tools/hs lint` on the new snippet.
 - On `http://headstart.local`:
   - `/cherngtalay/2026-27/weekly-update-7` → 302 to `/cherngtalay/weekly-update/2026/10/weekly-update-7/?utm_source=whatsapp&utm_medium=social&utm_campaign=weekly-update&utm_content=cherngtalay-2026-27-wu7`;
-  - `/cherngtalay/26-27/update-7` → 302 with `utm_source=facebook` (and `/cherngtalay/2026-27/update-7` too);
+  - `/cherngtalay/26-27/weekly-update-7` → 302 with `utm_source=facebook`;
   - `/chaofah/2026-27/weekly-update-7` → 302 to the Chao Fah week 7;
   - `/cherngtalay/2026-27/weekly-update-99` and `/cherngtalay/2025-26/weekly-update-7` → 404;
   - a WhatsApp user agent → 302, but the count doesn't change;
