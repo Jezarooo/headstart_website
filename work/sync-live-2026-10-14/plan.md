@@ -6,20 +6,28 @@
 > Approval locks this file. Any edit after approval blocks code commits until the user approves again.
 
 ## Problem / goal
-TODO: what is wrong or wanted, in 2–5 sentences. Link the brief if there is one.
+The 14 Oct snapshot shows Nick changed live since our last copy. Bring those changes into the working copies so local matches live before the short-links work. Nothing ships to live.
 
 ## Proposed changes
-TODO: file by file — what changes and why. Note any new files, hooks, rewrite rules, DB/meta keys.
+- `Site-Scripts/php/staff-directory-csv-importer.code-snippets.php` ← live version (Nick, 13 Oct): "Download Full Directory (XLS)" export, column 'Lead Sort' replaces 'Reports To', automatic backup + Emergency Revert, wipe disabled until backups keep photos, image-sync button removed. Marked "OWNED BY Nick".
+- `Site-Scripts/php/gallery-image-real-size.code-snippets.php` ← live version (Nick added a one-line description comment; code identical).
+- `Site-Scripts/js/MANIFEST.tsv`: gallery-mosaic live hash a175107c… → 0ecd9c6cd7c2af8261644a9e84e666b3 (live file is byte-identical to our gallery-mosaic.js).
+
+Deliberately left as they are (expected drift, already on the roadmap):
+- `posts-compute-taxonomies-from-custom-fields`: our copy has the stray `?>` removed; live still has it (roadmap: posts-compute-close-tag).
+- `posts-divi-gatekeeper`, `weekly-update-divi-gatekeeper`: local-only block-editor fix (user decision 13 Oct).
+- `auto-assign-cross-campus-taxonomy`: local only, pending decision (roadmap: cross-campus-decision).
 
 ## Risks & rollback
-TODO: what could break on live (caching, permalinks, editor, other snippets) and how to undo it.
+Local only. The CSV importer on live is "disabled" per its header, but its admin page now works for exports; locally it behaves the same as live. Rollback: git revert of this task.
 
 ## Testing strategy
 ### Automated (Gate 4)
-TODO: lint + the URLs/requests to check and the status codes expected.
+`tools/hs lint` on the two PHP files; `tools/hs drift` afterwards shows only the expected drift listed above.
 
 ### UAT checklist for the user (Gate 5)
-TODO: - [ ] concrete things the user clicks/sees on the local site. Write "None — no UI change" if so.
+- [ ] Local admin → Staff → Import/Export: "Download Full Directory (XLS)" downloads a spreadsheet of staff.
+- [ ] A strip gallery pop-up on local still shows portraits.
 
 ## Deployment notes for the dev (Gate 7)
-TODO: which snippets to replace/activate/deactivate, permalinks flush needed?, cache purge needed?
+None — nothing ships; closed with `handover --local-only`.
