@@ -13622,6 +13622,7 @@ html body .hs-alumni-stories .hs-alumni-story[hidden] { display: none !important
 }
 .hs-as-blurb-wrap.is-overflow:not(.is-end) .hs-as-blurb-fade { opacity: 1; }
 .hs-as-blurb-wrap.is-overflow:not(.is-end) .hs-as-blurb-more { display: inline-flex; }
+.hs-as-blurb-wrap.is-scrolled .hs-as-blurb-more { display: none; }
 .hs-as-blurb p { margin: 0; font-size: 14px; line-height: 1.6; }
 .hs-as-ig { font-family: var(--hs-font-head, "Montserrat", sans-serif); font-weight: 600; font-size: 13px; color: var(--hs-gold, #f0b323) !important; }
 .hs-as-ig:hover { color: #ffd56a !important; }
