@@ -104,6 +104,22 @@ Design reference: canvas "Alumni stories prototype", version 27.
 - [ ] Slide arrows visible but not hiding text; mobile arrows behave as described.
 - [ ] Instagram button opens the story's post.
 
+## Amendment 2 (14 Oct, after first UAT)
+1. **Content changes (import file only):**
+   - every story's Instagram button links to the profile https://www.instagram.com/headstartalumni/;
+   - class years: Carol 2014, Pea 2020.
+2. **Invite tile shows the email:** the tile's link text is now displayed on the tile.
+   - the import file uses `marcom@headstartphuket.com` with a `mailto:` link, so the whole tile opens an email;
+   - the address can break after the @ so it fits;
+   - in the narrow tiles (desktop strip and mobile), the line under the heading is shortened or hidden so the email fits.
+   - JS and CSS changes only, inside the alumni stories block.
+3. **Test kit in the handover package** (for the dev's local test, and reusable on live):
+   - the 35 renamed WebP slides;
+   - an import template with placeholders for media IDs;
+   - `make-import.sh`, which imports the slides with WP-CLI (`wp media import --porcelain`) and writes the import file with that site's IDs;
+   - a short local-test guide in DEV-NOTES.
+4. UAT to be re-confirmed after these changes.
+
 ## Deployment notes for the dev (Gate 7)
 - **New JS:** upload `alumni-stories.js` to `uploads/hs-head/` (MD5 name as usual) and add its `<script defer>` to Divi → Integration → head.
 - **CSS:** append the "Alumni stories" block to the global stylesheet.
