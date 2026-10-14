@@ -1,0 +1,331 @@
+{
+  "exportFormatVersion": 2,
+  "exportTime": "2026-10-14 12:00:00",
+  "containerVersion": {
+    "path": "accounts/6378581084/containers/265048747/versions/0",
+    "accountId": "6378581084",
+    "containerId": "265048747",
+    "containerVersionId": "0",
+    "container": {
+      "path": "accounts/6378581084/containers/265048747",
+      "accountId": "6378581084",
+      "containerId": "265048747",
+      "name": "headstartphuket.com",
+      "publicId": "GTM-T24X62SD",
+      "usageContext": [
+        "WEB"
+      ],
+      "fingerprint": "1790211819048",
+      "tagManagerUrl": "https://tagmanager.google.com/#/container/accounts/6378581084/containers/265048747/workspaces?apiLink=container",
+      "features": {
+        "supportUserPermissions": true,
+        "supportEnvironments": true,
+        "supportWorkspaces": true,
+        "supportGtagConfigs": false,
+        "supportBuiltInVariables": true,
+        "supportClients": false,
+        "supportFolders": true,
+        "supportTags": true,
+        "supportTemplates": true,
+        "supportTriggers": true,
+        "supportVariables": true,
+        "supportVersions": true,
+        "supportZones": true,
+        "supportTransformations": false
+      },
+      "tagIds": [
+        "GTM-T24X62SD"
+      ]
+    },
+    "variable": [
+      {
+        "accountId": "6378581084",
+        "containerId": "265048747",
+        "variableId": "901",
+        "name": "DLV - hs_campus",
+        "type": "v",
+        "parameter": [
+          {
+            "type": "INTEGER",
+            "key": "dataLayerVersion",
+            "value": "2"
+          },
+          {
+            "type": "BOOLEAN",
+            "key": "setDefaultValue",
+            "value": "false"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "name",
+            "value": "hs_campus"
+          }
+        ]
+      },
+      {
+        "accountId": "6378581084",
+        "containerId": "265048747",
+        "variableId": "902",
+        "name": "DLV - hs_school_year",
+        "type": "v",
+        "parameter": [
+          {
+            "type": "INTEGER",
+            "key": "dataLayerVersion",
+            "value": "2"
+          },
+          {
+            "type": "BOOLEAN",
+            "key": "setDefaultValue",
+            "value": "false"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "name",
+            "value": "hs_school_year"
+          }
+        ]
+      },
+      {
+        "accountId": "6378581084",
+        "containerId": "265048747",
+        "variableId": "903",
+        "name": "DLV - hs_week",
+        "type": "v",
+        "parameter": [
+          {
+            "type": "INTEGER",
+            "key": "dataLayerVersion",
+            "value": "2"
+          },
+          {
+            "type": "BOOLEAN",
+            "key": "setDefaultValue",
+            "value": "false"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "name",
+            "value": "hs_week"
+          }
+        ]
+      },
+      {
+        "accountId": "6378581084",
+        "containerId": "265048747",
+        "variableId": "904",
+        "name": "DLV - hs_gallery_type",
+        "type": "v",
+        "parameter": [
+          {
+            "type": "INTEGER",
+            "key": "dataLayerVersion",
+            "value": "2"
+          },
+          {
+            "type": "BOOLEAN",
+            "key": "setDefaultValue",
+            "value": "false"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "name",
+            "value": "hs_gallery_type"
+          }
+        ]
+      }
+    ],
+    "trigger": [
+      {
+        "accountId": "6378581084",
+        "containerId": "265048747",
+        "triggerId": "901",
+        "name": "Event - weekly_update_view",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{_event}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "weekly_update_view"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "accountId": "6378581084",
+        "containerId": "265048747",
+        "triggerId": "902",
+        "name": "Event - hs_gallery_open",
+        "type": "CUSTOM_EVENT",
+        "customEventFilter": [
+          {
+            "type": "EQUALS",
+            "parameter": [
+              {
+                "type": "TEMPLATE",
+                "key": "arg0",
+                "value": "{{_event}}"
+              },
+              {
+                "type": "TEMPLATE",
+                "key": "arg1",
+                "value": "hs_gallery_open"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "tag": [
+      {
+        "accountId": "6378581084",
+        "containerId": "265048747",
+        "tagId": "901",
+        "name": "GA4 - Weekly Update View",
+        "type": "gaawe",
+        "parameter": [
+          {
+            "type": "BOOLEAN",
+            "key": "sendEcommerceData",
+            "value": "false"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "measurementIdOverride",
+            "value": "G-64D4CSDKDR"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "eventName",
+            "value": "weekly_update_view"
+          },
+          {
+            "type": "LIST",
+            "key": "eventSettingsTable",
+            "list": [
+              {
+                "type": "MAP",
+                "map": [
+                  {
+                    "type": "TEMPLATE",
+                    "key": "parameter",
+                    "value": "campus"
+                  },
+                  {
+                    "type": "TEMPLATE",
+                    "key": "parameterValue",
+                    "value": "{{DLV - hs_campus}}"
+                  }
+                ]
+              },
+              {
+                "type": "MAP",
+                "map": [
+                  {
+                    "type": "TEMPLATE",
+                    "key": "parameter",
+                    "value": "school_year"
+                  },
+                  {
+                    "type": "TEMPLATE",
+                    "key": "parameterValue",
+                    "value": "{{DLV - hs_school_year}}"
+                  }
+                ]
+              },
+              {
+                "type": "MAP",
+                "map": [
+                  {
+                    "type": "TEMPLATE",
+                    "key": "parameter",
+                    "value": "week_number"
+                  },
+                  {
+                    "type": "TEMPLATE",
+                    "key": "parameterValue",
+                    "value": "{{DLV - hs_week}}"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "firingTriggerId": [
+          "901"
+        ],
+        "tagFiringOption": "ONCE_PER_EVENT",
+        "monitoringMetadata": {
+          "type": "MAP"
+        },
+        "consentSettings": {
+          "consentStatus": "NOT_SET"
+        }
+      },
+      {
+        "accountId": "6378581084",
+        "containerId": "265048747",
+        "tagId": "902",
+        "name": "GA4 - Gallery Open",
+        "type": "gaawe",
+        "parameter": [
+          {
+            "type": "BOOLEAN",
+            "key": "sendEcommerceData",
+            "value": "false"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "measurementIdOverride",
+            "value": "G-64D4CSDKDR"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "eventName",
+            "value": "gallery_open"
+          },
+          {
+            "type": "LIST",
+            "key": "eventSettingsTable",
+            "list": [
+              {
+                "type": "MAP",
+                "map": [
+                  {
+                    "type": "TEMPLATE",
+                    "key": "parameter",
+                    "value": "gallery_type"
+                  },
+                  {
+                    "type": "TEMPLATE",
+                    "key": "parameterValue",
+                    "value": "{{DLV - hs_gallery_type}}"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "firingTriggerId": [
+          "902"
+        ],
+        "tagFiringOption": "ONCE_PER_EVENT",
+        "monitoringMetadata": {
+          "type": "MAP"
+        },
+        "consentSettings": {
+          "consentStatus": "NOT_SET"
+        }
+      }
+    ]
+  }
+}
