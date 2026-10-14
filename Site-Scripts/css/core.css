@@ -13574,7 +13574,54 @@ html body .hs-alumni-stories .hs-alumni-story[hidden] { display: none !important
 }
 .hs-as-meta { margin: 0; font-size: 13px; font-weight: 600; line-height: 1.5; }
 .hs-as-rule { flex-shrink: 0; width: 44px; height: 4px; border-radius: 2px; background: var(--hs-gold, #f0b323); }
-.hs-as-blurb { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 10px; }
+/* Blurb scrolls only when the text is longer than the panel; a fade + "More" button hint at it */
+.hs-as-blurb-wrap { position: relative; flex: 1; min-height: 0; display: flex; }
+.hs-as-blurb {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(240, 179, 35, 0.7) transparent;
+}
+.hs-as-blurb::-webkit-scrollbar { width: 4px; }
+.hs-as-blurb::-webkit-scrollbar-thumb { background: rgba(240, 179, 35, 0.7); border-radius: 2px; }
+.hs-as-blurb:focus-visible { outline: 2px solid var(--hs-gold, #f0b323); outline-offset: 2px; }
+.hs-as-blurb-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 56px;
+  background: linear-gradient(rgba(0, 48, 87, 0), var(--hs-dark, #003057) 85%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.hs-as-blurb-more {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(240, 179, 35, 0.6);
+  background: var(--hs-dark, #003057);
+  color: var(--hs-gold, #f0b323);
+  font-family: var(--hs-font-head, "Montserrat", sans-serif) !important;
+  font-weight: 700;
+  font-size: 12px;
+  display: none;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.hs-as-blurb-wrap.is-overflow:not(.is-end) .hs-as-blurb-fade { opacity: 1; }
+.hs-as-blurb-wrap.is-overflow:not(.is-end) .hs-as-blurb-more { display: inline-flex; }
 .hs-as-blurb p { margin: 0; font-size: 14px; line-height: 1.6; }
 .hs-as-ig { font-family: var(--hs-font-head, "Montserrat", sans-serif); font-weight: 600; font-size: 13px; color: var(--hs-gold, #f0b323) !important; }
 .hs-as-ig:hover { color: #ffd56a !important; }
@@ -13665,6 +13712,7 @@ html body .hs-alumni-stories .hs-alumni-story[hidden] { display: none !important
   .hs-as-slider { width: 100%; height: auto; aspect-ratio: 4 / 5; }
   .hs-as-panel { width: 100%; height: auto; padding: 22px 20px 24px; }
   .hs-as-blurb { overflow: visible; }
+  .hs-as-blurb-fade, .hs-as-blurb-more { display: none !important; }
   .hs-as-blurb p { font-size: 15px; line-height: 1.65; }
   .hs-as-more { height: auto; width: 100%; max-width: 480px; margin: 0 auto; }
   .hs-as-cbtn, .hs-as-bar, .hs-as-fade { display: none !important; }

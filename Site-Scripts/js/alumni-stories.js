@@ -122,7 +122,11 @@
                     '<h3 class="hs-as-name"></h3>' +
                     '<p class="hs-as-meta"></p>' +
                     '<span class="hs-as-rule" aria-hidden="true"></span>' +
-                    '<div class="hs-as-blurb"></div>' +
+                    '<div class="hs-as-blurb-wrap">' +
+                        '<div class="hs-as-blurb" tabindex="0"></div>' +
+                        '<div class="hs-as-blurb-fade" aria-hidden="true"></div>' +
+                        '<button type="button" class="hs-as-blurb-more" aria-label="Scroll down to read more">More <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>' +
+                    '</div>' +
                     '<a class="hs-as-ig" target="_blank" rel="noopener">View the original post on Instagram</a>' +
                 '</div>' +
             '</div>' +
@@ -173,6 +177,7 @@
             metaEl.hidden = !st.meta;
             q('.hs-as-blurb').innerHTML = st.paras.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('');
             q('.hs-as-blurb').scrollTop = 0;
+            updateBlurbHint();
             var ig = q('.hs-as-ig');
             if (st.link) { ig.href = st.link; ig.hidden = false; } else { ig.hidden = true; }
             cards.forEach(function (card, k) {
@@ -183,6 +188,15 @@
             renderSlide();
             void track.offsetWidth;
             track.style.transition = '';
+        }
+
+        /* Blurb: scroll only when the text is longer than the panel, with a fade + "More" hint */
+        function updateBlurbHint() {
+            var b = q('.hs-as-blurb'), wrap = q('.hs-as-blurb-wrap');
+            var overflow = b.scrollHeight > b.clientHeight + 2;
+            var atEnd = b.scrollTop + b.clientHeight >= b.scrollHeight - 4;
+            wrap.classList.toggle('is-overflow', overflow);
+            wrap.classList.toggle('is-end', !overflow || atEnd);
         }
 
         function renderSlide() {
@@ -265,6 +279,11 @@
             var card = e.target.closest('.hs-as-card');
             if (card) pickStory(+card.dataset.k);
         });
+        q('.hs-as-blurb').addEventListener('scroll', updateBlurbHint, { passive: true });
+        q('.hs-as-blurb-more').addEventListener('click', function () {
+            var b = q('.hs-as-blurb');
+            b.scrollBy({ top: Math.round(b.clientHeight * 0.75), behavior: 'smooth' });
+        });
         q('.hs-as-cprev').addEventListener('click', function () { goCol(c - 1); });
         q('.hs-as-cnext').addEventListener('click', function () { goCol(c + 1); });
         slider.addEventListener('keydown', function (e) {
@@ -298,9 +317,9 @@
         var resizeTimer;
         window.addEventListener('resize', function () {
             clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(renderStrip, 120);
+            resizeTimer = setTimeout(function () { renderStrip(); updateBlurbHint(); }, 120);
         });
-        if (mq.addEventListener) mq.addEventListener('change', renderStrip);
+        if (mq.addEventListener) mq.addEventListener('change', function () { renderStrip(); updateBlurbHint(); });
 
         /* Mount: widget first, original Groups hidden (kept in the page) */
         wrapper.insertBefore(root, wrapper.firstChild);
@@ -308,7 +327,7 @@
         wrapper.classList.add('hs-as-ready');
         renderStory();
         renderStrip();
-        if (document.fonts && document.fonts.ready) document.fonts.ready.then(renderStrip);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { renderStrip(); updateBlurbHint(); });
     }
 
     function init() {
