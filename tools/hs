@@ -8,6 +8,14 @@ cd "$ROOT"
 . "$ROOT/tools/lib.sh"
 TPL="$ROOT/tools/templates"
 
+# Every commit/merge hs makes is checked straight after (see hs_verify_commit in lib.sh).
+git() {
+  case "${1:-}" in
+    commit|merge) command git "$@" || return $?; hs_verify_commit ;;
+    *) command git "$@" ;;
+  esac
+}
+
 usage() { cat <<'EOF'
 HeadStart workflow — tools/hs <command>
 
@@ -81,6 +89,8 @@ cmd_setup() {
   git config core.hooksPath tools/git-hooks
   git config core.fileMode false
   git config branch.main.mergeoptions --no-ff
+  git config maintenance.auto false   # background maintenance raced commits on the shared folder
+  git config gc.auto 0                 # run `git gc` by hand on the Mac now and then
   mkdir -p Site-Scripts/Latest-Drop work; touch Site-Scripts/Latest-Drop/.gitkeep
   hs_ok "Git hooks installed (core.hooksPath=tools/git-hooks), fileMode off, main merges are --no-ff"
   if ! cmp -s tools/claude-code/settings.json .claude/settings.json 2>/dev/null; then
@@ -436,10 +446,10 @@ cmd_hook() {
       p=$(hs_json_get "$json" .prompt)
       if printf '%s' "$p" | head -1 | grep -Eq '^[[:space:]]*APPROVED([[:space:][:punct:]]|$)'; then
         echo "[HeadStart workflow] The user typed APPROVED. Recording approval:"
-        ( cmd_approve --via "User typed in Claude Code: $(printf '%s' "$p" | head -c 300 | tr '\n' ' ')" ) 2>&1 || true
+        ( hs_git_safe_begin; cmd_approve --via "User typed in Claude Code: $(printf '%s' "$p" | head -c 300 | tr '\n' ' ')" ) 2>&1 || true
       elif printf '%s' "$p" | head -1 | grep -Eiq '^[[:space:]]*UAT PASSED([[:space:][:punct:]]|$)'; then
         echo "[HeadStart workflow] The user confirmed UAT. Recording:"
-        ( cmd_uat --via "User typed in Claude Code: $(printf '%s' "$p" | head -c 300 | tr '\n' ' ')" ) 2>&1 || true
+        ( hs_git_safe_begin; cmd_uat --via "User typed in Claude Code: $(printf '%s' "$p" | head -c 300 | tr '\n' ' ')" ) 2>&1 || true
       fi ;;
     stop)
       [ "$(hs_json_get "$json" .stop_hook_active)" = true ] && exit 0
@@ -452,6 +462,7 @@ cmd_hook() {
 }
 
 c=${1:-help}; [ $# -gt 0 ] && shift
+case "$c" in start|approve|save|uat|handover|finish|deployed|snapshot) hs_git_safe_begin;; esac
 case "$c" in
   status) cmd_status "$@";; setup) cmd_setup;; start) cmd_start "$@";; approve) cmd_approve "$@";;
   save) cmd_save "$@";; lint) cmd_lint "$@";; receipt) cmd_receipt "$@";; uat) cmd_uat "$@";;
