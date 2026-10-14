@@ -3,7 +3,7 @@
 /**
  * Staff-Directory--CSV-Importer
  *
- * Disabled 2026-09-14 on origin-new rebuild — CSV/Rails import only, not needed for front-end. Re-enable only if Jeremy needs imports.
+ * OWNED BY Nick (firedev). Disabled 2026-09-14 on origin-new rebuild — CSV/Rails import only, not needed for front-end. Re-enable only if Nick/Jeremy need imports.
  * 
  *
  */
@@ -99,6 +99,9 @@ add_action('wp_ajax_hs_wipe_staff', 'hs_ajax_wipe_staff');
 function hs_ajax_wipe_staff() {
     check_ajax_referer('hs_import_nonce', 'nonce');
     if (!current_user_can('manage_options')) wp_send_json_error('Unauthorized');
+    // ponytail: the backup keeps text fields only — no photos (_thumbnail_id on 347 staff), drafts or reports_to —
+    // so wipe + revert would unlink every photo. Off until the backup covers them (Nick, 2026-10-13).
+    wp_send_json_error('Wipe is disabled: the backup does not keep staff photos yet. Import still updates existing staff by name.');
     
     $skip_backup = isset($_POST['skip_backup']) && $_POST['skip_backup'] == '1';
     

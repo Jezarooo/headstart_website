@@ -2,6 +2,8 @@
 
 /**
  * Gallery-Image-Real-Size
+ *
+ * Adds data-hs-w / data-hs-h / data-hs-srcset (original size) to content images so gallery-mosaic.js lays out portraits correctly. Jeremy, 2026-10-13.
  */
 /**
  * Adds each content image's original size to its <img> tag so gallery-mosaic.js can tell
