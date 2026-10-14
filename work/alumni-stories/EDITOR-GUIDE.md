@@ -52,3 +52,13 @@ Section  "Alumni Stories"
 2. On the alumni page: **+ Add section → Add From Library → "Alumni stories (section)"**, placed where you want it.
 3. In Nick's story: pick his 10 slides in the Gallery and his photo in the Image (Media IDs differ per site, so images are never inside the import file).
 4. After going live: purge WP Super Cache and Cloudflare.
+
+## The "Your story next?" tile
+- It's the Text module labelled **"Your story next?" tile** at the end of the wrapper Group (after the last story).
+- **H3** = the tile heading; **first paragraph** = the line under it; **the link** = where the tile goes (the link text itself isn't shown).
+- On phones only the first sentence of the line is shown, so keep the first sentence short.
+- Delete the module to remove the tile.
+
+## Card photos
+- The Image module in each story is optional. Leave it blank and the card uses slide 1; add a plain photo to use that instead.
+- With 4 stories or fewer, the cards show as a 2×2 grid of the other stories plus the tile; with more, they become a sliding strip automatically.
