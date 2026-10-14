@@ -71,6 +71,39 @@ Built so the team maintains it in Divi 5 (no code blocks): each story is a Divi 
 - [ ] In the Visual Builder the stories are easy to see and edit (outlined, labelled).
 - [ ] The rest of the alumni page (filmstrip gallery, mosaic, quality bar slider) behaves as before.
 
+## Amendment 1 (14 Oct): changes agreed on the prototype since approval
+Design reference: canvas "Alumni stories prototype", version 27.
+1. **Right-hand side when there are 4 tiles or fewer:**
+   - shows a flush 2×2 grid of the *other* stories, plus a gold **"Your story next?"** invitation tile;
+   - the tile has a large navy quote mark, and on desktop an arrow circle;
+   - with 5 or more tiles, it stays the two-row sliding strip;
+   - the current story is never shown as a card.
+2. **Invitation tile content comes from Divi, not code.** An optional Text module with class `hs-story-invite` inside the wrapper Group:
+   - H3 = heading;
+   - first paragraph = line;
+   - its link = where the tile goes.
+
+   With no such module, no tile is shown.
+3. **Instagram link:** shown as a full-width Instagram-gradient "View on Instagram" button, text only, with no logo (a logo can be added later).
+4. **Blurb read-more hint:** fade plus a gently bobbing gold arrow, shown only when the text overflows and hidden once scrolled. Reduced-motion respected.
+5. **Slide arrows:** see-through (faint navy, white outline and arrow) so they don't hide slide text. On mobile too: left arrow only after the first slide; "Next story" on the last slide.
+6. **Mobile "More stories" row:** ‹ › buttons beside the heading, plus swipe. They reset when the story changes.
+7. **Builder story rows:** each story Group shows as a row resembling the final design in the Divi 5 builder, with "Thumbnail Orientation: Portrait" in the guide.
+8. **Content pipeline (for the JSON, step 3 above):**
+   - Claude converts each story's slides to WebP, named `HeadStart-Phuket_Alumni-Network_Alumni-Stories_<NAME>_001.webp` (plus `_card`), into one flat `_upload/` folder (git-ignored);
+   - the user bulk-uploads them to the Media Library;
+   - the user saves the site's `/wp-json/wp/v2/media?search=Alumni-Stories&per_page=100&_fields=id,source_url` output;
+   - Claude regenerates the JSON with all four stories (Carol, Nick, Pea, Reece; approved copy in `stories-copy.md`), real media IDs and the invitation tile.
+
+   The same steps run again on live with live IDs.
+
+### Added UAT items
+- [ ] With 4 stories: 2×2 grid of the other 3 plus the invitation tile, on desktop; the row on mobile.
+- [ ] Invitation tile text and link can be changed in Divi.
+- [ ] Read-more arrow only on overflowing blurbs, gone after scrolling.
+- [ ] Slide arrows visible but not hiding text; mobile arrows behave as described.
+- [ ] Instagram button opens the story's post.
+
 ## Deployment notes for the dev (Gate 7)
 - **New JS:** upload `alumni-stories.js` to `uploads/hs-head/` (MD5 name as usual) and add its `<script defer>` to Divi → Integration → head.
 - **CSS:** append the "Alumni stories" block to the global stylesheet.
