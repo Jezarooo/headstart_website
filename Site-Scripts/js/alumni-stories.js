@@ -11,7 +11,8 @@
  *       Text    .hs-story-text              H3 name, 1st paragraph = meta line,
  *                                           further paragraphs = blurb, a link = Instagram
  *     Text    .hs-story-invite              optional "Your story next?" tile: heading,
- *                                           one paragraph, a link (where the tile goes)
+ *                                           one paragraph, a link (where the tile goes;
+ *                                           its text, e.g. an email address, is shown)
  * OUTPUT: slider (arrows, dots, swipe, keyboard) + joined navy blurb panel +
  *         cards for the OTHER stories (+ the invite tile): a 2x2 grid when there are
  *         4 tiles or fewer, otherwise a two-row strip with its own controls.
@@ -124,8 +125,17 @@
             heading: heading,
             first: cut > -1 ? line.slice(0, cut + 1) : line,
             rest: cut > -1 ? line.slice(cut + 2) : '',
-            href: a ? a.getAttribute('href') : ''
+            href: a ? a.getAttribute('href') : '',
+            linkText: a ? a.textContent.trim() : ''
         };
+    }
+
+    /* Link text for the invite tile: an email breaks only after the @ (and, on phones, before the ending) */
+    function linkHtml(t) {
+        var at = t.indexOf('@');
+        if (at < 0) return esc(t);
+        var host = esc(t.slice(at + 1)).replace(/\.([a-z]{2,6})$/i, '<wbr>.$1');
+        return '<span>' + esc(t.slice(0, at + 1)) + '</span><span>' + host + '</span>';
     }
 
     var ICON_GO = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>';
@@ -192,12 +202,13 @@
             }).join('');
             if (invite) {
                 var tag = invite.href ? 'a' : 'div';
-                html += '<' + tag + ' class="hs-as-tile hs-as-invite"' + (invite.href ? ' href="' + esc(invite.href) + '" draggable="false"' : '') + '>' +
+                html += '<' + tag + ' class="hs-as-tile hs-as-invite' + (invite.linkText ? ' has-link' : '') + '"' + (invite.href ? ' href="' + esc(invite.href) + '" draggable="false"' : '') + '>' +
                     '<span class="hs-as-invite-top"><span class="hs-as-quote" aria-hidden="true">&ldquo;</span>' +
                     (invite.href ? '<span class="hs-as-invite-go" aria-hidden="true">' + ICON_GO + '</span>' : '') + '</span>' +
                     (invite.heading ? '<span class="hs-as-invite-h">' + esc(invite.heading) + '</span>' : '') +
                     (invite.first ? '<span class="hs-as-invite-p">' + esc(invite.first) +
                         (invite.rest ? ' <span class="hs-as-invite-rest">' + esc(invite.rest) + '</span>' : '') + '</span>' : '') +
+                    (invite.linkText ? '<span class="hs-as-invite-link">' + linkHtml(invite.linkText) + '</span>' : '') +
                     '</' + tag + '>';
             }
             strip.innerHTML = html;
