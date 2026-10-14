@@ -13464,6 +13464,10 @@ body.logged-in:not(.et-fb) .mobile-menu-section {
   color: #475569;
 }
 .hs-as button { font-family: inherit; }
+/* Once the script has built the widget, the original story Groups are hidden (Divi's own
+   group display:flex would otherwise override the hidden attribute). */
+html body .hs-alumni-stories.hs-as-ready .hs-alumni-story,
+html body .hs-alumni-stories .hs-alumni-story[hidden] { display: none !important; }
 .hs-as [hidden] { display: none !important; }
 
 /* Feature: slider + joined navy panel */
