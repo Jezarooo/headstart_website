@@ -22,7 +22,25 @@ New feature, not a fix. The alumni page gets an "alumni stories" block: our Inst
 ## Deploy
 - Upload `files/js/alumni-stories.js` as `wp-content/uploads/hs-head/3e3af9574c9de9aa6d43360464ec1638.js` and add after the last script tag in Divi → Theme Options → Integration → head:
   `<script src="https://headstartphuket.com/wp-content/uploads/hs-head/3e3af9574c9de9aa6d43360464ec1638.js" defer></script>`
-- CSS: Jeremy will add the block to the global stylesheet.
+- CSS: the global stylesheet needs updating with the new block (`files/css/core.css`, added at the end).
+
+## Test it locally (optional)
+`test-kit/` has everything: the 35 story slides (`images/`), the Divi import template and `make-import.sh`.
+1. **Code:** put the JS and CSS on your local copy exactly as in Deploy above, using your local URL in the script tag.
+2. **Media + import file:** in a shell with WP-CLI for that site (in Local: right-click the site → Open site shell), run
+   `cd <unzipped>/test-kit && ./make-import.sh --path=/path/to/wordpress`
+   It uploads the 35 slides to the Media Library and writes `alumni-stories-import.json` with your site's media IDs (it prints the IDs per story).
+3. **Content:** Divi → Divi Library → Import & Export → import `alumni-stories-import.json`. Add **"Alumni stories (section)"** from the library to any page, save, and view it logged out (or hard-refresh).
+
+**What you should see**
+- **Desktop:** Carol's slides on the left with the navy blurb panel. On the right, a 2×2 grid of Nick, Pea and Reece plus the gold "Your story next?" tile.
+- **Slides:** see-through arrows, dots and swipe; "Next story" on the last slide.
+- **Cards:** clicking a card switches the story.
+- **Instagram button:** opens the @headstartalumni profile.
+- **"Your story next?" tile:** opens an email to marcom@headstartphuket.com.
+- **Below 981px:** slider, then blurb, then a "More stories" row with ‹ › buttons.
+- **Divi builder:** each story shows as an outlined row (the JS doesn't run there).
+- **Console:** no errors.
 
 ## Previous version
 `rollback/` holds the live files as they were before this change, if you need to revert. Files marked *new* have no previous version: deactivate them instead.

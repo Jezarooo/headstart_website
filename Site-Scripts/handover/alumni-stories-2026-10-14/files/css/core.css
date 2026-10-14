@@ -13733,6 +13733,10 @@ a.hs-as-invite { cursor: pointer; }
 .hs-as-invite-go { display: none; flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; background: var(--hs-dark, #003057); color: var(--hs-gold, #f0b323); align-items: center; justify-content: center; }
 .hs-as-invite-h { font-family: var(--hs-font-head, "Montserrat", sans-serif); font-weight: 800; font-size: 18px; line-height: 1.15; }
 .hs-as-invite-p { font-size: 13px; line-height: 1.4; font-weight: 600; }
+.hs-as-invite-link { margin-top: 2px; font-family: var(--hs-font-head, "Montserrat", sans-serif); font-weight: 700; font-size: 13px; line-height: 1.3; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.hs-as-invite-link > span { display: inline-block; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; }
+/* Strip tiles are narrow: keep only the first sentence when an email/link is shown */
+.hs-as-invite.has-link .hs-as-invite-rest { display: none; }
 
 /* 4 tiles or fewer: a flush 2x2 grid filling the space beside the feature */
 .hs-as-grid .hs-as-more-head,
@@ -13753,6 +13757,8 @@ a.hs-as-invite { cursor: pointer; }
 .hs-as-grid .hs-as-invite-go { display: flex; }
 .hs-as-grid .hs-as-invite-h { font-size: 22px; }
 .hs-as-grid .hs-as-invite-p { font-size: 14px; line-height: 1.45; }
+.hs-as-grid .hs-as-invite.has-link .hs-as-invite-rest { display: inline; }
+.hs-as-grid .hs-as-invite-link { font-size: 14px; }
 
 @media (min-width: 981px) and (max-width: 1199px) {
   .hs-as { --hs-as-h: 440px; --hs-as-panel: 240px; }
@@ -13783,6 +13789,9 @@ a.hs-as-invite { cursor: pointer; }
   .hs-as-invite-h { font-size: 15px; }
   .hs-as-invite-p { font-size: 12px; line-height: 1.35; }
   .hs-as-invite-rest { display: none; }
+  .hs-as-invite.has-link .hs-as-invite-p { display: none; }
+  .hs-as-invite-link { font-size: 11px; overflow-wrap: normal; }
+  .hs-as-invite-link > span { white-space: normal; }
 }
 
 /* Part 2: "story rows" in the Divi builder (body.et-fb) and as the no-JS fallback.
