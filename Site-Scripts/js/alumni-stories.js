@@ -197,6 +197,7 @@
             var atEnd = b.scrollTop + b.clientHeight >= b.scrollHeight - 4;
             wrap.classList.toggle('is-overflow', overflow);
             wrap.classList.toggle('is-end', !overflow || atEnd);
+            wrap.classList.toggle('is-scrolled', b.scrollTop > 4);
         }
 
         function renderSlide() {
