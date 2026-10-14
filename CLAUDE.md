@@ -26,6 +26,7 @@ Read this first, every session. The rules below are enforced by git hooks (`tool
 - **Cloud sessions: verify every file copied to the Mac.** A copy can report success before the file lands. After each copy, compare `shasum -a 256` of the source with the file in `$HOME/mnt/HeadStart`; re-copy until they match, before committing.
 - Start every session with `tools/hs status`, then open the roadmap (below).
 - **One agent at a time.** Antigravity is retired (13 Oct 2026). Two agents in this repo at once emptied git's index once already; if the user has another agent open, ask them to close it before you commit.
+- **Commits are race-proof inside `tools/hs`** (14 Oct 2026). Over the shared folder, git's index was found empty mid-commit three times. hs now commits with a private index outside the repo, with git's auto-maintenance off, and checks every commit: one that comes out empty or deletes more than 10 files is undone on the spot (files untouched) with a "Safety check" message. If you see it: `tools/hs status`, then retry; tell the user if it repeats. That's one more reason to commit only through `tools/hs`. `gc.auto` is off, so run `git gc` on the Mac now and then.
 
 ## Roadmap
 The backlog lives at https://claude.ai/artifact/VtLKZu5yuna4oAVV8GNXUb (items in its `items` collection; read and write it with the ArtifactData tool). Every task links to a roadmap item; move the item's status at each gate: Planning → Approved → Building → UAT → Ready for dev → Live (or Parked). Put the task branch in its `task` field.

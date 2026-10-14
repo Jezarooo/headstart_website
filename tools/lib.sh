@@ -96,3 +96,41 @@ hs_live_location() { # repo path -> where it goes on live, for DEV-NOTES
     *) echo "$1" ;;
   esac
 }
+
+# --- Race-proof commits (roadmap git-index-race, 14 Oct 2026) -------------------------------
+# On the Mac's shared folder (cloud session) git's index has been found empty mid-commit, and
+# git's automatic maintenance ran at the same instant. hs therefore commits with a private index
+# outside the repo, with auto-maintenance off, and checks every commit it makes.
+hs_git_safe_begin() {
+  [ -n "${HS_SAFE_INDEX:-}" ] && return 0
+  export GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=maintenance.auto GIT_CONFIG_VALUE_0=false \
+         GIT_CONFIG_KEY_1=gc.auto GIT_CONFIG_VALUE_1=0
+  HS_SAFE_INDEX="${TMPDIR:-/tmp}/hs-index.$$"
+  rm -f "$HS_SAFE_INDEX"
+  GIT_INDEX_FILE="$HS_SAFE_INDEX" command git read-tree HEAD || hs_die "Could not prepare a private git index."
+  export GIT_INDEX_FILE="$HS_SAFE_INDEX" HS_SAFE_INDEX
+  trap hs_git_safe_end EXIT
+}
+hs_git_safe_end() {
+  local rc=$?
+  if [ -n "${HS_SAFE_INDEX:-}" ]; then
+    unset GIT_INDEX_FILE
+    rm -f "$HS_SAFE_INDEX"
+    command git reset -q 2>/dev/null || true   # real index := HEAD; working tree untouched
+    HS_SAFE_INDEX=
+  fi
+  return $rc
+}
+# After a commit/merge: undo it (soft) if it is empty or deletes more than 10 files unasked.
+hs_verify_commit() {
+  local n del
+  n=$(command git ls-tree -r --name-only HEAD | wc -l | tr -d ' ')
+  del=0
+  if command git rev-parse -q --verify HEAD~1 >/dev/null; then
+    del=$(command git diff --name-only --diff-filter=D HEAD~1 HEAD | wc -l | tr -d ' ')
+  fi
+  if [ "$n" -eq 0 ] || { [ "$del" -gt 10 ] && [ -z "${HS_ALLOW_BULK_DELETE:-}" ]; }; then
+    command git reset -q --soft HEAD~1 2>/dev/null || true
+    hs_die "Safety check: that commit would have left $n files and deleted $del. It has been undone (your files are untouched). This usually means git's index was emptied mid-commit; run tools/hs status, then retry. Tell Jeremy/Claude if it repeats."
+  fi
+}
