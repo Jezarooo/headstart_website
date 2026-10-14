@@ -1,0 +1,3 @@
+local_only: workflow tooling only (tools/hs, lib.sh, CLAUDE.md); nothing ships to live
+built_at: 2026-10-14T05:28:31+0000
+head: dd2fba95
