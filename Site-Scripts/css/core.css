@@ -13446,30 +13446,30 @@ body.logged-in:not(.et-fb) .mobile-menu-section {
     display: none !important;
 }
 
-
 /* =============================================================================
-   ALUMNI STORIES (alumni-stories.js) — 14 Oct 2026
-   Divi: Group .hs-alumni-stories > Group .hs-alumni-story (Gallery .hs-story-slides,
-   Image .hs-story-card, Text .hs-story-text). The script builds .hs-as inside the wrapper.
+   ALUMNI STORIES (feat/alumni-stories, 14 Oct 2026)
+   Divi: Group .hs-alumni-stories > Group .hs-alumni-story > Gallery .hs-story-slides,
+         Image .hs-story-card, Text .hs-story-text. Built by alumni-stories.js.
+   Part 1: the widget (front end).  Part 2: "story rows" in the Divi builder and as
+   the no-JS fallback (any wrapper the script has not turned into .hs-as-ready).
    ============================================================================= */
 .hs-as {
   --hs-as-h: 520px;
   --hs-as-panel: 262px;
-  --hs-as-card-h: calc((var(--hs-as-h) - 78px - 10px) / 2);
+  --hs-as-card-h: calc((var(--hs-as-h) - 88px) / 2);
   display: flex;
   gap: 24px;
   align-items: flex-start;
-  width: 100%;
   font-family: var(--hs-font-body, "Open Sans", sans-serif);
   color: #475569;
 }
 .hs-as button { font-family: inherit; }
 .hs-as [hidden] { display: none !important; }
 
-/* Slider + panel: one card */
+/* Feature: slider + joined navy panel */
 .hs-as-feature {
   display: flex;
-  flex: 0 0 auto;
+  flex-shrink: 0;
   border-radius: 10px;
   overflow: hidden;
   background: var(--hs-dark, #003057);
@@ -13483,23 +13483,11 @@ body.logged-in:not(.et-fb) .mobile-menu-section {
   background: #e2e8f0;
   touch-action: pan-y;
   cursor: grab;
-  outline: none;
 }
-.hs-as-slider:focus-visible { box-shadow: inset 0 0 0 3px var(--hs-gold, #f0b323); }
-.hs-as-track {
-  display: flex;
-  height: 100%;
-  transition: transform 0.45s ease;
-}
+.hs-as-slider:focus-visible { outline: 3px solid var(--hs-gold, #f0b323); outline-offset: -3px; }
+.hs-as-track { display: flex; height: 100%; transition: transform 0.45s ease; }
 .hs-as-slide { flex: 0 0 100%; height: 100%; }
-.hs-as-slide img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  pointer-events: none;
-  user-select: none;
-}
+.hs-as-slide img { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; user-select: none; }
 .hs-as-arrow {
   position: absolute;
   top: 50%;
@@ -13508,6 +13496,7 @@ body.logged-in:not(.et-fb) .mobile-menu-section {
   height: 44px;
   border-radius: 50%;
   border: none;
+  padding: 0;
   background: #ffffff;
   color: var(--hs-dark, #003057);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -13515,14 +13504,13 @@ body.logged-in:not(.et-fb) .mobile-menu-section {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  padding: 0;
 }
 .hs-as-prev { left: 10px; }
 .hs-as-next { right: 10px; }
 .hs-as-nextstory {
   position: absolute;
-  right: 10px;
   top: 50%;
+  right: 10px;
   transform: translateY(-50%);
   min-height: 44px;
   padding: 0 16px;
@@ -13536,15 +13524,7 @@ body.logged-in:not(.et-fb) .mobile-menu-section {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   cursor: pointer;
 }
-.hs-as-dots {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 12px;
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-}
+.hs-as-dots { position: absolute; left: 0; right: 0; bottom: 12px; display: flex; justify-content: center; gap: 6px; }
 .hs-as-dot {
   width: 8px;
   height: 8px;
@@ -13568,9 +13548,9 @@ body.logged-in:not(.et-fb) .mobile-menu-section {
   gap: 12px;
   color: #dbe4ee;
 }
+.hs-as-panel p { padding: 0; }
 .hs-as-kicker {
-  margin: 0 !important;
-  padding: 0 !important;
+  margin: 0;
   font-family: var(--hs-font-head, "Montserrat", sans-serif);
   font-weight: 700;
   font-size: 12px;
@@ -13579,82 +13559,35 @@ body.logged-in:not(.et-fb) .mobile-menu-section {
   color: var(--hs-gold, #f0b323);
 }
 .hs-as .hs-as-name {
-  margin: 0 !important;
-  padding: 0 !important;
-  border: none !important;
-  font-family: var(--hs-font-head, "Montserrat", sans-serif) !important;
-  font-weight: 700 !important;
-  font-size: 26px !important;
-  line-height: 1.2 !important;
-  color: #ffffff !important;
-}
-.hs-as-meta {
-  margin: 0 !important;
-  padding: 0 !important;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.5;
-  color: #dbe4ee;
-}
-.hs-as-rule {
-  flex-shrink: 0;
-  width: 44px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--hs-gold, #f0b323);
-}
-.hs-as-blurb {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-.hs-as-blurb p {
-  margin: 0 0 10px !important;
-  padding: 0 !important;
-  font-size: 14px;
-  line-height: 1.6;
-  color: #dbe4ee;
-}
-.hs-as .hs-as-ig,
-.hs-as .hs-as-ig:visited {
+  margin: 0;
+  padding: 0;
+  border: none;
   font-family: var(--hs-font-head, "Montserrat", sans-serif);
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--hs-gold, #f0b323);
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1.2;
+  color: #ffffff;
 }
-.hs-as .hs-as-ig:hover { color: #ffd56a; }
+.hs-as-meta { margin: 0; font-size: 13px; font-weight: 600; line-height: 1.5; }
+.hs-as-rule { flex-shrink: 0; width: 44px; height: 4px; border-radius: 2px; background: var(--hs-gold, #f0b323); }
+.hs-as-blurb { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; gap: 10px; }
+.hs-as-blurb p { margin: 0; font-size: 14px; line-height: 1.6; }
+.hs-as-ig { font-family: var(--hs-font-head, "Montserrat", sans-serif); font-weight: 600; font-size: 13px; color: var(--hs-gold, #f0b323) !important; }
+.hs-as-ig:hover { color: #ffd56a !important; }
 
-/* Story cards strip */
-.hs-as-more {
-  flex: 1;
-  min-width: 0;
-  height: var(--hs-as-h);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.hs-as-more-head {
-  height: 40px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+/* More stories: two-row card strip with its own controls */
+.hs-as-more { flex: 1; min-width: 0; height: var(--hs-as-h); display: flex; flex-direction: column; gap: 12px; }
+.hs-as-more-head { height: 40px; display: flex; align-items: center; gap: 8px; }
 .hs-as-more-title {
   flex: 1;
-  margin: 0 !important;
-  padding: 0 !important;
+  margin: 0;
+  padding: 0;
   font-family: var(--hs-font-head, "Montserrat", sans-serif);
   font-weight: 700;
   font-size: 15px;
   color: var(--hs-dark, #003057);
 }
-.hs-as-more-title span {
-  font-family: var(--hs-font-body, "Open Sans", sans-serif);
-  font-weight: 400;
-  font-size: 13px;
-  color: #475569;
-}
+.hs-as-more-title span { font-family: var(--hs-font-body, "Open Sans", sans-serif); font-weight: 400; font-size: 13px; color: #475569; }
 .hs-as-cbtn {
   width: 40px;
   height: 40px;
@@ -13671,13 +13604,7 @@ body.logged-in:not(.et-fb) .mobile-menu-section {
 .hs-as-cbtn:disabled { opacity: 0.35; cursor: default; }
 .hs-as:not(.hs-as-has-more) .hs-as-cbtn,
 .hs-as:not(.hs-as-has-more) .hs-as-bar { visibility: hidden; }
-.hs-as-viewport {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  touch-action: pan-y;
-}
+.hs-as-viewport { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: pan-y; }
 .hs-as-strip {
   display: grid;
   grid-auto-flow: column;
@@ -13686,23 +13613,14 @@ body.logged-in:not(.et-fb) .mobile-menu-section {
   gap: 10px;
   transition: transform 0.45s ease;
 }
-.hs-as-card {
-  position: relative;
-  padding: 0;
-  border: none;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #e2e8f0;
-  cursor: pointer;
-}
-.hs-as-card img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  pointer-events: none;
-  user-select: none;
-}
+.hs-as-fade { position: absolute; top: 0; right: 0; bottom: 0; width: 40px; background: linear-gradient(90deg, rgba(255, 255, 255, 0), #ffffff); pointer-events: none; }
+.hs-as-bar { position: relative; height: 4px; border-radius: 2px; background: #e2e8f0; }
+.hs-as-thumb { position: absolute; top: 0; height: 4px; border-radius: 2px; background: var(--hs-dark, #003057); transition: left 0.45s ease, width 0.45s ease; }
+
+.hs-as-card { position: relative; padding: 0; border: none; border-radius: 8px; overflow: hidden; background: #e2e8f0; cursor: pointer; text-align: left; }
+.hs-as-card img { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.hs-as-card.is-active { outline: 4px solid var(--hs-gold, #f0b323); outline-offset: -4px; }
+.hs-as-card:focus-visible { outline: 3px solid var(--hs-dark, #003057); outline-offset: 2px; }
 .hs-as-card-label {
   position: absolute;
   left: 0;
@@ -13711,103 +13629,148 @@ body.logged-in:not(.et-fb) .mobile-menu-section {
   padding: 28px 10px 10px;
   background: linear-gradient(transparent, rgba(0, 24, 44, 0.9));
   color: #ffffff;
-  text-align: left;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.hs-as-card-name {
-  font-family: var(--hs-font-head, "Montserrat", sans-serif);
-  font-weight: 700;
-  font-size: 14px;
-  line-height: 1.25;
-}
+.hs-as-card-name { font-family: var(--hs-font-head, "Montserrat", sans-serif); font-weight: 700; font-size: 14px; line-height: 1.25; }
 .hs-as-card-year { font-size: 12px; }
 .hs-as-now {
+  display: none;
   position: absolute;
   left: 8px;
   top: 8px;
-  display: none;
+  padding: 4px 8px;
+  border-radius: 3px;
   background: var(--hs-gold, #f0b323);
   color: var(--hs-dark, #003057);
   font-family: var(--hs-font-head, "Montserrat", sans-serif);
   font-weight: 700;
   font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 3px;
 }
-.hs-as-card.is-active { box-shadow: inset 0 0 0 4px var(--hs-gold, #f0b323); }
 .hs-as-card.is-active .hs-as-now { display: block; }
-.hs-as-card.is-active::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border: 4px solid var(--hs-gold, #f0b323);
-  border-radius: 8px;
-  pointer-events: none;
-}
-.hs-as-fade {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 40px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0), #ffffff);
-  pointer-events: none;
-}
-.hs-as-bar {
-  position: relative;
-  height: 4px;
-  flex-shrink: 0;
-  border-radius: 2px;
-  background: #e2e8f0;
-}
-.hs-as-thumb {
-  position: absolute;
-  top: 0;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--hs-dark, #003057);
-  transition: left 0.45s ease, width 0.3s ease;
-}
-.hs-as button:focus-visible { outline: 3px solid var(--hs-gold, #f0b323); outline-offset: 2px; }
 
-/* Narrower desktops */
 @media (min-width: 981px) and (max-width: 1199px) {
   .hs-as { --hs-as-h: 440px; --hs-as-panel: 240px; }
 }
 
-/* Tablet & mobile: stacked */
+/* Below 981px: slider, blurb, then a swipeable row of cards */
 @media (max-width: 980px) {
   .hs-as { flex-direction: column; gap: 20px; }
-  .hs-as-feature { flex-direction: column; width: 100%; max-width: 560px; margin: 0 auto; }
+  .hs-as-feature { flex-direction: column; width: 100%; max-width: 480px; margin: 0 auto; }
   .hs-as-slider { width: 100%; height: auto; aspect-ratio: 4 / 5; }
-  .hs-as-panel { width: auto; height: auto; padding: 22px 20px 24px; }
+  .hs-as-panel { width: 100%; height: auto; padding: 22px 20px 24px; }
   .hs-as-blurb { overflow: visible; }
-  .hs-as-blurb p { font-size: 15px; }
-  .hs-as-more { width: 100%; height: auto; }
+  .hs-as-blurb p { font-size: 15px; line-height: 1.65; }
+  .hs-as-more { height: auto; width: 100%; max-width: 480px; margin: 0 auto; }
   .hs-as-cbtn, .hs-as-bar, .hs-as-fade { display: none !important; }
-  .hs-as-viewport { overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; padding-bottom: 6px; touch-action: auto; }
-  .hs-as-strip { grid-template-rows: 165px; grid-auto-columns: 132px; transform: none !important; }
+  .hs-as-viewport { overflow: visible; }
+  .hs-as-strip {
+    grid-template-rows: 165px;
+    grid-auto-columns: 132px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 6px;
+    transform: none !important;
+  }
   .hs-as-card { scroll-snap-align: start; }
 }
 
-/* Visual Builder: make each story easy to see and edit */
-body.et-fb .hs-alumni-story,
-body.et-fb-app .hs-alumni-story {
-  position: relative;
-  outline: 2px dashed var(--hs-gold, #f0b323);
-  outline-offset: 6px;
-  margin-bottom: 28px;
+/* Part 2: "story rows" in the Divi builder (body.et-fb) and as the no-JS fallback.
+   Each story looks like the finished unit: slides strip | navy blurb | card photo. */
+.hs-alumni-stories:not(.hs-as-ready) {
+  counter-reset: hs-story;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 40px !important;
 }
-body.et-fb .hs-alumni-story::before,
-body.et-fb-app .hs-alumni-story::before {
-  content: "Alumni story · Gallery = slides (4:5) · Image = card photo · Text = H3 name, meta line, blurb, IG link";
-  display: block;
-  margin-bottom: 8px;
-  font: 600 12px/1.4 "Open Sans", sans-serif;
-  color: #003057;
-  background: #fff7e0;
-  padding: 6px 10px;
-  border-radius: 4px;
+.hs-alumni-stories:not(.hs-as-ready) > .hs-alumni-story {
+  counter-increment: hs-story;
+  position: relative;
+  display: grid !important;
+  grid-template-columns: 416px 262px 176px;
+  grid-template-rows: 520px;
+  column-gap: 0;
+  align-items: start;
+  padding: 0 !important;
+}
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-slides { grid-column: 1; grid-row: 1; height: 520px; margin: 0 !important; overflow: hidden; border-radius: 10px 0 0 10px; background: #e2e8f0; }
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-text { grid-column: 2; grid-row: 1; margin: 0 !important; }
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-card { grid-column: 3; grid-row: 1; margin: 0 0 0 24px !important; width: 176px !important; max-width: none !important; }
+
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-slides .et_pb_gallery_items {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  height: 520px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  gap: 0 !important;
+}
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-slides .et_pb_gallery_item {
+  display: block !important;
+  flex: 0 0 416px !important;
+  width: 416px !important;
+  height: 520px;
+  margin: 0 !important;
+  scroll-snap-align: start;
+  clear: none !important;
+}
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-slides .et_pb_gallery_image,
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-slides .et_pb_gallery_image a { display: block; height: 100%; }
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-slides .et_pb_gallery_image img { width: 100% !important; height: 100% !important; object-fit: cover; }
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-slides .et_pb_gallery_pagination,
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-slides .et_overlay,
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-slides .et_pb_gallery_title,
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-slides .et_pb_gallery_caption { display: none !important; }
+
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-text {
+  height: 520px;
+  box-sizing: border-box;
+  padding: 28px 24px 24px !important;
+  overflow-y: auto;
+  background: var(--hs-dark, #003057);
+  border-radius: 0 10px 10px 0;
+  color: #dbe4ee !important;
+}
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-text h1,
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-text h2,
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-text h3,
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-text h4 {
+  margin: 0 0 10px !important;
+  padding: 0 !important;
+  border: none !important;
+  font-family: var(--hs-font-head, "Montserrat", sans-serif) !important;
+  font-weight: 700 !important;
+  font-size: 26px !important;
+  line-height: 1.2 !important;
+  color: #ffffff !important;
+}
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-text p { margin: 0 0 10px !important; padding: 0 !important; font-size: 14px; line-height: 1.6; color: #dbe4ee !important; }
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-text p:first-of-type { font-size: 13px; font-weight: 600; }
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-text a { color: var(--hs-gold, #f0b323) !important; font-weight: 600; }
+.hs-alumni-stories:not(.hs-as-ready) .hs-story-card img { display: block; width: 176px !important; height: 220px !important; object-fit: cover; border-radius: 8px; }
+
+/* Builder only: outline and number each story so editors can find them */
+body.et-fb .hs-alumni-stories > .hs-alumni-story { outline: 2px dashed rgba(240, 179, 35, 0.8); outline-offset: 10px; margin-top: 28px !important; }
+body.et-fb .hs-alumni-stories > .hs-alumni-story::before {
+  content: "Alumni story " counter(hs-story) "  ·  slides | blurb | card photo";
+  position: absolute;
+  left: 0;
+  top: -30px;
+  font: 700 12px/1 var(--hs-font-head, "Montserrat", sans-serif);
+  letter-spacing: 0.06em;
+  color: var(--hs-dark, #003057);
+}
+body.et-fb .hs-alumni-stories .hs-story-card::after { content: "Card photo"; display: block; margin-top: 6px; font: 600 12px/1.3 var(--hs-font-body, "Open Sans", sans-serif); color: #475569; }
+
+@media (max-width: 980px) {
+  .hs-alumni-stories:not(.hs-as-ready) > .hs-alumni-story { grid-template-columns: 1fr; grid-template-rows: auto; }
+  .hs-alumni-stories:not(.hs-as-ready) .hs-story-slides,
+  .hs-alumni-stories:not(.hs-as-ready) .hs-story-text,
+  .hs-alumni-stories:not(.hs-as-ready) .hs-story-card { grid-column: 1; grid-row: auto; }
+  .hs-alumni-stories:not(.hs-as-ready) .hs-story-slides { height: auto; border-radius: 10px 10px 0 0; }
+  .hs-alumni-stories:not(.hs-as-ready) .hs-story-slides .et_pb_gallery_items { height: auto; }
+  .hs-alumni-stories:not(.hs-as-ready) .hs-story-slides .et_pb_gallery_item { flex-basis: 100% !important; width: 100% !important; height: auto; aspect-ratio: 4 / 5; }
+  .hs-alumni-stories:not(.hs-as-ready) .hs-story-text { height: auto; border-radius: 0 0 10px 10px; }
+  .hs-alumni-stories:not(.hs-as-ready) .hs-story-card { display: none !important; }
 }
