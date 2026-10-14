@@ -21,8 +21,6 @@ Built so the team maintains it in Divi 5 (no code blocks): each story is a Divi 
    - **Card photo:** from the Image module `.hs-story-card`; falls back to the first slide.
    - **Blurb:** from the Text module `.hs-story-text`. H3 = name; first paragraph = meta line (e.g. "Class of 2022 · …"); the rest = blurb; any link = "View on Instagram".
 
-   The Instagram link becomes a full-width **"View on Instagram" button** at the bottom of the navy panel, in Instagram's gradient (`#f09433 → #bc1888`) with the real Instagram icon from **Font Awesome Free** (`fa-brands fa-instagram`). If Font Awesome isn't already on the page, the script adds its `fontawesome` and `brands` stylesheets from cdnjs (v6.4.0, the same source and version the events and noticeboard components already use). The button is hidden when a story has no link.
-
    It then builds the prototype's markup and behaviour:
    - real `<button>`s with aria labels;
    - `aria-live` on the story panel;
