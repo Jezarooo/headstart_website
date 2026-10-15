@@ -13794,7 +13794,7 @@ a.hs-as-invite { cursor: pointer; }
   .hs-as-invite-link > span { white-space: normal; }
 }
 
-/* Part 2: "story rows" in the Divi builder (body.et-fb) and as the no-JS fallback.
+/* Part 2: "story rows": the fallback when the script has not built the widget (no JS, or the builder preview failed).
    Each story looks like the finished unit: slides strip | navy blurb | card photo. */
 .hs-alumni-stories:not(.hs-as-ready) {
   counter-reset: hs-story;
@@ -13892,29 +13892,11 @@ a.hs-as-invite { cursor: pointer; }
 .hs-alumni-stories:not(.hs-as-ready) .hs-story-invite p { margin: 0 0 8px !important; padding: 0 !important; font-size: 14px; font-weight: 600; color: var(--hs-dark, #003057) !important; }
 .hs-alumni-stories:not(.hs-as-ready) .hs-story-invite a { color: var(--hs-dark, #003057) !important; text-decoration: underline; }
 
-/* Builder only: outline and number each story so editors can find them */
-body.et-fb .hs-alumni-stories > .hs-alumni-story { outline: 2px dashed rgba(240, 179, 35, 0.8); outline-offset: 10px; margin-top: 28px !important; }
-body.et-fb .hs-alumni-stories > .hs-alumni-story::before {
-  content: "Alumni story " counter(hs-story) "  ·  slides | blurb | card photo";
-  position: absolute;
-  left: 0;
-  top: -30px;
-  font: 700 12px/1 var(--hs-font-head, "Montserrat", sans-serif);
-  letter-spacing: 0.06em;
-  color: var(--hs-dark, #003057);
-}
-body.et-fb .hs-alumni-stories .hs-story-invite { position: relative; margin-top: 28px !important; outline: 2px dashed rgba(0, 48, 87, 0.5); outline-offset: 10px; }
-body.et-fb .hs-alumni-stories .hs-story-invite::before {
-  content: "\"Your story next?\" tile  ·  heading, one line, a link";
-  position: absolute;
-  left: 0;
-  top: -30px;
-  white-space: nowrap;
-  font: 700 12px/1 var(--hs-font-head, "Montserrat", sans-serif);
-  letter-spacing: 0.06em;
-  color: var(--hs-dark, #003057);
-}
-body.et-fb .hs-alumni-stories .hs-story-card::after { content: "Card photo"; display: block; margin-top: 6px; font: 600 12px/1.3 var(--hs-font-body, "Open Sans", sans-serif); color: #475569; }
+/* Visual Builder: once the widget is built it shows the same layout as the front end.
+   The original Groups stay in the page (edit them in the Layers panel) but are not drawn.
+   If the widget could not be built, the plain "story rows" above show instead. */
+body.et-fb .hs-alumni-stories.hs-as-ready > .hs-alumni-story,
+body.et-fb .hs-alumni-stories.hs-as-ready .hs-story-invite { display: none !important; }
 
 @media (max-width: 980px) {
   .hs-alumni-stories:not(.hs-as-ready) > .hs-alumni-story { grid-template-columns: 1fr; grid-template-rows: auto; }

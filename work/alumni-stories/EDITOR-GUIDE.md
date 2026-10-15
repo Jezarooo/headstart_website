@@ -15,7 +15,7 @@ Section  "Alumni Stories"
 ```
 
 - **The order of the story Groups is the order of the cards.** The first story shows when the page loads.
-- In the builder each story shows as a **story row** that looks like the finished unit: slides (scroll sideways) · navy blurb · card photo, outlined and numbered "Alumni story 1, 2…". Click any part to edit it. Switching between stories and sliding only work on the page itself; use **Exit builder** or preview to try them.
+- In the builder the canvas shows the **finished layout**, the same slider, blurb and cards as the live page (it refreshes a moment after each edit, and stays on the story you are working on). The story Groups themselves are tucked away: **edit them in the Layers panel**. Select a Group, Gallery, Image or Text module there and change it in the settings panel. Switching between stories works in the canvas too. If the preview ever can't be built, the plain story Groups appear instead and can be edited directly.
 
 ## Add a new story (about 3 minutes)
 
@@ -24,7 +24,7 @@ Section  "Alumni Stories"
    - right-click an existing story Group → **Duplicate**; or
    - click **+** inside the wrapper → **Add From Library** → **"Alumni story (template)"**.
 3. **Rename it.** Rename the Group in the Layers panel to `Story — [Name]`, so it's easy to find.
-4. **Slides.** Open the **Gallery** → **Images** → select the slides **in order** (the order you select is the order shown). Leave the gallery's "Order" setting on default (not Random), and set **Thumbnail Orientation: Portrait** so the builder preview isn't cropped to landscape.
+4. **Slides.** Open the **Gallery** → **Images** → select the slides **in order** (the order you select is the order shown). Leave the gallery's "Order" setting on default (not Random).
 5. **Card photo.** Open the **Image** → choose the plain photo.
 6. **Text.** Open the **Text** module and keep this shape:
    - **Heading 3:** the name, e.g. `Nick`

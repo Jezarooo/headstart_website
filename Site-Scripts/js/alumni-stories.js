@@ -18,7 +18,9 @@
  *         4 tiles or fewer, otherwise a two-row strip with its own controls.
  *         Below 981px: stacked, with a one-row card strip and its own controls.
  * Without this script the Groups stay visible as plain stacked content.
- * Not run in the Visual Builder, so editors see the plain Groups.
+ * In the Divi Visual Builder the same widget is built, and rebuilt a moment after any edit.
+ * The Groups stay in the page (hidden) so they are edited in the Layers panel. If the build
+ * ever fails there, the plain Groups are shown again.
  * =============================================================================
  */
 (function () {
@@ -140,16 +142,50 @@
 
     var ICON_GO = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>';
 
-    /* ---------- Build the widget ---------- */
-    function build(wrapper) {
-        if (wrapper.dataset.hsAsReady) return;
+    /* ---------- Read everything from a wrapper (sig changes when the content changes) ---------- */
+    function readAll(wrapper) {
         var groups = Array.prototype.filter.call(wrapper.querySelectorAll('.hs-alumni-story'), function (g) {
             return g.closest('.hs-alumni-stories') === wrapper;
         });
         var stories = groups.map(readStory).filter(Boolean);
-        if (!stories.length) return;
         var invite = readInvite(wrapper);
+        var sig = JSON.stringify([
+            stories.map(function (st) { return [st.name, st.meta, st.paras, st.link, st.slides, st.card]; }),
+            invite ? [invite.heading, invite.first, invite.rest, invite.href, invite.linkText] : null
+        ]);
+        return { groups: groups, stories: stories, invite: invite, sig: sig };
+    }
+
+    function hideOriginals(data) {
+        data.groups.forEach(function (g) { g.hidden = true; g.setAttribute('aria-hidden', 'true'); });
+        if (data.invite) { data.invite.el.hidden = true; data.invite.el.setAttribute('aria-hidden', 'true'); }
+    }
+
+    /* Remove a built widget and its window listeners (the Groups are left as they are) */
+    function dropWidget(wrapper) {
+        if (wrapper.__hsAsCleanup) { wrapper.__hsAsCleanup(); wrapper.__hsAsCleanup = null; }
+        var old = wrapper.querySelector(':scope > .hs-as');
+        if (old && old.parentNode) old.parentNode.removeChild(old);
+    }
+
+    /* Back to the plain Groups (used in the builder when there is nothing to show, or the build failed) */
+    function teardown(wrapper) {
+        dropWidget(wrapper);
+        wrapper.__hsAsSig = null;
+        wrapper.classList.remove('hs-as-ready');
+        delete wrapper.dataset.hsAsReady;
+        Array.prototype.forEach.call(wrapper.querySelectorAll('.hs-alumni-story, .hs-story-invite'), function (el) {
+            if (el.closest('.hs-alumni-stories') === wrapper) { el.hidden = false; el.removeAttribute('aria-hidden'); }
+        });
+    }
+
+    /* ---------- Build the widget ---------- */
+    function build(wrapper, data, keep) {
+        var groups = data.groups, stories = data.stories, invite = data.invite;
+        if (!stories.length) return;
+        dropWidget(wrapper);
         wrapper.dataset.hsAsReady = '1';
+        wrapper.__hsAsSig = data.sig;
 
         var root = document.createElement('div');
         root.className = 'hs-as';
@@ -215,7 +251,7 @@
             tiles = Array.prototype.slice.call(strip.children);
         }
 
-        var s = 0, i = 0, c = 0;
+        var s = keep ? Math.max(0, Math.min(stories.length - 1, keep.s || 0)) : 0, i = 0, c = 0;
         var mq = window.matchMedia('(max-width: ' + (BREAKPOINT - 1) + 'px)');
 
         function renderStory() {
@@ -223,7 +259,7 @@
             track.style.transition = 'none';
             track.innerHTML = st.slides.map(function (sl, k) {
                 return '<div class="hs-as-slide" role="group" aria-roledescription="slide" aria-label="' + (k + 1) + ' of ' + st.slides.length + '">' +
-                    '<img src="' + esc(sl.src) + '"' + (sl.srcset ? ' srcset="' + esc(sl.srcset) + '" sizes="(max-width: 980px) 100vw, 440px"' : '') +
+                    '<img src="' + esc(sl.src) + '"' +
                     ' alt="' + esc(sl.alt || (st.name + ', slide ' + (k + 1))) + '"' + (k > 1 ? ' loading="lazy"' : '') + ' decoding="async" draggable="false">' +
                     '</div>';
             }).join('');
@@ -259,6 +295,7 @@
 
         function renderSlide() {
             var n = stories[s].slides.length;
+            wrapper.__hsAs = { s: s, i: i };
             track.style.transform = 'translateX(' + (-100 * i) + '%)';
             Array.prototype.forEach.call(dotsBox.children, function (d, k) {
                 d.classList.toggle('is-active', k === i);
@@ -365,25 +402,75 @@
         swipe(strip, function () { goCol(c + 1); }, function () { goCol(c - 1); }, true);
 
         var resizeTimer;
-        window.addEventListener('resize', function () {
+        function onResize() {
             clearTimeout(resizeTimer);
             resizeTimer = setTimeout(function () { renderStrip(); updateBlurbHint(); }, 120);
-        });
-        if (mq.addEventListener) mq.addEventListener('change', function () { renderStrip(); updateBlurbHint(); });
+        }
+        function onMq() { renderStrip(); updateBlurbHint(); }
+        window.addEventListener('resize', onResize);
+        if (mq.addEventListener) mq.addEventListener('change', onMq);
+        wrapper.__hsAsCleanup = function () {
+            clearTimeout(resizeTimer);
+            window.removeEventListener('resize', onResize);
+            if (mq.removeEventListener) mq.removeEventListener('change', onMq);
+        };
 
         /* Mount: widget first, original Groups hidden (kept in the page) */
         wrapper.insertBefore(root, wrapper.firstChild);
-        groups.forEach(function (g) { g.hidden = true; g.setAttribute('aria-hidden', 'true'); });
-        if (invite) { invite.el.hidden = true; invite.el.setAttribute('aria-hidden', 'true'); }
+        hideOriginals(data);
         wrapper.classList.add('hs-as-ready');
         renderStory();
+        if (keep && keep.i) {
+            track.style.transition = 'none';
+            goSlide(keep.i);
+            void track.offsetWidth;
+            track.style.transition = '';
+        }
         renderStrip();
         if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { renderStrip(); updateBlurbHint(); });
     }
 
+    /* Visual Builder: keep a widget in step with the Groups (debounced; ignores the widget's own changes).
+       Any failure puts the plain Groups back so editing is never blocked. */
+    function watchBuilder() {
+        var timer = null;
+        function sync() {
+            timer = null;
+            Array.prototype.forEach.call(document.querySelectorAll('.hs-alumni-stories'), function (wrapper) {
+                var data = null;
+                try {
+                    data = readAll(wrapper);
+                    if (!data.stories.length) { if (wrapper.__hsAsSig) teardown(wrapper); return; }
+                    if (wrapper.__hsAsFailed === data.sig) return;
+                    if (wrapper.querySelector(':scope > .hs-as') && wrapper.__hsAsSig === data.sig) { hideOriginals(data); return; }
+                    build(wrapper, data, wrapper.__hsAs);
+                } catch (err) {
+                    wrapper.__hsAsFailed = data ? data.sig : 'error';
+                    try { teardown(wrapper); } catch (e2) { /* nothing more to do */ }
+                    if (window.console && console.warn) console.warn('[alumni-stories] builder preview failed, showing the plain Groups', err);
+                }
+            });
+        }
+        var mo = new MutationObserver(function (records) {
+            var relevant = records.some(function (r) {
+                var t = r.target.nodeType === 1 ? r.target : r.target.parentElement;
+                return t && !t.closest('.hs-as');
+            });
+            if (!relevant) return;
+            clearTimeout(timer);
+            timer = setTimeout(sync, 350);
+        });
+        mo.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['src', 'href', 'srcset', 'data-hs-srcset'] });
+        sync();
+    }
+
     function init() {
-        if (inBuilder()) return;
-        Array.prototype.forEach.call(document.querySelectorAll('.hs-alumni-stories'), build);
+        if (inBuilder()) { watchBuilder(); return; }
+        Array.prototype.forEach.call(document.querySelectorAll('.hs-alumni-stories'), function (wrapper) {
+            if (wrapper.dataset.hsAsReady) return;
+            var data = readAll(wrapper);
+            if (data.stories.length) build(wrapper, data);
+        });
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
