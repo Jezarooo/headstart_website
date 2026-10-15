@@ -20,14 +20,14 @@ The alumni-stories slider is live (JS + CSS deployed by Nick). Three things rema
      - Guards against loops (the observer ignores its own changes) and duplicates (one widget per wrapper, replaced on rebuild).
      - Everything is wrapped in try/catch: if the build throws, the plain Groups stay visible, as today.
 2. **`Site-Scripts/css/core.css`** (alumni block only): remove the builder "story rows" styling (outlines, labels, "Card photo" captions, around lines 13797–13917); add the rule that collapses the original Groups in the builder once the widget exists. The front-end and no-JS fallback styles stay.
-3. **`Site-Scripts/js/MANIFEST.tsv`:** correct the live file name of `alumni-stories.js` to `9ea1406fcfab969a5641b86346a34089.js` (the MD5 of the content, and what is on live). The old `3e3af957…` entry was wrong. The name changes again to the new content's MD5 at handover.
+3. **`Site-Scripts/js/MANIFEST.tsv`:** housekeeping for the local loader and `hs` tools only: correct the live file name of `alumni-stories.js` to `9ea1406fcfab969a5641b86346a34089.js` (what is on live today; the old entry was wrong). Not part of what the dev receives.
 4. **`work/alumni-stories-live-import/`** (already committed): `media-live.json`, `make-live-import.py`, `alumni-stories-live-import.json`: the Divi import file with live media IDs (IDs matched by file name and slide number).
 5. **`work/alumni-stories/EDITOR-GUIDE.md`:** update the builder section (stories are edited in the Layers panel; the canvas shows the live layout).
 
 ## Risks & rollback
 - **Divi 5 builder:** Divi manages the canvas itself, so adding or hiding elements there can cause glitches (duplicates, a canvas error, the widget not refreshing). Tested on local first. If it misbehaves, fallback: ship without builder rendering and use a CSS-only compact row per story.
 - **Heavier slide files:** about 160 KB per slide instead of ~40 KB, but slides beyond the second are lazy-loaded.
-- **Two live files change:** the JS (new hash name, so the Divi head `<script src>` must be updated) and `core.css`. Rollback: the previous JS file and the live `core.css` from the baseline; both are put in `rollback/` at handover. The import file only adds two Divi Library items; delete them to roll back.
+- **Two live files change:** the JS and `core.css`. Rollback: the previous JS file and the live `core.css` from the baseline; both are put in `rollback/` at handover. The import file only adds two Divi Library items; delete them to roll back.
 - Front-end caching: purge WP Super Cache and Cloudflare APO after deploy, or visitors keep the old script and CSS.
 - Not in scope: the undeployed `*-divi-gatekeeper` editor patch and the other drift items (all unrelated).
 
@@ -46,8 +46,7 @@ The alumni-stories slider is live (JS + CSS deployed by Nick). Three things rema
 - [ ] Rest of the alumni page (filmstrip, mosaic, quality bar slider) behaves as before.
 
 ## Deployment notes for the dev (Gate 7)
-- Replace the live script `uploads/hs-head/9ea1406fcfab969a5641b86346a34089.js` with the new `alumni-stories.js` and update its `<script src>` in the Divi head to the new name (DEV-NOTES will give it).
-- Replace `core.css` (the whole file as it is on live today, plus our alumni block change).
+- The handover ships `alumni-stories.js` and `core.css` under their clean names. The dev replaces the current alumni-stories script and `core.css` on live and handles file naming and the Divi head himself; DEV-NOTES won't specify hashes.
 - No snippet changes; no permalink flush.
 - Purge WP Super Cache and Cloudflare APO.
 - The user imports `alumni-stories-live-import.json` into live Divi (no dev action).
