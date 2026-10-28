@@ -206,7 +206,7 @@ function hs_isqm_print() {
 html.hs-isqm-open { overflow: hidden; }
 #hs-isqm .hs-isqm-bd { position: absolute; inset: 0; background: rgba(0, 0, 0, .8); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); animation: hs-isqm-fade .4s ease both; }
 #hs-isqm .hs-isqm-cv { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
-#hs-isqm .hs-isqm-card { position: relative; z-index: 2; background: #003057; color: var(--i-fg) !important; border-radius: 12px; border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 30px 80px rgba(0, 0, 0, .55); width: min(780px, 90%); max-height: 90%; overflow: auto; padding: 28px 32px 24px; animation: hs-isqm-pop .55s cubic-bezier(.2, .9, .25, 1.1) both; animation-delay: .5s; }
+#hs-isqm .hs-isqm-card { position: relative; z-index: 2; background: #003057; color: var(--i-fg) !important; border-radius: 12px; border: 1px solid rgba(255, 255, 255, .14); box-shadow: 0 30px 80px rgba(0, 0, 0, .55); width: min(780px, 90%); max-height: calc(100% - 24px); overflow: auto; padding: 26px 32px 22px; animation: hs-isqm-pop .55s cubic-bezier(.2, .9, .25, 1.1) both; animation-delay: .5s; }
 #hs-isqm.hs-isqm-out .hs-isqm-bd, #hs-isqm.hs-isqm-out .hs-isqm-card { animation: hs-isqm-fadeout .22s ease forwards; }
 @keyframes hs-isqm-pop { from { opacity: 0; transform: translateY(18px) scale(.96); } to { opacity: 1; transform: none; } }
 @keyframes hs-isqm-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -218,13 +218,17 @@ html.hs-isqm-open { overflow: hidden; }
 #hs-isqm .hs-isqm-x .ct { font: 700 .85rem/1 var(--i-head); letter-spacing: 1px; text-transform: uppercase; color: #003057 !important; }
 #hs-isqm .hs-isqm-x .ci { font-size: 1.6rem; line-height: 1; margin-top: -2px; color: #003057 !important; }
 
+#hs-isqm .hs-isqm-x.xv { position: absolute; top: 24px; right: 24px; z-index: 5; }
+@media (min-width: 769px) { #hs-isqm .hs-isqm-x.xin { display: none !important; } }
+@media (max-width: 768px) { #hs-isqm .hs-isqm-x.xv { display: none !important; } }
+
 /* top: logo left, award description right */
 #hs-isqm .hs-isqm-top { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "logo titles" "logo blurb"; gap: 8px 28px; align-items: center; }
 #hs-isqm .hs-isqm-logo { grid-area: logo; display: inline-block; background: #fff; border: 1px solid #fff; border-radius: 12px; padding: 10px 18px; }
 #hs-isqm .hs-isqm-logo img { display: block; width: 190px; max-width: 100%; height: auto; margin: 0; }
-#hs-isqm .hs-isqm-titles { grid-area: titles; align-self: end; padding-right: 112px; }
+#hs-isqm .hs-isqm-titles { grid-area: titles; align-self: end; }
 #hs-isqm .hs-isqm-eyebrow { margin: 0 0 6px; font: 700 12px/1 var(--i-head); letter-spacing: .16em; text-transform: uppercase; color: var(--i-gold-text) !important; }
-#hs-isqm .hs-isqm-card h2.hs-isqm-title { font: 700 clamp(30px, 5.2vw, 42px)/1.1 var(--i-head); letter-spacing: -.5px; margin: 0 0 4px; padding: 0; color: var(--i-fg) !important; }
+#hs-isqm .hs-isqm-card h2.hs-isqm-title { font: 700 clamp(30px, 4.2vw, 40px)/1.1 var(--i-head); letter-spacing: -.5px; margin: 0 0 4px; white-space: nowrap; padding: 0; color: var(--i-fg) !important; }
 #hs-isqm .hs-isqm-title .gy { color: var(--i-yellow) !important; font-weight: 800; }
 #hs-isqm .hs-isqm-blurb { grid-area: blurb; align-self: start; margin: 0; max-width: 56ch; font-size: 15px; line-height: 1.6; color: var(--i-muted) !important; padding: 0; }
 #hs-isqm .hs-isqm-blurb strong { color: var(--i-yellow) !important; font-weight: 700; }
@@ -279,6 +283,7 @@ html.hs-isqm-open { overflow: hidden; }
   #hs-isqm .hs-isqm-x .ct { display: none; }
   #hs-isqm .hs-isqm-x .ci { margin-top: 0; }
   #hs-isqm .hs-isqm-titles { padding-right: 46px; }
+  #hs-isqm .hs-isqm-card h2.hs-isqm-title { white-space: normal; }
 }
 @media (max-width: 640px) {
   #hs-isqm .hs-isqm-card { padding: 20px 16px 16px; }
@@ -319,6 +324,15 @@ html.hs-isqm-open { overflow: hidden; }
   #hs-isqm .hs-isqm-blurb { font-size: 13px; }
   #hs-isqm .hs-isqm-slide blockquote { font-size: 14.5px; }
   #hs-isqm .hs-isqm-btn { padding: 12px 14px; }
+}
+@media (min-width: 769px) and (max-height: 820px) {
+  #hs-isqm .hs-isqm-card { padding: 20px 28px 16px; }
+  #hs-isqm .hs-isqm-rule { margin: 12px 0 10px; }
+  #hs-isqm .hs-isqm-listhead { margin-bottom: 8px; }
+  #hs-isqm .hs-isqm-areabtn { padding: 4px 6px; }
+  #hs-isqm .hs-isqm-qpanel { margin-top: 10px; padding: 14px 20px 12px; }
+  #hs-isqm .hs-isqm-slide blockquote { font-size: 16.5px; line-height: 1.5; }
+  #hs-isqm .hs-isqm-foot { margin-top: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   #hs-isqm .hs-isqm-bd, #hs-isqm .hs-isqm-card, #hs-isqm .hs-isqm-slide { animation: none !important; transition: none !important; }
@@ -433,7 +447,7 @@ function build() {
   root.innerHTML =
     '<div class="hs-isqm-bd" data-close></div>' +
     '<div class="hs-isqm-card" role="dialog" aria-modal="true" aria-labelledby="hs-isqm-title">' +
-      '<button type="button" class="hs-isqm-x" data-close aria-label="Close announcement"><span class="ct">Close</span><span class="ci" aria-hidden="true">&times;</span></button>' +
+      '<button type="button" class="hs-isqm-x xin" data-close aria-label="Close announcement"><span class="ct">Close</span><span class="ci" aria-hidden="true">&times;</span></button>' +
       '<div class="hs-isqm-top"><div class="hs-isqm-logo"><img src="' + CFG.logo + '" alt="ISQM International Schools Quality Mark, Gold Accreditation"></div>' +
       '<div class="hs-isqm-titles"><p class="hs-isqm-eyebrow">Proud to announce</p><h2 class="hs-isqm-title" id="hs-isqm-title">HeadStart is <span class="gy">Gold!</span></h2></div>' +
       '<p class="hs-isqm-blurb"><span class="bf">' + CFG.blurb + '</span><span class="bs">' + CFG.blurbShort + '</span></p></div>' +
@@ -444,6 +458,7 @@ function build() {
       '<div class="hs-isqm-foot"><a class="hs-isqm-btn" data-read href="' + CFG.readUrl + '">Read the full story' + ARROW + '</a>' +
       '<div class="hs-isqm-ctl"><button type="button" class="hs-isqm-arrow" data-step="-1" aria-label="Previous quote">&lsaquo;</button><div class="hs-isqm-dots">' + dots + '</div><button type="button" class="hs-isqm-arrow" data-step="1" aria-label="Next quote">&rsaquo;</button></div></div>' +
     '</div>' +
+    '<button type="button" class="hs-isqm-x xv" data-close aria-label="Close announcement"><span class="ct">Close</span><span class="ci" aria-hidden="true">&times;</span></button>' +
     '<canvas class="hs-isqm-cv" aria-hidden="true"></canvas>';
   card = root.querySelector('.hs-isqm-card');
   cv = root.querySelector('.hs-isqm-cv');
@@ -476,11 +491,11 @@ function onKey(e) {
   if (e.key === 'ArrowRight') go(slide + 1, 1);
   if (e.key === 'ArrowLeft') go(slide - 1, -1);
   if (e.key === 'Tab') {
-    var f = card.querySelectorAll('button, a[href]');
+    var f = Array.prototype.filter.call(root.querySelectorAll('button, a[href]'), function (el) { return el.getClientRects().length; });
     if (!f.length) return;
     var a = f[0], z = f[f.length - 1];
-    if (e.shiftKey && (document.activeElement === a || !card.contains(document.activeElement))) { e.preventDefault(); z.focus(); }
-    else if (!e.shiftKey && (document.activeElement === z || !card.contains(document.activeElement))) { e.preventDefault(); a.focus(); }
+    if (e.shiftKey && (document.activeElement === a || !root.contains(document.activeElement))) { e.preventDefault(); z.focus(); }
+    else if (!e.shiftKey && (document.activeElement === z || !root.contains(document.activeElement))) { e.preventDefault(); a.focus(); }
   }
 }
 function close() {
@@ -528,16 +543,24 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
     <?php
 }
 
-/* ---- Shortcode assets (print once, only when a shortcode was used) ------- */
+/* ---- Shortcode assets ---------------------------------------------------- */
+/* The CSS is printed right beside the first shortcode of each request, so it also
+   works when Divi renders the shortcode by itself in the Visual Builder. The JS is
+   delegated (it does not need to find the markup at load) and prints in the footer,
+   on pages that use a shortcode and inside the builder. */
 $GLOBALS['hs_isqm_need'] = array();
-add_action( 'wp_footer', 'hs_isqm_print_assets', 98 );
-add_action( 'admin_footer', 'hs_isqm_print_assets', 98 );
-function hs_isqm_print_assets() {
-    $need = isset( $GLOBALS['hs_isqm_need'] ) ? $GLOBALS['hs_isqm_need'] : array();
-    if ( ! empty( $need['inline'] ) && empty( $need['inline_done'] ) ) {
-        $GLOBALS['hs_isqm_need']['inline_done'] = true;
-        ?>
-<style id="hs-isqm-inline-css">
+function hs_isqm_in_builder() {
+    if ( isset( $_GET['et_fb'] ) || isset( $_GET['et_tb'] ) ) return true;
+    return function_exists( 'et_core_is_fb_enabled' ) && et_core_is_fb_enabled();
+}
+function hs_isqm_css_once( $key, $css ) {
+    if ( ! empty( $GLOBALS['hs_isqm_need'][ $key . '_css' ] ) ) return '';
+    $GLOBALS['hs_isqm_need'][ $key . '_css' ] = true;
+    return '<style id="hs-' . $key . '-css">' . $css . '</style>';
+}
+function hs_isqm_inline_css() {
+    ob_start();
+    ?>
 .hs-isqm-in { --i-navy: #003057; --i-gold: #f0b323; --i-fg: #ffffff; --i-muted: #c9d6e4; --i-line: rgba(255, 255, 255, .2); --i-panel: rgba(255, 255, 255, .08); --i-head: var(--hs-font-head, 'Montserrat', 'Helvetica Neue', Arial, sans-serif); --i-body: var(--hs-font-body, 'Open Sans', system-ui, sans-serif); display: block; width: 100%; font-family: var(--i-body); color: var(--i-fg) !important; text-align: left; }
 .hs-isqm-in.boxed { background: #003057; border-radius: 12px; padding: 22px 24px 20px; }
 .hs-isqm-in, .hs-isqm-in *, .hs-isqm-in *::before, .hs-isqm-in *::after { box-sizing: border-box; }
@@ -603,54 +626,12 @@ function hs_isqm_print_assets() {
   .hs-isqm-in .hs-isqm-dots button { width: 8px; height: 8px; }
 }
 @media (prefers-reduced-motion: reduce) { .hs-isqm-in .hs-isqm-slide { transition: none !important; } }
-</style>
-<script id="hs-isqm-inline-js">
-(function () {
-function init(el) {
-  var slides = el.querySelectorAll('.hs-isqm-slide');
-  if (!slides.length) return;
-  var n = slides.length, cur = 0;
-  function go(i, dir) {
-    var prev = cur, next = (i + n) % n;
-    if (next !== prev) {
-      dir = dir || (next > prev ? 1 : -1);
-      slides.forEach(function (s, k) { if (k !== prev && k !== next) { s.classList.add('notrans'); s.classList.remove('on', 'out-l', 'from-l'); } });
-      var inc = slides[next], out = slides[prev];
-      inc.classList.add('notrans'); inc.classList.remove('out-l'); inc.classList.toggle('from-l', dir < 0);
-      void inc.offsetWidth;
-      slides.forEach(function (s) { s.classList.remove('notrans'); });
-      out.classList.remove('on', 'from-l');
-      if (dir > 0) out.classList.add('out-l'); else out.classList.remove('out-l');
-      inc.classList.remove('from-l'); inc.classList.add('on');
-    }
-    cur = next;
-    el.querySelectorAll('.hs-isqm-areabtn').forEach(function (b, k) { b.setAttribute('aria-pressed', String(k === cur)); });
-    el.querySelectorAll('.hs-isqm-dots [data-dot]').forEach(function (d, k) { if (k === cur) d.setAttribute('aria-current', 'true'); else d.removeAttribute('aria-current'); });
-  }
-  el.addEventListener('click', function (e) {
-    var step = e.target.closest('[data-step]'), dot = e.target.closest('[data-dot]');
-    if (step) { var d = +step.getAttribute('data-step'); go(cur + d, d); }
-    else if (dot) go(+dot.getAttribute('data-dot'));
-  });
-  var sx = null, panel = el.querySelector('.hs-isqm-qpanel');
-  if (panel) {
-    panel.addEventListener('pointerdown', function (e) { sx = e.clientX; });
-    panel.addEventListener('pointerup', function (e) {
-      if (sx === null) return;
-      var dx = e.clientX - sx; sx = null;
-      if (Math.abs(dx) > 40) go(cur + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1);
-    });
-  }
+    <?php
+    return ob_get_clean();
 }
-document.querySelectorAll('.hs-isqm-in').forEach(init);
-})();
-</script>
-        <?php
-    }
-    if ( ! empty( $need['qbar'] ) && empty( $need['qbar_done'] ) ) {
-        $GLOBALS['hs_isqm_need']['qbar_done'] = true;
-        ?>
-<style id="hs-qbar-css">
+function hs_isqm_qbar_css() {
+    ob_start();
+    ?>
 .hs-qbar-wrap { container-type: inline-size; width: 100%; }
 .hs-qbar { --qb-gold: var(--hs-gold, #f0b323); --qb-dark: var(--hs-dark, #003057); --qb-slider: #00294d; --qb-mute: #b9cadb; --qb-head: var(--hs-font-head, 'Montserrat', 'Helvetica Neue', Arial, sans-serif); --qb-body: var(--hs-font-body, 'Open Sans', system-ui, sans-serif); position: relative; display: grid; grid-template-columns: 250px minmax(0, 1fr); height: 172px; background: var(--qb-slider); color: #fff !important; font-family: var(--qb-body); overflow: hidden; text-align: left; }
 .hs-qbar, .hs-qbar *, .hs-qbar *::before, .hs-qbar *::after { box-sizing: border-box; }
@@ -712,36 +693,110 @@ document.querySelectorAll('.hs-isqm-in').forEach(init);
   .hs-qbar .qb-arrows .next { order: 3; }
 }
 @media (prefers-reduced-motion: reduce) { .hs-qbar .qb-track { transition: none; } }
-</style>
+    <?php
+    return ob_get_clean();
+}
+add_action( 'wp_footer', 'hs_isqm_print_assets', 98 );
+add_action( 'admin_footer', 'hs_isqm_print_assets', 98 );
+function hs_isqm_print_assets() {
+    $need    = isset( $GLOBALS['hs_isqm_need'] ) ? $GLOBALS['hs_isqm_need'] : array();
+    $builder = hs_isqm_in_builder();
+    if ( ( ! empty( $need['inline'] ) || $builder ) && empty( $need['inline_js'] ) ) {
+        $GLOBALS['hs_isqm_need']['inline_js'] = true;
+        if ( $builder && empty( $need['inline_css'] ) ) { $GLOBALS['hs_isqm_need']['inline_css'] = true; echo '<style id="hs-inline-css">' . hs_isqm_inline_css() . '</style>'; }
+        ?>
+<script id="hs-isqm-inline-js">
+(function () {
+/* Delegated, so it also works for blocks inserted after page load (Divi builder). */
+if (window.hsIsqmInline) return;
+window.hsIsqmInline = true;
+function go(el, i, dir) {
+  var slides = el.querySelectorAll('.hs-isqm-slide'), n = slides.length;
+  if (!n) return;
+  var prev = 0;
+  slides.forEach(function (s, k) { if (s.classList.contains('on')) prev = k; });
+  var next = (i + n) % n;
+  if (next !== prev) {
+    dir = dir || (next > prev ? 1 : -1);
+    slides.forEach(function (s, k) { if (k !== prev && k !== next) { s.classList.add('notrans'); s.classList.remove('on', 'out-l', 'from-l'); } });
+    var inc = slides[next], out = slides[prev];
+    inc.classList.add('notrans'); inc.classList.remove('out-l'); inc.classList.toggle('from-l', dir < 0);
+    void inc.offsetWidth;
+    slides.forEach(function (s) { s.classList.remove('notrans'); });
+    out.classList.remove('on', 'from-l');
+    if (dir > 0) out.classList.add('out-l'); else out.classList.remove('out-l');
+    inc.classList.remove('from-l'); inc.classList.add('on');
+  }
+  el.querySelectorAll('.hs-isqm-areabtn').forEach(function (b, k) { b.setAttribute('aria-pressed', String(k === next)); });
+  el.querySelectorAll('.hs-isqm-dots [data-dot]').forEach(function (d, k) { if (k === next) d.setAttribute('aria-current', 'true'); else d.removeAttribute('aria-current'); });
+}
+function cur(el) {
+  var c = 0;
+  el.querySelectorAll('.hs-isqm-slide').forEach(function (s, k) { if (s.classList.contains('on')) c = k; });
+  return c;
+}
+document.addEventListener('click', function (e) {
+  var el = e.target.closest && e.target.closest('.hs-isqm-in');
+  if (!el) return;
+  var step = e.target.closest('[data-step]'), dot = e.target.closest('[data-dot]');
+  if (step) { var d = +step.getAttribute('data-step'); go(el, cur(el) + d, d); }
+  else if (dot) go(el, +dot.getAttribute('data-dot'));
+});
+var sx = null, sel = null;
+document.addEventListener('pointerdown', function (e) {
+  var p = e.target.closest && e.target.closest('.hs-isqm-in .hs-isqm-qpanel');
+  sel = p ? p.closest('.hs-isqm-in') : null; sx = p ? e.clientX : null;
+});
+document.addEventListener('pointerup', function (e) {
+  if (sx === null || !sel) return;
+  var dx = e.clientX - sx, el = sel; sx = null; sel = null;
+  if (Math.abs(dx) > 40) go(el, cur(el) + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1);
+});
+})();
+</script>
+        <?php
+    }
+    if ( ( ! empty( $need['qbar'] ) || $builder ) && empty( $need['qbar_js'] ) ) {
+        $GLOBALS['hs_isqm_need']['qbar_js'] = true;
+        if ( $builder && empty( $need['qbar_css'] ) ) { $GLOBALS['hs_isqm_need']['qbar_css'] = true; echo '<style id="hs-qbar-css">' . hs_isqm_qbar_css() . '</style>'; }
+        ?>
 <script id="hs-qbar-js">
 (function () {
-function initBar(bar) {
-  var track = bar.querySelector('.qb-track'), slides = bar.querySelectorAll('.qb-slide');
-  if (!track || !slides.length) return;
-  var n = slides.length, i = 0, cur = bar.querySelector('[data-cur]');
-  function go(k) {
-    i = (k + n) % n;
-    track.style.transform = 'translateX(-' + (i * 100) + '%)';
-    if (cur) cur.textContent = i + 1;
-    slides.forEach(function (s, j) { s.setAttribute('aria-hidden', j === i ? 'false' : 'true'); });
-  }
-  bar.querySelector('.prev').addEventListener('click', function () { go(i - 1); });
-  bar.querySelector('.next').addEventListener('click', function () { go(i + 1); });
-  bar.addEventListener('keydown', function (e) {
-    if (e.key === 'ArrowLeft') go(i - 1);
-    if (e.key === 'ArrowRight') go(i + 1);
-  });
-  var x0 = null;
-  track.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
-  track.addEventListener('touchend', function (e) {
-    if (x0 === null) return;
-    var d = e.changedTouches[0].clientX - x0;
-    if (Math.abs(d) > 40) go(i + (d < 0 ? 1 : -1));
-    x0 = null;
-  });
-  go(0);
+/* Delegated, so it also works for bars inserted after page load (Divi builder). */
+if (window.hsQbar) return;
+window.hsQbar = true;
+function go(bar, k) {
+  var track = bar.querySelector('.qb-track'), slides = bar.querySelectorAll('.qb-slide'), n = slides.length;
+  if (!track || !n) return;
+  var i = ((k % n) + n) % n;
+  track.style.transform = 'translateX(-' + (i * 100) + '%)';
+  track.setAttribute('data-i', i);
+  var c = bar.querySelector('[data-cur]'); if (c) c.textContent = i + 1;
+  slides.forEach(function (s, j) { s.setAttribute('aria-hidden', j === i ? 'false' : 'true'); });
 }
-document.querySelectorAll('.hs-qbar').forEach(initBar);
+function idx(bar) { var t = bar.querySelector('.qb-track'); return t ? (parseInt(t.getAttribute('data-i'), 10) || 0) : 0; }
+document.addEventListener('click', function (e) {
+  var b = e.target.closest && e.target.closest('.hs-qbar .qb-arrows button');
+  if (!b) return;
+  var bar = b.closest('.hs-qbar');
+  go(bar, idx(bar) + (b.classList.contains('prev') ? -1 : 1));
+});
+document.addEventListener('keydown', function (e) {
+  var bar = e.target.closest && e.target.closest('.hs-qbar');
+  if (!bar) return;
+  if (e.key === 'ArrowLeft') go(bar, idx(bar) - 1);
+  if (e.key === 'ArrowRight') go(bar, idx(bar) + 1);
+});
+var x0 = null, xb = null;
+document.addEventListener('touchstart', function (e) {
+  var bar = e.target.closest && e.target.closest('.hs-qbar');
+  xb = bar; x0 = bar ? e.touches[0].clientX : null;
+}, { passive: true });
+document.addEventListener('touchend', function (e) {
+  if (x0 === null || !xb) return;
+  var d = e.changedTouches[0].clientX - x0, bar = xb; x0 = null; xb = null;
+  if (Math.abs(d) > 40) go(bar, idx(bar) + (d < 0 ? 1 : -1));
+});
 })();
 </script>
         <?php
@@ -767,7 +822,7 @@ function hs_isqm_sc_inline( $atts ) {
     $arrow  = '<svg class="arr" viewBox="0 0 448 512" aria-hidden="true"><path d="M438.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-160-160c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L338.8 224 32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l306.7 0-105.4 105.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l160-160z"/></svg>';
     $boxed  = in_array( strtolower( $a['boxed'] ), array( 'yes', 'true', '1' ), true );
 
-    $h = '<div class="hs-isqm-in' . ( $boxed ? ' boxed' : '' ) . '">';
+    $h = hs_isqm_css_once( 'inline', hs_isqm_inline_css() ) . '<div class="hs-isqm-in' . ( $boxed ? ' boxed' : '' ) . '">';
     if ( $has( 'heading' ) ) {
         $h .= '<hr class="hs-isqm-rule"><p class="hs-isqm-listhead">' . esc_html( $a['heading'] ) . '</p>';
     }
@@ -830,7 +885,7 @@ function hs_qbar_sc( $atts ) {
     $GLOBALS['hs_isqm_need']['qbar'] = true;
     $award = '<svg viewBox="0 -40 448 590" aria-hidden="true"><path d="M245.9-25.9c-13.4-8.2-30.3-8.2-43.7 0-24.4 14.9-39.5 18.9-68.1 18.3-15.7-.4-30.3 8.1-37.9 21.9-13.7 25.1-24.8 36.2-49.9 49.9-13.8 7.5-22.2 22.2-21.9 37.9 .7 28.6-3.4 43.7-18.3 68.1-8.2 13.4-8.2 30.3 0 43.7 14.9 24.4 18.9 39.5 18.3 68.1-.4 15.7 8.1 30.3 21.9 37.9 22.1 12.1 33.3 22.1 45.1 41.5L42.7 458.5c-5.9 11.9-1.1 26.3 10.7 32.2l86 43c11.5 5.7 25.5 1.4 31.7-9.8l52.8-95.1 52.8 95.1c6.2 11.2 20.2 15.6 31.7 9.8l86-43c11.9-5.9 16.7-20.3 10.7-32.2l-48.6-97.2c11.7-19.4 23-29.4 45.1-41.5 13.8-7.5 22.2-22.2 21.9-37.9-.7-28.6 3.4-43.7 18.3-68.1 8.2-13.4 8.2-30.3 0-43.7-14.9-24.4-18.9-39.5-18.3-68.1 .4-15.7-8.1-30.3-21.9-37.9-25.1-13.7-36.2-24.8-49.9-49.9-7.5-13.8-22.2-22.2-37.9-21.9-28.6 .7-43.7-3.4-68.1-18.3zM224 96a96 96 0 1 1 0 192 96 96 0 1 1 0-192z"/></svg>';
     $slides = hs_qbar_slides();
-    $out = '<div class="hs-qbar-wrap"><div class="hs-qbar" role="region" aria-roledescription="carousel" aria-label="Quality and accreditation highlights" tabindex="0">'
+    $out = hs_isqm_css_once( 'qbar', hs_isqm_qbar_css() ) . '<div class="hs-qbar-wrap"><div class="hs-qbar" role="region" aria-roledescription="carousel" aria-label="Quality and accreditation highlights" tabindex="0">'
         . '<div class="qb-bd">' . $award . '<div class="r">Rated</div><div class="o">Outstanding</div><div class="a">In all eight areas</div><div class="by">by Education Development Trust</div></div>'
         . '<div class="qb-stage"><div class="qb-track">';
     foreach ( $slides as $s ) {
