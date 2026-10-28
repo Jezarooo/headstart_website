@@ -1,7 +1,6 @@
 # ISQM Gold announcement: pop-up, inline block, Quality Bar and settings page — dev notes
 
 Package `isqm-gold-announcement-2026-10-28.zip` · 2026-10-28 · branch `feat/isqm-gold-announcement`
-(DRAFT: not final until the user has tested it locally and `tools/hs handover` has been re-run.)
 
 ## Problem
 HeadStart was accredited ISQM Gold by Education Development Trust (report published 26 Oct 2026). We want (1) a celebratory pop-up with gold confetti for the length of the announcement (about 2 to 4 weeks), (2) the same content available inline on pages, and (3) a refreshed Quality Bar that carries the ISQM Gold badge and the report quotes. The marketing team wants to switch things on and off themselves, so the package has a settings page. Nothing existing needed fixing: this is one new, self-contained Code Snippet.
