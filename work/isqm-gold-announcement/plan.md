@@ -56,3 +56,30 @@ No rewrite rules, no DB or post meta changes, no new options.
 - No permalink flush needed.
 - After activating: purge WP Super Cache and Cloudflare APO; smoke check the home page (pop-up once), a weekly update (same pop-up, not shown again after it was closed) and a phone.
 - To end the campaign: deactivate the snippet, or let the end date pass; to re-show the pop-up, bump `HS_ISQM_VERSION`.
+
+## Scope extension (user, 28 Oct): admin menu and two shortcodes
+Same single snippet file; no new files. Approval needed again before building.
+
+### 1. Admin settings page (Settings > ISQM Gold, administrators only)
+Stored in one option `hs_isqm_settings`. The constants above stay as the defaults, so the snippet still works with no settings saved.
+1. Sitewide pop-up on/off (master switch).
+2. Days before it shows again (default 3; 0 = every page load, for testing).
+3. Start date and end date (defaults 2026-10-28 and 2026-11-30; blank = no limit).
+4. "Read the full story" link (default /accreditations/).
+5. Reset for everyone (bumps the version so returning visitors see it again).
+6. Show to logged-in administrators on/off.
+7. Preview button (opens the home page with ?hs_isqm=1).
+8. Shortcode reference box with copy-and-paste examples.
+Settings are sanitised and saved with a nonce and `manage_options` check. Shortcodes work even when the pop-up is switched off.
+
+### 2. Shortcode `[hs_isqm_gold]` (inline block)
+The block as shown in the user's screenshot: heading "Rated outstanding in all eight areas", the numbered eight areas, the quote panel with ISQM rosette and source line, "Read the full story" button, slide dots and arrows. No backdrop, confetti or close button. Uses the same quote data as the pop-up. Attributes: `show` (areas, quotes, button; default all), `link` (override URL), `theme` (navy default, light). Its CSS and JS print once, only on pages that use it. All selectors prefixed `hs-isqm-inline`.
+
+### 3. Shortcode `[hs_quality_bar]` (replaces the Divi "Quality Bar v4" section)
+Slider with the ISQM Gold badge on the left, the eight EDT quotes woven between the existing slides (existing text kept as is, "ISQM Accredited" becomes "ISQM Gold"), arrow and dot controls, swipe and arrow keys, same band height. Design option chosen from https://claude.ai/artifact/KgeqRU6fVxseZRAug2fm2W. Existing stats (100% IGCSE pass, 42% and 47% A*/A, 60% BTEC) stay unchanged; they are not from the EDT report and are to be updated by the user later.
+Rollout: add the shortcode in a Divi code module on one page first (Foundation), compare, then swap on the other pages. The old section stays in place until then, so rollback is deleting the shortcode block.
+
+### Extra tests
+- Settings: off hides the pop-up on the front end; days value changes the stored reminder gap; saving as a non-admin is refused.
+- Shortcode: two on one page, on a page with the pop-up, in the Divi builder, at 390 and 360 wide; with the pop-up off.
+- Quality bar: all slides reachable by arrows, dots, swipe and keys; height matches the current bar on desktop and phone.
