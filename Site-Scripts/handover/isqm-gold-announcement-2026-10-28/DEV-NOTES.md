@@ -27,7 +27,7 @@ One new snippet, `isqm-gold-announcement.code-snippets.php`. It touches no other
 - It is a new snippet, so there is nothing to replace. Create it in Code Snippets as a **PHP snippet that runs on the front end only** ("Only run on site front-end"), not "Run everywhere". Activate it when the announcement should start (it is also gated by the date window).
 - No permalink flush is needed. No rewrite rules, options, post meta or DB changes.
 - The pop-up is rendered by the browser from data in the page, and the "seen" check runs in the browser, so full-page caching is fine. It does need the caches purged after activating and again after deactivating (see below).
-- It sits at z-index 2147483000, above the mega menu; the existing staff directory modal uses 2147483647 and would sit above it if both were open at once.
+- It sits at z-index 2147483000. The existing staff directory modal uses 2147483647, so it would sit above this pop-up if both were open at once. Please glance at the header and mega menu with the pop-up open, as only the pop-up itself was checked locally.
 - Purge WP Super Cache and Cloudflare APO after deploying if URLs, redirects or page output changed. Here the page output changes, so purge both.
 - Cloudflare challenges plain `curl` (403); send a browser user agent when checking.
 - To end the campaign: deactivate the snippet (or let `HS_ISQM_END` pass), then purge both caches. The window is currently 28 Oct to 30 Nov 2026; adjust `HS_ISQM_END` if the campaign is shorter.
