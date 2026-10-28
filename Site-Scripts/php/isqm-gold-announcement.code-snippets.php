@@ -10,7 +10,7 @@
  * PURPOSE: One-time celebratory pop-up with gold confetti, announcing the ISQM
  *          Gold accreditation (Education Development Trust, report published
  *          26 October 2026). Shows once per visitor on every front-end page, and again
- *          after HS_ISQM_REPEAT_DAYS (14) days for a returning visitor.
+ *          after HS_ISQM_REPEAT_DAYS (3) days for a returning visitor.
  * DEPENDENCIES: WordPress core only. Self-contained: CSS, JS and the ISQM logo
  *          are printed by this one snippet. Deactivate the snippet to switch
  *          the whole announcement off, then purge WP Super Cache and
@@ -29,9 +29,9 @@
 /* ---- Settings (edit here) ------------------------------------------------ */
 if ( ! defined( 'HS_ISQM_START' ) )    define( 'HS_ISQM_START', '2026-10-28' );   // first day shown (site time)
 if ( ! defined( 'HS_ISQM_END' ) )      define( 'HS_ISQM_END', '2026-11-30' );     // last day shown (site time)
-if ( ! defined( 'HS_ISQM_POST_URL' ) ) define( 'HS_ISQM_POST_URL', '/isqm-gold/' ); // "Read the full story" link (placeholder until the news post exists)
+if ( ! defined( 'HS_ISQM_POST_URL' ) ) define( 'HS_ISQM_POST_URL', '/accreditations/' ); // "Read the full story" link (the Accreditations page; point at the news post later if one is written)
 if ( ! defined( 'HS_ISQM_VERSION' ) )  define( 'HS_ISQM_VERSION', '1' );          // bump to show the pop-up again to everyone
-if ( ! defined( 'HS_ISQM_REPEAT_DAYS' ) ) define( 'HS_ISQM_REPEAT_DAYS', 14 );     // a visitor who saw it is reminded again after this many days
+if ( ! defined( 'HS_ISQM_REPEAT_DAYS' ) ) define( 'HS_ISQM_REPEAT_DAYS', 3 );      // a visitor who saw it is reminded again after this many days
 
 /* ---- Should this request print the pop-up? ------------------------------- */
 function hs_isqm_should_print() {
