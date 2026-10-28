@@ -1,4 +1,4 @@
-plan_sha256: 90c63ec82673be1a30f5bcf402be1b619e4386193adaa63053d012ba404c4075
-approved_at: 2026-10-28T03:33:35+0000
+plan_sha256: 7831b6d3f057737a9d5e00acf0fd00b83a07580364416d68beacdf674c5be987
+approved_at: 2026-10-28T05:43:30+0000
 approved_by: Jezarooo
-via: User answered APPROVED (28 Oct 2026 10:3x): "So this whole thing will be a php package? That works as easier to deploy, and can be turned off once we are done with the announcement. Lets go with this sitewide, dont worry about the weekly update only being confetti. Might update later - but discuss first. APPROVED". Plan updated to sitewide-only before recording.
+via: quality bar approved. keep the 6/16. approve the admin controls. Add a control to list pages the pop-up shouldn't display on, and a switch for the weekly updates. Rest is approved and good to go with the full dev
