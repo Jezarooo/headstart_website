@@ -69,14 +69,16 @@ Stored in one option `hs_isqm_settings`. The constants above stay as the default
 5. Reset for everyone (bumps the version so returning visitors see it again).
 6. Show to logged-in administrators on/off.
 7. Preview button (opens the home page with ?hs_isqm=1).
-8. Shortcode reference box with copy-and-paste examples.
+8. Shortcode reference box with copy-and-paste examples, and a live preview of both shortcodes on the settings page (so they can be tested locally without building a page).
+9. Pages to exclude: a text box, one link or path per line (full URLs are fine; only the path is used; a trailing `*` matches everything below it). The pop-up, and with it the confetti, does not show on those pages. Example: /chaofah/weekly-update/2026/10/weekly-update-8/ . Paths also match when the site adds a language prefix such as /en/.
+10. Show on weekly update pages: on/off switch. Off hides the pop-up on every page whose address contains /weekly-update/ (both campuses). Individual weeks can be excluded with control 9.
 Settings are sanitised and saved with a nonce and `manage_options` check. Shortcodes work even when the pop-up is switched off.
 
 ### 2. Shortcode `[hs_isqm_gold]` (inline block)
-The block as shown in the user's screenshot: heading "Rated outstanding in all eight areas", the numbered eight areas, the quote panel with ISQM rosette and source line, "Read the full story" button, slide dots and arrows. No backdrop, confetti or close button. Uses the same quote data as the pop-up. Attributes: `show` (areas, quotes, button; default all), `link` (override URL), `theme` (navy default, light). Its CSS and JS print once, only on pages that use it. All selectors prefixed `hs-isqm-inline`.
+The block as shown in the user's screenshot: heading "Rated outstanding in all eight areas", the numbered eight areas, the quote panel with ISQM rosette and source line, "Read the full story" button, slide dots and arrows. No backdrop, confetti or close button. Uses the same quote data as the pop-up. Attributes: `show` (heading, areas, quotes, button; default all), `link` (override URL), `boxed` (yes puts it on its own navy card, for light sections; default no, for navy sections). Its CSS and JS print once, only on pages that use it. All selectors prefixed `hs-isqm-inline`.
 
 ### 3. Shortcode `[hs_quality_bar]` (replaces the Divi "Quality Bar v4" section)
-Slider with the ISQM Gold badge on the left, the eight EDT quotes woven between the existing slides (existing text kept as is, "ISQM Accredited" becomes "ISQM Gold"), arrow and dot controls, swipe and arrow keys, same band height. Design option chosen from https://claude.ai/artifact/KgeqRU6fVxseZRAug2fm2W. Existing stats (100% IGCSE pass, 42% and 47% A*/A, 60% BTEC) stay unchanged; they are not from the EDT report and are to be updated by the user later.
+Slider (design approved in https://claude.ai/artifact/KgeqRU6fVxseZRAug2fm2W: yellow badge panel left, 172px band, current arrow buttons top right, counter kept) with the ISQM Gold badge on the left, the eight EDT quotes woven between the existing slides (existing text kept as is, "ISQM Accredited" becomes "ISQM Gold"), arrow and dot controls, swipe and arrow keys, same band height. Existing stats (100% IGCSE pass, 42% and 47% A*/A, 60% BTEC) stay unchanged; they are not from the EDT report and are to be updated by the user later.
 Rollout: add the shortcode in a Divi code module on one page first (Foundation), compare, then swap on the other pages. The old section stays in place until then, so rollback is deleting the shortcode block.
 
 ### Extra tests
