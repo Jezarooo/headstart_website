@@ -31,7 +31,7 @@ No rewrite rules, no DB or post meta changes, no new options.
 ## Risks & rollback
 - **Caching:** WP Super Cache and Cloudflare APO serve full pages; the pop-up is rendered client side from a template that is the same for everyone, and the once-per-visitor check runs in the browser, so cached pages are fine. Purge both caches after activating so the footer output appears.
 - **Divi:** the weekly feature block depends on the weekly template outputting the post content through `the_content`. If it does not on live, the block simply does not show and the rest still works. Checked locally in UAT.
-- **Other scripts:** all selectors and the localStorage key are prefixed `hs-isqm` / `hs_isqm`; the script takes no global names; z-index sits above the mega menu but below the existing staff and gallery modals.
+- **Other scripts:** all selectors and the localStorage key are prefixed `hs-isqm` / `hs_isqm`; the script runs inside one function with no globals; z-index is checked against the mega menu and the staff and gallery modals during UAT.
 - **Accessibility:** dialog role, labelled title, focus trap, Escape to close, visible focus, `prefers-reduced-motion` turns off confetti and the slide animation.
 - **Rollback:** deactivate the snippet in Code Snippets (instant), then purge both caches. Nothing else changes.
 
@@ -48,7 +48,7 @@ No rewrite rules, no DB or post meta changes, no new options.
 - [ ] "Read the full story" goes to the news post link.
 - [ ] A single weekly update: confetti and the ISQM feature block at the top of the article, no pop-up.
 - [ ] Phone (390 wide) and small phone (360 wide): the card fits without scrolling, with a margin around it.
-- [ ] Tablet and desktop widths look right; dark mode not applicable (site is light only).
+- [ ] Tablet and desktop widths look right. The pop-up is light only; the mock-up dark theme was just for preview.
 - [ ] Quotes match the EDT report wording (spot-check three).
 
 ## Deployment notes for the dev (Gate 7)
