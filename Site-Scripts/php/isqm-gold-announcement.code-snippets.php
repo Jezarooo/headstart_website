@@ -559,7 +559,7 @@ if (document.readyState === 'complete') later(); else window.addEventListener('l
 }
 
 /* ---- Shortcode assets ---------------------------------------------------- */
-/* The CSS is printed right beside the first shortcode of each request, so it also
+/* The CSS is printed right beside every shortcode, so it also
    works when Divi renders the shortcode by itself in the Visual Builder. The JS is
    delegated (it does not need to find the markup at load) and prints in the footer,
    on pages that use a shortcode and inside the builder. */
@@ -569,7 +569,10 @@ function hs_isqm_in_builder() {
     return function_exists( 'et_core_is_fb_enabled' ) && et_core_is_fb_enabled();
 }
 function hs_isqm_css_once( $key, $css ) {
-    if ( ! empty( $GLOBALS['hs_isqm_need'][ $key . '_css' ] ) ) return '';
+    /* Printed with EVERY render of the shortcode, not once per request. WordPress can render
+       the shortcode early and throw that output away (for example get_the_excerpt() runs the
+       page content when a post has no excerpt, and SEO plugins do the same); with a once-only
+       flag the CSS was spent on that discarded render and the real block came out unstyled. */
     $GLOBALS['hs_isqm_need'][ $key . '_css' ] = true;
     return '<style id="hs-' . $key . '-css">' . $css . '</style>';
 }
