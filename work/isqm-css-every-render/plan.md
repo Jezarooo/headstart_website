@@ -16,6 +16,10 @@ One file: `Site-Scripts/php/isqm-gold-announcement.code-snippets.php`, function 
 
 Second change, same file, inside `hs_isqm_inline_css()` only (the pop-up CSS and the Quality Bar CSS are untouched): add `!important` to the typography and spacing of the inline block's list heading, medal caption (`.hs-isqm-mini`), standard title (`h3.hs-isqm-area`), quote and source line, including the phone-size rules, so Divi's heading and paragraph rules cannot override them. No sizes, colours or layout values change; the values are the ones already approved.
 
+Third change (found while testing the inline block on a weekly update page, same file, `hs_isqm_inline_css()` and `hs_isqm_sc_inline()` only):
+- The numbered area list is lined up with the "Rated outstanding in all eight areas" heading: Divi gives every `ul` a 20px left padding and a bottom margin; the list now sets `margin: 0 -6px 12px !important; padding: 0 !important` so "01"/"05" start under the heading and the selected outline extends 6px outside it. The 12px is the existing gap from the list to the quote panel.
+- The grey divider line above the heading is removed from the inline version only (the `<hr>` and its CSS rule); the pop-up keeps its line.
+
 ## Risks & rollback
 - A page with two blocks gets the same CSS twice (a few KB, harmless; duplicate style id). No effect on layout.
 - Rollback: put back the previous version of the snippet (the previous handover package, or the dev's live version) and purge caches.
@@ -29,6 +33,7 @@ Second change, same file, inside `hs_isqm_inline_css()` only (the pop-up CSS and
 - [ ] A weekly update page with `[hs_isqm_gold]` shows the block fully styled (needs the dev to deploy; locally, a weekly update with the shortcode if it can be made).
 - [ ] On a weekly update page (local or live), the yellow standard title is small (about 11px, uppercase, same look as the pop-up) and the list heading is about 13px.
 - [ ] On a phone width, the titles use the three size bands and the cards stay the same height.
+- [ ] Inline block: "01"/"05" line up with the heading, no grey line above it, gap to the quote panel unchanged.
 - [ ] Other pages with the shortcode and with `[hs_quality_bar]` look the same as before.
 
 ## Deployment notes for the dev (Gate 7)
