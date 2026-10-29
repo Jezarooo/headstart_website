@@ -583,9 +583,8 @@ function hs_isqm_inline_css() {
 .hs-isqm-in.boxed { background: #003057; border-radius: 12px; padding: 22px 24px 20px; }
 .hs-isqm-in, .hs-isqm-in *, .hs-isqm-in *::before, .hs-isqm-in *::after { box-sizing: border-box; }
 .hs-isqm-in button { font-family: inherit; cursor: pointer; }
-.hs-isqm-in .hs-isqm-rule { border: 0; border-top: 1px solid var(--i-line); margin: 0 0 14px; }
 .hs-isqm-in .hs-isqm-listhead { margin: 0 0 12px !important; padding: 0 !important; font: 700 13px/1.2 var(--i-head) !important; letter-spacing: .14em !important; text-transform: uppercase !important; color: var(--i-gold) !important; }
-.hs-isqm-in .hs-isqm-areas { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(4, auto); grid-auto-flow: column; gap: 2px 20px; }
+.hs-isqm-in .hs-isqm-areas { list-style: none; margin: 0 -6px 12px !important; padding: 0 !important; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(4, auto); grid-auto-flow: column; gap: 2px 20px; }
 .hs-isqm-in .hs-isqm-areas li { margin: 0; padding: 0; list-style: none; }
 .hs-isqm-in .hs-isqm-areabtn { width: 100%; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start; text-align: left; background: transparent; border: 0; border-radius: 4px; padding: 6px; color: var(--i-fg) !important; font: 600 14px/1.35 var(--i-head); text-transform: none; letter-spacing: 0; }
 .hs-isqm-in .hs-isqm-areabtn:hover { background: rgba(255, 255, 255, .08); }
@@ -851,7 +850,7 @@ function hs_isqm_sc_inline( $atts ) {
 
     $h = hs_isqm_css_once( 'inline', hs_isqm_inline_css() ) . '<div class="hs-isqm-in' . ( $boxed ? ' boxed' : '' ) . '">';
     if ( $has( 'heading' ) ) {
-        $h .= '<hr class="hs-isqm-rule"><p class="hs-isqm-listhead">' . esc_html( $a['heading'] ) . '</p>';
+        $h .= '<p class="hs-isqm-listhead">' . esc_html( $a['heading'] ) . '</p>';
     }
     if ( $has( 'areas' ) ) {
         $h .= '<ul class="hs-isqm-areas">';
