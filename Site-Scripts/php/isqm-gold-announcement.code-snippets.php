@@ -559,7 +559,7 @@ if (document.readyState === 'complete') later(); else window.addEventListener('l
 }
 
 /* ---- Shortcode assets ---------------------------------------------------- */
-/* The CSS is printed right beside the first shortcode of each request, so it also
+/* The CSS is printed right beside every shortcode, so it also
    works when Divi renders the shortcode by itself in the Visual Builder. The JS is
    delegated (it does not need to find the markup at load) and prints in the footer,
    on pages that use a shortcode and inside the builder. */
@@ -569,7 +569,10 @@ function hs_isqm_in_builder() {
     return function_exists( 'et_core_is_fb_enabled' ) && et_core_is_fb_enabled();
 }
 function hs_isqm_css_once( $key, $css ) {
-    if ( ! empty( $GLOBALS['hs_isqm_need'][ $key . '_css' ] ) ) return '';
+    /* Printed with EVERY render of the shortcode, not once per request. WordPress can render
+       the shortcode early and throw that output away (for example get_the_excerpt() runs the
+       page content when a post has no excerpt, and SEO plugins do the same); with a once-only
+       flag the CSS was spent on that discarded render and the real block came out unstyled. */
     $GLOBALS['hs_isqm_need'][ $key . '_css' ] = true;
     return '<style id="hs-' . $key . '-css">' . $css . '</style>';
 }
@@ -580,9 +583,8 @@ function hs_isqm_inline_css() {
 .hs-isqm-in.boxed { background: #003057; border-radius: 12px; padding: 22px 24px 20px; }
 .hs-isqm-in, .hs-isqm-in *, .hs-isqm-in *::before, .hs-isqm-in *::after { box-sizing: border-box; }
 .hs-isqm-in button { font-family: inherit; cursor: pointer; }
-.hs-isqm-in .hs-isqm-rule { border: 0; border-top: 1px solid var(--i-line); margin: 0 0 14px; }
-.hs-isqm-in .hs-isqm-listhead { margin: 0 0 12px; font: 700 13px/1.2 var(--i-head); letter-spacing: .14em; text-transform: uppercase; color: var(--i-gold) !important; }
-.hs-isqm-in .hs-isqm-areas { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(4, auto); grid-auto-flow: column; gap: 2px 20px; }
+.hs-isqm-in .hs-isqm-listhead { margin: 0 0 12px !important; padding: 0 !important; font: 700 13px/1.2 var(--i-head) !important; letter-spacing: .14em !important; text-transform: uppercase !important; color: var(--i-gold) !important; }
+.hs-isqm-in .hs-isqm-areas { list-style: none; margin: 0 -6px 12px !important; padding: 0 !important; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(4, auto); grid-auto-flow: column; gap: 2px 20px; }
 .hs-isqm-in .hs-isqm-areas li { margin: 0; padding: 0; list-style: none; }
 .hs-isqm-in .hs-isqm-areabtn { width: 100%; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start; text-align: left; background: transparent; border: 0; border-radius: 4px; padding: 6px; color: var(--i-fg) !important; font: 600 14px/1.35 var(--i-head); text-transform: none; letter-spacing: 0; }
 .hs-isqm-in .hs-isqm-areabtn:hover { background: rgba(255, 255, 255, .08); }
@@ -597,14 +599,14 @@ function hs_isqm_inline_css() {
 .hs-isqm-in .hs-isqm-slide.notrans { transition: none !important; }
 .hs-isqm-in .hs-isqm-medalcol { text-align: center; }
 .hs-isqm-in .hs-isqm-medalcol svg { display: block; width: 64px; height: auto; margin: 0 auto 10px; }
-.hs-isqm-in .hs-isqm-mini { margin: 0; font: 700 10.5px/1.35 var(--i-head); letter-spacing: .1em; text-transform: uppercase; color: var(--i-gold) !important; }
+.hs-isqm-in .hs-isqm-mini { margin: 0 !important; padding: 0 !important; font: 700 10.5px/1.35 var(--i-head) !important; letter-spacing: .1em !important; text-transform: uppercase !important; color: var(--i-gold) !important; }
 .hs-isqm-in .hs-isqm-ahead { display: contents; }
 .hs-isqm-in .hs-isqm-amedal { display: none; }
-.hs-isqm-in .hs-isqm-slide h3.hs-isqm-area { font: 700 11px/1.45 var(--i-head); letter-spacing: .06em; text-transform: uppercase; min-height: 2.9em; margin: 0 0 8px; padding: 0; color: var(--i-gold) !important; }
-.hs-isqm-in .hs-isqm-slide blockquote { margin: 0 0 8px; padding: 0; border: 0; background: none; font-size: 17.5px; line-height: 1.6; color: var(--i-fg) !important; text-wrap: pretty; quotes: none; font-style: normal; }
+.hs-isqm-in .hs-isqm-slide h3.hs-isqm-area { font: 700 11px/1.45 var(--i-head) !important; letter-spacing: .06em !important; text-transform: uppercase !important; min-height: 2.9em; margin: 0 0 8px !important; padding: 0 !important; color: var(--i-gold) !important; }
+.hs-isqm-in .hs-isqm-slide blockquote { margin: 0 0 8px !important; padding: 0 !important; border: 0; background: none; font-size: 17.5px !important; line-height: 1.6 !important; color: var(--i-fg) !important; text-wrap: pretty; quotes: none; font-style: normal; }
 .hs-isqm-in .hs-isqm-slide blockquote::before, .hs-isqm-in .hs-isqm-slide blockquote::after { content: none; }
 .hs-isqm-in .hs-isqm-slide blockquote strong { font-weight: 700; color: var(--i-fg) !important; background: linear-gradient(transparent 62%, rgba(240, 179, 35, .45) 62%); }
-.hs-isqm-in .hs-isqm-slide .src { margin: 0; font-size: 12.5px; line-height: 1.3; color: var(--i-muted) !important; border-left: 2px solid var(--i-gold); padding-left: 5px; }
+.hs-isqm-in .hs-isqm-slide .src { margin: 0 !important; font-size: 12.5px !important; line-height: 1.3 !important; color: var(--i-muted) !important; border-left: 2px solid var(--i-gold); padding: 0 0 0 5px !important; }
 .hs-isqm-in .hs-isqm-qs { display: none; }
 .hs-isqm-in .hs-isqm-foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-top: 16px; }
 .hs-isqm-in .hs-isqm-btn { border: 0; border-radius: 4px; padding: 14px 24px; font: 700 .75rem/1 var(--i-head); letter-spacing: .05em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 8px; transition: all .2s ease; background: var(--i-gold); color: var(--i-navy) !important; text-decoration: none; }
@@ -631,15 +633,15 @@ function hs_isqm_inline_css() {
   .hs-isqm-in .hs-isqm-amedal { display: none; }
   .hs-isqm-in .hs-isqm-amedal svg { display: block; width: 30px; height: auto; }
   /* every title block is the same height; short titles are set larger, long ones smaller, so slides match */
-  .hs-isqm-in .hs-isqm-slide h3.hs-isqm-area { font-size: 10.5px; line-height: 1.35; min-height: 42px; margin: 0; display: flex; align-items: center; }
-  .hs-isqm-in .hs-isqm-slide h3.hs-isqm-t-s { font-size: 14px; }
-  .hs-isqm-in .hs-isqm-slide h3.hs-isqm-t-l { font-size: 9px; }
+  .hs-isqm-in .hs-isqm-slide h3.hs-isqm-area { font-size: 10.5px !important; line-height: 1.35 !important; min-height: 42px; margin: 0 !important; display: flex; align-items: center; }
+  .hs-isqm-in .hs-isqm-slide h3.hs-isqm-t-s { font-size: 14px !important; }
+  .hs-isqm-in .hs-isqm-slide h3.hs-isqm-t-l { font-size: 9px !important; }
   /* phones: fixed gap from title to quote, source line on the bottom of the card; the card is as tall as its tallest slide */
   .hs-isqm-in .hs-isqm-slidebody { align-self: stretch; display: flex; flex-direction: column; }
-  .hs-isqm-in .hs-isqm-slide blockquote { margin: 10px 0 12px; padding: 0; }
-  .hs-isqm-in .hs-isqm-slide .src { margin-top: auto; }
-  .hs-isqm-in .hs-isqm-slide blockquote { font-size: 15.5px; line-height: 1.55; }
-  .hs-isqm-in .hs-isqm-slide .src { font-size: 11.5px; }
+  .hs-isqm-in .hs-isqm-slide blockquote { margin: 10px 0 12px !important; padding: 0 !important; }
+  .hs-isqm-in .hs-isqm-slide .src { margin-top: auto !important; }
+  .hs-isqm-in .hs-isqm-slide blockquote { font-size: 15.5px !important; line-height: 1.55 !important; }
+  .hs-isqm-in .hs-isqm-slide .src { font-size: 11.5px !important; }
   .hs-isqm-in .hs-isqm-foot { flex-direction: column; align-items: stretch; gap: 10px; }
   .hs-isqm-in .hs-isqm-foot .hs-isqm-btn { width: 100%; justify-content: center; }
   .hs-isqm-in .hs-isqm-ctl { justify-content: center; gap: 8px; margin-left: 0; }
@@ -848,7 +850,7 @@ function hs_isqm_sc_inline( $atts ) {
 
     $h = hs_isqm_css_once( 'inline', hs_isqm_inline_css() ) . '<div class="hs-isqm-in' . ( $boxed ? ' boxed' : '' ) . '">';
     if ( $has( 'heading' ) ) {
-        $h .= '<hr class="hs-isqm-rule"><p class="hs-isqm-listhead">' . esc_html( $a['heading'] ) . '</p>';
+        $h .= '<p class="hs-isqm-listhead">' . esc_html( $a['heading'] ) . '</p>';
     }
     if ( $has( 'areas' ) ) {
         $h .= '<ul class="hs-isqm-areas">';
