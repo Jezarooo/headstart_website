@@ -3,6 +3,7 @@
 /**
  * Posts--Compute-Taxonomies-From-Custom-Fields
  */
+
 /**
  * =============================================================================
  * HEADSTART POSTS COMPUTE TAXONOMIES FROM CUSTOM FIELDS
@@ -11,6 +12,7 @@
  * DEPENDENCIES: WordPress core, Divi
  * =============================================================================
  */
+?>
 
 /**
  * Compute Final Chips for Divi Builder

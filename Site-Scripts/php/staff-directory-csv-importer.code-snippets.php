@@ -2,10 +2,6 @@
 
 /**
  * Staff-Directory--CSV-Importer
- *
- * OWNED BY Nick (firedev). Disabled 2026-09-14 on origin-new rebuild — CSV/Rails import only, not needed for front-end. Re-enable only if Nick/Jeremy need imports.
- * 
- *
  */
 /**
  * =============================================================================
