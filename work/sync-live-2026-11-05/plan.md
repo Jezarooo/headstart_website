@@ -13,7 +13,7 @@ Local must behave exactly like live. A fresh live export (snippets, core.css, Di
 - `Site-Scripts/js/MANIFEST.tsv`: `alumni-stories.js` now maps to live `d965673632f8299a221a98e5c0a09b03.js` (was a placeholder hash). The JS content is already identical to live. All other 14 live JS files are identical.
 - `Site-Scripts/php/`: the snippets export is JSON, converted to PHP. 33 of 35 files already match live. Differences found:
   - Comment-only (header notes, trailing `?>`): `gallery-image-real-size`, `staff-directory-csv-importer`, `weekly-update-url-routing`, `posts-compute-taxonomies-from-custom-fields`. Take live.
-  - Behaviour: `posts-divi-gatekeeper` and `weekly-update-divi-gatekeeper` locally have the 2026-10-13 editor-panel fix (`hsRemoveEditorPanels`) that is NOT on live. Live still has the old code. **Decision needed from the user:** keep the local fix (default, safer: the old code can blank the block editor on WP 7.1.3) or revert to live's code for an exact match.
+  - Behaviour: `posts-divi-gatekeeper` and `weekly-update-divi-gatekeeper` locally have the 2026-10-13 editor-panel fix that is not on live. **User decision (5 Nov): match live exactly, local does not matter.** Both files are replaced with live's code; the local fix stays in git history if it is wanted again.
 - The drift tool lists every PHP file as "LOCAL ONLY" only because the snippets export is JSON, not PHP files. Nothing is actually local-only.
 - No DB/meta/rewrite changes in the repo. The DB restore is a separate local step (Duplicator import of `20261105_...`), done outside git.
 
