@@ -40,14 +40,4 @@ Nothing else calls `hs_isqm_quotes()`.
 |---|---|---|---|
 | files/php/isqm-gold-announcement.code-snippets.php | modified | `Code Snippets: isqm-gold-announcement` `rollback/php/isqm-gold-announcement.code-snippets.php` (your live version, as exported on 29 Oct) |
 
-## Watch out for
-- Nothing unusual: it is a replacement of the existing snippet's content. No `core.css` change is needed for it.
-- The weekly update layout uses Divi column sizes; we separately updated the `core.css` padding/margin reset block for that. Unrelated to this package.
-- Purge WP Super Cache and Cloudflare APO after deploying if URLs, redirects or page output changed.
-- Cloudflare challenges plain `curl` (403); send a browser user agent when checking.
 
-## Quick check after deploy (optional)
-Open a weekly update that contains `[hs_isqm_gold]` in a private window. Expected: the block is fully styled; the yellow standard title is small (about 11px, uppercase); "01" and "05" start under the "Rated outstanding in all eight areas" heading; no grey line above that heading. Then check the pop-up and a page with `[hs_quality_bar]` look unchanged.
-
-## Previous version
-`rollback/` holds the live snippet as it was before this change, if you need to revert. Our 28 October live backup pre-dates this snippet, so the rollback copy is your version as exported from live on 29 October.
