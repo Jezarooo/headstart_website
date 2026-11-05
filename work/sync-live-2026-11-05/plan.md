@@ -14,7 +14,7 @@ Local must behave exactly like live. A fresh live export (snippets, core.css, Di
 - `Site-Scripts/php/`: the snippets export is JSON, converted to PHP. 33 of 35 files already match live. Differences found:
   - Comment-only (header notes, trailing `?>`): `gallery-image-real-size`, `staff-directory-csv-importer`, `weekly-update-url-routing`, `posts-compute-taxonomies-from-custom-fields`. Take live.
   - Behaviour: `posts-divi-gatekeeper` and `weekly-update-divi-gatekeeper` locally have the 2026-10-13 editor-panel fix (`hsRemoveEditorPanels`) that is NOT on live. Live still has the old code. **Decision needed from the user:** keep the local fix (default, safer: the old code can blank the block editor on WP 7.1.3) or revert to live's code for an exact match.
-- Local-only files (`isqm-gold-announcement.php` etc. are live; none are local-only in reality). The drift tool listed them only because the export was JSON.
+- The drift tool lists every PHP file as "LOCAL ONLY" only because the snippets export is JSON, not PHP files. Nothing is actually local-only.
 - No DB/meta/rewrite changes in the repo. The DB restore is a separate local step (Duplicator import of `20261105_...`), done outside git.
 
 ## Risks & rollback
