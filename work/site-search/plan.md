@@ -204,6 +204,40 @@ A new admin screen **Site search → Search terms** (capability `edit_others_pos
 6. **CSV export / import** (UAT 6 Nov): **Download CSV** exports everything on the screen in one file with columns `type, on, key, values, info`: campus names, synonym groups, expansions, promoted results (with result titles for reading), every quick answer's search words (`info` = `id=123`), and the search report (read-only rows). **Upload and preview** reads an edited file back: each section present in the file replaces that section, sections left out are untouched, quick answers are matched by id (else title); a preview shows before/after counts, each quick answer's old and new words, and warnings (unknown result ids, bad rows). **Apply import** saves it and keeps the previous version; **Undo the last import** restores it. Excel-friendly (UTF-8 with BOM).
 - **Tests:** engine cases for a synonym group, a one-way expansion (and that it does not work in reverse), a multi-word synonym, and a promoted result that would not otherwise match.
 
+### 5c. Code review fixes (review 6 Nov; decisions: staff list stays public, log table, split the builder, Cloudflare-aware rate limit, previews 24 months, hide class-teacher line)
+Done on this branch, so the dev gets one package. Rollback point before the fixes: commit `f12f5127`. One or two items per commit.
+
+**Security**
+- **S1 CSV formulas:** on export, any cell starting with `=`, `+`, `-`, `@`, tab or CR gets a leading `'`; on import a leading `'` before one of those characters is removed again.
+- **S2 Rate limit:** the visitor IP is `CF-Connecting-IP` only when the request comes from a published Cloudflare range (list in the code), else `REMOTE_ADDR`. Kept: 30 per IP per 10 minutes. New: at most 600 logged searches per hour site-wide, and at most 50 new terms per day, so a flood can't push real terms out of the report. Question for Nick in DEV-NOTES: does the server already restore visitor IPs?
+- **S3 Protected content:** one skip rule for pages, posts, weekly updates and events: password-protected or Yoast noindex items stay out (pages also keep their existing title/slug rules).
+- **S4 Link check:** links in the index (results, quick-answer buttons, maps, documents) must be `http(s)`, `mailto`, `tel`, `/path` or `#anchor`; anything else is dropped at build time, and the JS checks again before writing an `href`.
+- **S5 Staff list:** no change (directory is public).
+- **S6 Import limits:** CSV up to 1 MB and 5,000 rows, else a clear error.
+
+**Bugs**
+- **B1 Highlighting:** matches are found in the plain text, merged, then the text is escaped piece by piece, so `amp`, `quot`, `39` or `mark` never break the output.
+- **B2 Bad links:** `?q=` and `?hs_staff=` decoding is wrapped so a malformed value is ignored instead of stopping search on the page.
+- **B3 CSV campus key:** case-insensitive (`Chaofah` works).
+
+**Speed**
+- **O1 Search log table:** a small table `{prefix}hs_search_log` (term, kind, day, count; one row per term/kind/day) with an atomic "insert or add one", instead of rewriting one big option on every search. The report and CSV read totals, last 30 days and the 6-month trend from it. Rows older than 13 months are deleted by the daily job. The table is created automatically (dbDelta) the first time the snippet runs in the admin or logs a search. Search isn't live yet, so nothing to migrate; the local test log is dropped.
+- **O2 Cached terms:** `get_the_terms()` (cached, primed by the post queries) instead of `wp_get_post_terms()`.
+- **O3 Batches:** posts, issues and staff read 100 at a time.
+- **O4 Article previews:** default "Keep article previews for 24 months" (older articles still found by headline, issue and date).
+- **O5 Parse once:** each issue/post is turned into HTML once and reused for articles, the HTML fallback and documents.
+- **O6 Front end:** typing and resizing redraw at most once per frame; scrolling repositions at most once per frame.
+- **O7 Class-teacher line:** removed from Index status (with its check).
+- **O8 Rebuild triggers:** deleting a post only queues a rebuild for the indexed post types.
+
+**Structure**
+- **T1 Split** `search-index-builder` into three snippets: **Search Index Builder** (sources, build, triggers, vocabulary read for the build), **Search Admin** (Index status, Documents) and **Search Terms** (Search terms screen, report, CSV, log table). Five search snippets in total.
+- **T2 Duplicates:** one class-group pattern, one global-layout expander (with its cache), one month list, one campus-label helper in the JS.
+- **T3 Paths:** `[hs_search]` and `[hs_search_button]` carry `data-index` and `data-ajax` (same for every visitor, so page caching is still fine); the JS uses them, falling back to the current paths.
+- **T4 Dead code** removed (empty spelling list, unused `FT`/`ext`/`lastQ`, the no-op title condition, the unused "cleared" notice and `n` field).
+- **T5 Leftovers:** Code Snippets has no deactivation hook, so clean-up after a full removal (scheduled events, options, log table, `uploads/hs-search/`) is written step by step in DEV-NOTES rollback rather than done by code.
+- **T6 Tests:** `work/site-search/tests/wp-tests.php` run with `wp eval-file` against the local site: CSV export escaping and import round trip (incl. limits and campus case), the link check, the skip rule for a password-protected post (temporary post, deleted afterwards), document-title rules on small HTML fixtures, and the log table (insert, add one, 30-day total). Engine tests gain the highlight cases (`amp`, `39`, `mark`).
+
 ### 6. `Site-Scripts/js/MANIFEST.tsv`
 Add `site-search.js` after `global-utilities.js`, purpose "Site search field, panel, index loader, analytics". Live file name assigned at handover.
 
@@ -265,7 +299,7 @@ Add `site-search.js` after `global-utilities.js`, purpose "Site search field, pa
 - [ ] Mega menu, mobile drawer, staff directory, events calendar and weekly updates behave as before.
 
 ## Deployment notes for the dev (Gate 7)
-- **Code Snippets:** add and activate "Search Topics", "Search Index Builder", "Search Shortcodes" (run everywhere).
+- **Code Snippets:** add and activate "Search Topics", "Search Index Builder", "Search Admin", "Search Terms", "Search Shortcodes" (run everywhere). "Search Terms" creates the table `{prefix}hs_search_log` on its first run.
 - **Custom CSS & JS:** add a new CSS entry "Site Search" (front end, header) with `site-search.css`. Don't touch "Core CSS".
 - **JS:** upload `site-search.js` as `uploads/hs-head/<md5>.js` and add its `<script defer>` tag to Divi → Theme Options → Integration → head, after `global-utilities`.
 - **No permalink flush.**
