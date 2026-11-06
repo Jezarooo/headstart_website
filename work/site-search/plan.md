@@ -24,7 +24,7 @@ We want one search box in the utility bar that finds people, class teachers, pag
 - **Source switches** on the Index status screen let the school turn each source (pages, people, weekly updates, posts, events, documents) on or off without code.
 - **Search tracking** is wanted (GA4 via the existing `dataLayer`, plus a small admin report).
 - **No AI answers.** Quick answers are written by the school.
-- **Documents are curated** in a back-end Documents manager: new links go in automatically; the school can exclude, pin or retitle any document, with optional rules (age limit for weekly-update documents, exclude by type or URL pattern).
+- **Documents are curated** in a back-end Documents manager: new links go in automatically; the school can exclude, pin or retitle any document, with optional rules (age limit for weekly-update documents, exclude by URL pattern). No exclude-by-type rule (user decision 6 Nov).
 - **Removed from scope:** a `/search/` page, Google sitelinks markup, voice input, category rail (layout B), scope pills, ghost-text completion, event deep links, article anchors (the user adds anchors to articles later).
 
 ### Design (from the mock-up)
@@ -137,9 +137,8 @@ Rules 4-6 append the type in brackets, e.g. "Foundation Parent Handbook (Google 
 - **Storage:** a non-autoloaded option `hs_search_docs` keyed by a hash of the normalised URL: `{state, title, first_seen, last_seen}`. The builder merges it in on every build: unknown URLs are added as Included, Excluded ones are dropped from the index, Pinned ones get +40 in ranking.
 - **Rules to keep noise down (settings on the same screen, all optional, user decides the defaults at UAT):**
   1. **Age limit for weekly-update documents:** documents found *only* in weekly updates and last seen more than N months ago (setting, default off; suggested 12) are left out unless Pinned. Documents on pages are never aged out.
-  2. **Exclude by type:** e.g. leave out Google Forms (event sign-ups go stale fast). Default: forms included; one tick to exclude.
-  3. **Exclude by URL pattern:** a list of patterns (one per line) never indexed, e.g. a sign-up domain.
-  4. **Ranking:** documents found on pages rank above documents found only in weekly updates; weekly-update documents fade with age like articles.
+  2. **Exclude by URL pattern:** a list of patterns (one per line) never indexed, e.g. a sign-up domain.
+  3. **Ranking:** documents found on pages rank above documents found only in weekly updates; weekly-update documents fade with age like articles.
 - Changes take effect on the next build (the screen triggers one on save).
 
 **Class tokens** from display group and job title: `year N` + `N`; `NX` (e.g. `3b`, from the colour initial or a letter); the colour word; EYFS words (preschool, nursery, reception, foundation, early years); "homeroom" or "class teacher" adds `class teacher`. Coverage check: every person in a class display group must get a token (115 people on local).
@@ -226,7 +225,7 @@ Add `site-search.js` after `global-utilities.js`, purpose "Site search field, pa
 - [ ] Events stay out of search while no calendar page exists; setting the calendar page URL (or publishing one) brings them in after a rebuild. Source switches turn a source off and on.
 - [ ] A Google Doc or PDF from a tabbed section is findable by name and shows "Found on: page › section".
 - [ ] Ticking "Hide from site search" on a page removes it after a rebuild.
-- [ ] Documents screen: a newly linked document appears as Included; Excluding it removes it from search; Pinning moves it up; a title override shows in results; the age limit and type/pattern rules behave as set.
+- [ ] Documents screen: a newly linked document appears as Included; Excluding it removes it from search; Pinning moves it up; a title override shows in results; the age limit and URL-pattern rules behave as set.
 - [ ] Site search → Index status shows counts, size and the document audit; Rebuild works; quick answers can be edited and published.
 - [ ] Feels instant on a mid-range phone.
 - [ ] Mega menu, mobile drawer, staff directory, events calendar and weekly updates behave as before.
