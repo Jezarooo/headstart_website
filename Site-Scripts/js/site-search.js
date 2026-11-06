@@ -871,7 +871,8 @@
       els.under.innerHTML = state.sheet ? '' : 'Add a campus or a type to the same box, e.g. <i>science teacher chaofah</i>';
     }
 
-    if (!raw.trim() && !state.campus) { els.body.innerHTML = emptyHTML(); els.live.textContent = ''; return; }
+    // An empty box shows the quick answers, even when a campus is picked (the campus filters the next search)
+    if (!raw.trim()) { els.body.innerHTML = emptyHTML(); els.live.textContent = ''; return; }
 
     var results = r.results, html = '', R = function (arr) { return arr.map(function (x) { state.flat.push(x.it); return rowHTML(x, words, state.flat.length - 1); }).join(''); };
     var card = r.topic && r.topic.score >= 45 ? r.topic.it : null;
