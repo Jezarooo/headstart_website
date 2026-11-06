@@ -635,13 +635,19 @@
     });
     // Details appear only from the ⓘ on the hovered / selected card (option C): hover it (instant),
     // tap or click it (toggle, for touch), or press → at the end of the typed text.
+    // Touch taps also fire emulated mouseover/mouseout: only a real mouse uses hover, a finger uses tap.
+    var markPointer = function (e) { state.touch = e.pointerType === 'touch' || e.pointerType === 'pen'; };
+    document.addEventListener('pointerdown', markPointer, true);
+    document.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse') { state.touch = false; } }, true);
     els.body.addEventListener('mouseover', function (e) {
+      if (state.touch) { return; }
       var ic = e.target.closest('[data-info]');
       if (!ic) { return; }
       var row = ic.closest('[data-tip]');
       if (row && row !== els.tipRow) { els.tipRow = row; showTip(row); }
     });
     els.body.addEventListener('mouseout', function (e) {
+      if (state.touch) { return; }
       var ic = e.target.closest('[data-info]');
       if (ic && !ic.contains(e.relatedTarget) && !els.tipPinned) { els.tipRow = null; hideTip(); }
     });
@@ -1160,7 +1166,14 @@
         if (f && f.offsetParent !== null) { f.focus(); } else { open(f, true); }
       } else if (e.key === 'Escape' && isOpen() && state.sheet && document.activeElement !== els.sheetField) { close(); }
     });
-    root.addEventListener('resize', function () { if (isOpen()) { placeSoon(); renderSoon(); } });
+    // Only a width change can change the layout; phones change height when the address bar or keyboard moves,
+    // and re-rendering then would close an open tooltip.
+    var lastW = root.innerWidth;
+    root.addEventListener('resize', function () {
+      if (!isOpen()) { lastW = root.innerWidth; return; }
+      placeSoon();
+      if (root.innerWidth !== lastW) { lastW = root.innerWidth; renderSoon(); }
+    });
     root.addEventListener('scroll', function () { if (isOpen() && !state.sheet) { placeSoon(); } }, { passive: true });
 
     // ?q= opens the panel pre-filled
