@@ -460,7 +460,7 @@
     panel.setAttribute('role', 'region');
     panel.setAttribute('aria-label', 'Search results');
     panel.innerHTML =
-      '<div class="hs-sp-sheethead">' + ICON.search +
+      '<div class="hs-sp-sheethead">' +
         '<input class="hs-sp-sheetfield" type="search" autocomplete="off" spellcheck="false" placeholder="Search the site…" aria-label="Search the site" role="combobox" aria-controls="hs-search-list" aria-expanded="true">' +
         '<button type="button" class="hs-sp-close" aria-label="Close search">Close</button></div>' +
       '<div class="hs-sp-filters"><div class="hs-sp-seg" role="group" aria-label="Campus">' +
@@ -502,7 +502,7 @@
       var pt = e.target.closest('[data-people]');
       if (pt) { e.preventDefault(); state.peopleOpen = !state.peopleOpen; place(); render(); return; }
       var ex = e.target.closest('[data-ex]');
-      if (ex) { e.preventDefault(); var k = ex.getAttribute('data-ex'); state.expanded[k] = !state.expanded[k]; render(); return; }
+      if (ex) { e.preventDefault(); var k = ex.getAttribute('data-ex'); state.expanded[k] = (state.expanded[k] || 0) + 10; render(); return; }
       var a = e.target.closest('a[href]');
       if (a) { commit('click', a.getAttribute('data-type') || 'link', +(a.getAttribute('data-pos') || 0)); }
     });
@@ -513,6 +513,9 @@
     els.tip.className = 'hs-sp-tip';
     els.tip.setAttribute('role', 'tooltip');
     document.body.appendChild(els.tip);
+    els.tip.addEventListener('click', function (e) {
+      if (e.target.closest('.hs-sp-tip-x')) { e.preventDefault(); e.stopPropagation(); els.tipRow = null; hideTip(); }
+    });
     // Details appear only from the ⓘ on the hovered / selected card (option C): hover it (instant),
     // tap or click it (toggle, for touch), or press → at the end of the typed text.
     els.body.addEventListener('mouseover', function (e) {
@@ -547,7 +550,7 @@
     var rows = [], quote = '', list = null, listLabel = '';
     switch (it.t) {
       case 'person':
-        rows = [['Job title', it.s || ''], ['Department', (it.k || []).join(', ')]];
+        rows = [['Job title', it.s || ''], ['Department', (it.k || []).join(', ')], ['Campus', campus]];
         break;
       case 'doc':
         var on = it.on || {};
@@ -578,15 +581,21 @@
         return;
     }
     rows = rows.filter(function (r) { return r[1]; });
-    els.tip.innerHTML = '<div class="hs-sp-tip-t">' + esc(it.ti) + '</div>' +
+    els.tip.classList.toggle('is-touch', !!state.sheet);
+    els.tip.innerHTML = (state.sheet ? '<button type="button" class="hs-sp-tip-x" aria-label="Close details">✕</button>' : '') +
+      '<div class="hs-sp-tip-t">' + esc(it.ti) + '</div>' +
       (rows.length ? '<dl>' + rows.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + esc(r[1]) + '</dd>'; }).join('') + '</dl>' : '') +
       (list && list.length ? '<div class="hs-sp-tip-l"><b>' + listLabel + '</b><ul>' + list.map(function (x) { return '<li>' + hl(x, state.words) + '</li>'; }).join('') + '</ul></div>' : '') +
       (quote ? '<p class="hs-sp-tip-q">' + hl(quote, state.words) + '</p>' : '');
     var r = row.getBoundingClientRect(), vw = document.documentElement.clientWidth, vh = root.innerHeight;
-    els.tip.style.left = Math.max(8, Math.min(r.left + 50, vw - 360)) + 'px';
+    var tw = Math.min(340, vw - 16);
+    // Phones (sheet): centred in the view; desktop: next to the card
+    els.tip.style.left = (state.sheet ? Math.round((vw - tw) / 2) : Math.max(8, Math.min(r.left + 50, vw - 360))) + 'px';
     els.tip.classList.add('is-on');
     var th = els.tip.offsetHeight;
-    els.tip.style.top = (r.bottom + 8 + th <= vh - 8 ? r.bottom + 8 : Math.max(8, r.top - th - 8)) + 'px'; // below, unless no room
+    // Never under the WordPress admin bar (logged-in editors)
+    var ab = document.getElementById('wpadminbar'), minTop = ab ? Math.max(8, ab.getBoundingClientRect().bottom + 8) : 8;
+    els.tip.style.top = (r.bottom + 8 + th <= vh - 8 ? r.bottom + 8 : Math.max(minTop, r.top - th - 8)) + 'px'; // below, unless no room
   }
   function hideTip() { if (els.tip) { els.tip.classList.remove('is-on'); } if (els) { els.tipPinned = false; } }
 
@@ -612,10 +621,19 @@
       panel.classList.add('is-sheet');
       els.sheetField.value = state.field ? state.field.value : els.sheetField.value;
     } else {
+      // Desktop: a fixed panel just behind the utility bar (like the mega menus), so it slides down from under it
       panel.classList.remove('is-sheet');
-      if (state.wrap && panel.parentNode !== state.wrap) { state.wrap.appendChild(panel); }
+      // Put the panel where the mega menus live: next to the utility bar's section, inside the header layout,
+      // so it shares their stacking context and sits behind the bar (z 1001 < 1002) while sliding down.
+      var barSection = state.wrap && (state.wrap.closest('.hs-utility-bar') || state.wrap.closest('.et_pb_section'));
+      var home = barSection && barSection.parentNode ? barSection.parentNode : document.body;
+      if (panel.parentNode !== home) { home.appendChild(panel); }
     }
     document.documentElement.classList.toggle('hs-search-sheet-open', state.sheet);
+    if (!panel.classList.contains('is-open')) {
+      place();
+      void panel.offsetHeight; // commit the closed position first, so the slide-down always animates
+    }
     panel.classList.add('is-open');
     if (state.wrap) { state.wrap.classList.add('is-open'); }
     if (state.field) { state.field.setAttribute('aria-expanded', 'true'); }
@@ -645,8 +663,8 @@
     var left = Math.max(8, rr.left), width = vw >= 1920 ? Math.min(1320, rr.width, vw - left - 8) : Math.min(rr.width, vw - left - 8);
     panel.classList.toggle('is-cols', vw >= 1100);
     panel.style.width = width + 'px';
-    panel.style.left = (left - wr.left) + 'px';
-    panel.style.top = (br.bottom - wr.top) + 'px';
+    panel.style.left = left + 'px';
+    panel.style.top = Math.max(0, br.bottom) + 'px';
     // Fixed standard height (~30% shorter than the space below the bar); the columns scroll inside it.
     // "Show all documents" makes it as tall as the space allows.
     var space = root.innerHeight - br.bottom - 24;
@@ -776,9 +794,10 @@
           if (c.k === 'type') { return '<span class="hs-sp-chip hs-sp-chip--type">' + esc(c.label) + '</span>'; }
           return '<span class="hs-sp-chip' + (c.k === 'campus' ? ' hs-sp-chip--campus' : '') + '">' + esc(c.label) + '<button type="button" data-rm="' + esc(c.words) + '" aria-label="Remove ' + esc(c.label) + '">✕</button></span>';
         }).join('');
-      els.under.innerHTML = 'Understood as: ' + chips + (r.corrected && r.results.length ? '<span class="hs-sp-fix">Showing results for <b>' + esc(r.corrected) + '</b></span>' : '');
+      var fix = r.corrected && r.results.length ? '<span class="hs-sp-fix">Showing results for <b>' + esc(r.corrected) + '</b></span>' : '';
+      els.under.innerHTML = state.sheet ? fix : 'Understood as: ' + chips + fix; // phones: only the typo hint
     } else {
-      els.under.innerHTML = 'Add a campus or a type to the same box, e.g. <i>science teacher chaofah</i>';
+      els.under.innerHTML = state.sheet ? '' : 'Add a campus or a type to the same box, e.g. <i>science teacher chaofah</i>';
     }
 
     if (!raw.trim() && !state.campus) { els.body.innerHTML = emptyHTML(); els.live.textContent = ''; return; }
@@ -800,20 +819,23 @@
     if (otherTopics.length) { groups.push({ key: 'topic', items: otherTopics, best: otherTopics[0].score }); }
     var wide = panel.classList.contains('is-cols') && !state.sheet;
     if (!wide) {
-      groups.sort(function (a, b) { return b.best - a.best; });
+      // Same order as the desktop layout: People, Quick answers, Pages, Weekly updates, Articles, Events, Documents
+      var LIST_ORDER = ['person', 'topic', 'page', 'issue', 'article', 'event', 'doc'];
+      groups.sort(function (a, b) { return LIST_ORDER.indexOf(a.key) - LIST_ORDER.indexOf(b.key); });
       groups.forEach(function (g) {
-        var open = state.expanded[g.key], shown = open ? g.items : g.items.slice(0, 3);
-        html += '<div class="hs-sp-grp"><div class="hs-sp-h">' + GROUP_LABEL[g.key] + '<em>' + g.items.length + '</em>' +
-          (g.items.length > 3 ? '<a href="#" data-ex="' + g.key + '">' + (open ? 'Show less' : 'See all ' + g.items.length) + '</a>' : '') + '</div>' + R(shown) + '</div>';
+        // 3 to start, then 10 more per tap ("Show 10 more"), never the whole list at once
+        var nShow = 3 + (state.expanded[g.key] || 0), shown = g.items.slice(0, nShow), left = g.items.length - shown.length;
+        html += '<div class="hs-sp-grp"><div class="hs-sp-h">' + GROUP_LABEL[g.key] + '<em>' + g.items.length + '</em></div>' + R(shown) +
+          (left > 0 ? '<a href="#" class="hs-sp-showmore" data-ex="' + g.key + '">Show ' + Math.min(10, left) + ' more <span>(' + left + ' left)</span></a>' : '') + '</div>';
       });
     } else {
       // Desktop: the same four columns and documents row for every search
       var by = {}; groups.forEach(function (g) { by[g.key] = g.items; });
       var col = function (key, n) {
         var arr = by[key] || []; if (!arr.length) { return ''; }
-        var open = state.expanded[key], shown = open ? arr : arr.slice(0, n);
+        var shown = arr.slice(0, n + (state.expanded[key] || 0)), left = arr.length - shown.length;
         return '<div class="hs-sp-grp"><div class="hs-sp-h">' + GROUP_LABEL[key] + '<em>' + arr.length + '</em></div>' + R(shown) +
-          (arr.length > n ? '<a href="#" class="hs-sp-more" data-ex="' + key + '">' + (open ? 'Show less' : '+ ' + (arr.length - n) + ' more') + '</a>' : '') + '</div>';
+          (left > 0 ? '<a href="#" class="hs-sp-more" data-ex="' + key + '">Show ' + Math.min(10, left) + ' more (' + left + ' left)</a>' : '') + '</div>';
       };
       var none = function (label) { return '<div class="hs-sp-grp"><div class="hs-sp-h">' + label + '</div><div class="hs-sp-nomatch">No ' + label.toLowerCase() + ' match</div></div>'; };
       // People: a row of cards above the columns, only when there are matches (not aligned to the columns)
@@ -1000,7 +1022,7 @@
       var t = e.target.closest && e.target.closest('.hs-search-trigger');
       if (t) { e.preventDefault(); open(document.querySelector('.hs-search .hs-search-field'), true); return; }
       // A click on a button that re-rendered the panel (recent search, See all) has a detached target: not an outside click.
-      if (isOpen() && !state.sheet && e.target.isConnected && !e.target.closest('.hs-search')) { close(); }
+      if (isOpen() && !state.sheet && e.target.isConnected && !e.target.closest('.hs-search') && !e.target.closest('.hs-search-panel') && !e.target.closest('.hs-sp-tip')) { close(); }
     });
     document.addEventListener('keydown', function (e) {
       var tag = (document.activeElement && document.activeElement.tagName) || '';
@@ -1012,6 +1034,7 @@
       } else if (e.key === 'Escape' && isOpen() && state.sheet && document.activeElement !== els.sheetField) { close(); }
     });
     root.addEventListener('resize', function () { if (isOpen()) { place(); render(); } });
+    root.addEventListener('scroll', function () { if (isOpen() && !state.sheet) { place(); } }, { passive: true });
 
     // ?q= opens the panel pre-filled
     var m = root.location.search.match(/[?&]q=([^&]+)/);
