@@ -20,6 +20,14 @@ We want one search panel that finds people, class teachers, pages, common questi
 - **"Classes" means class teachers.** Searching "Year 3", "3B" or "class teacher" finds the teacher(s).
 - **Documents and downloads are in v1**, found by scanning content.
 - **Search tracking is wanted.**
+- **Panel design (mock-up reviewed 6 Nov, `scratch/site-search/mockup/index.html`):**
+  - the search field sits **in the utility bar** beside the social icons, and the results **slide out under the bar**, anchored to the field. No modal, no backdrop; Esc clears then closes, and clicking elsewhere closes;
+  - layouts **A (grouped list)** and **C (columns)**: A on phones, tablets and narrow desktops, C on wide desktops. B (category rail) is dropped;
+  - **brand colours only** (`--hs-dark #003057`, `--hs-gold #f0b323`). The utility bar is already `--hs-dark`, so the panel continues it. The user picks one of three styles in the mock-up (brand blue / blue strip + white / white and gold);
+  - the field and buttons follow the site's own components: 1px border, **4px radius** (as `.hs-search-input` and the utility-bar buttons), `--hs-font-body`; no pill shapes;
+  - result icons: **staff photo** (the staff post's featured image, 150px thumbnail, the same image the directory uses), a clear icon tile for pages and weekly updates, the gold date block for events, a file icon with a small type tag for documents;
+  - **"News" is merged into "Weekly updates"**: there is no separate News group. Weekly-update issues and the articles in them are listed together. To check in step 2: how a `post` is tied to its issue; if it isn't, label it "Weekly update article" with its date;
+  - the **Contact the school** quick answer shows both campus phone numbers and addresses, one email, reception hours and one link to the single Contact page.
 - **Removed from scope:** Google sitelinks search-box markup, voice input, and a shared engine inside the staff directory.
 - **No AI answers.** Quick answers are written by the school.
 
@@ -137,11 +145,18 @@ An item with no campus means both campuses.
 - `/wp-content/uploads/…` with extension `pdf|docx?|xlsx?|pptx?|zip|csv`
 - any URL ending in those extensions
 
-`ft` is one of `gdoc|gsheet|gslides|gform|folder|pdf|word|excel|ppt|zip|file`. Choose the title in this order:
+`ft` is one of `gdoc|gsheet|gslides|gform|folder|pdf|word|excel|ppt|zip|file`.
+
+**Documents carry no description of their own**, so the title and the "Found on" context come from the HTML around the link. First step of the index builder work: an **audit pass** on local that lists every document link with its surrounding markup and the title each rule would give, and reports how many fall through to the weak rules. Then choose the title in this order:
 1. `.hs-download-title` inside the anchor (the site's own download-card pattern);
-2. the anchor's text, or a Divi button's text attribute, if it's at least 4 chars and isn't generic ("click here", "download", "view", "view document", "here", "link");
-3. the nearest preceding heading or tab title + " (" + type label + ")";
-4. the file name, humanised.
+2. the anchor's `title` or `aria-label`, an `img` `alt` inside it, or a Divi button's text attribute, if it is at least 4 characters and isn't generic ("click here", "download", "view", "view document", "here", "link", "read more");
+3. the anchor's own text, with the same generic test;
+4. the **enclosing card or module text**: the closest ancestor that holds a heading, `strong` or title-class element (download card, Divi blurb, text or toggle module) and that heading/strong text;
+5. the **nearest preceding heading** (`h2`-`h6`) inside the same Divi section/row, plus the **tab or accordion label** the link sits under (Divi tabs/toggles: map the panel to its tab title);
+6. the file name, humanised (drop the extension, replace `-`/`_`, drop trailing date/version tokens).
+If the title came from rules 4-6, append the file type label in brackets, e.g. "Foundation Parent Handbook (Google Doc)".
+
+**"Found on" context** is the page title plus the tab or section label from rule 5, e.g. "Foundation › Downloads". Keep `on.ti` (page) and `on.sec` (tab/section) separately so the UI can show both.
 
 **Class teacher tokens (`cl`).** The class is already stored on each staff member as their **display group** (taxonomy `staff_display_group`: "Year 3 (Blue)", "Year 3 (White)", "Reception (Yellow)", "Preschool (Blue)", "Early Years (Yellow)" and so on). The job title often repeats it ("Year 3 (Blue) Homeroom Teacher"), but not always. So the tokens come from **both** the display group term names and `job_title`. No staff field is added or changed.
 - `/\b(?:year|yr|y)\s?(\d{1,2})\b/i` gives `year N` plus `N`;
