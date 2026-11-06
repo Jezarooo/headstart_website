@@ -190,6 +190,11 @@
       return slots;
     }
 
+    function itemText(it) {
+      if (it._txt === undefined) { it._txt = fieldsOf(it).map(function (f) { return norm(f[0]); }).join(' '); }
+      return it._txt;
+    }
+
     /** item idx -> score for a slot: the best of its alternatives (a multi-word alternative needs all its words). */
     function matchSlot(ctx, slot, isLast, fuzzyHits) {
       var out = Object.create(null);
@@ -202,7 +207,12 @@
           for (var key in m) { if (one[key] !== undefined) { next[key] = m[key] + one[key]; } }
           m = next;
         });
-        for (var key2 in m) { var v = m[key2] * factor / alt.length * (alt.length > 1 ? 1.2 : 1); if (!(out[key2] >= v)) { out[key2] = v; } }
+        var phrase = alt.length > 1 ? ' ' + alt.join(' ') + ' ' : '';
+        for (var key2 in m) {
+          // a multi-word alternative ("year 1", "after school") must appear as that phrase, not as scattered words
+          if (phrase && (' ' + itemText(ctx.items[key2]) + ' ').indexOf(phrase) < 0) { continue; }
+          var v = m[key2] * factor / alt.length * (alt.length > 1 ? 1.2 : 1); if (!(out[key2] >= v)) { out[key2] = v; }
+        }
       });
       return out;
     }
@@ -977,13 +987,13 @@
   /* ---------- analytics + logging ---------- */
   function okTerm(q) { return q && q.length >= 2 && q.indexOf('@') < 0 && !/\d{6,}/.test(q) && !/https?:|www\./i.test(q); }
   function beacon(q, kind, n) {
-    if (!okTerm(q)) { return; }
+    if (TEST || !okTerm(q)) { return; } // the admin preview never counts as a search
     try {
       var body = new URLSearchParams(); body.append('action', 'hs_search_log'); body.append('q', q.slice(0, 60)); body.append('kind', kind); body.append('n', String(n || 0));
       if (navigator.sendBeacon) { navigator.sendBeacon(AJAX_URL, body); } else { fetch(AJAX_URL, { method: 'POST', body: body, keepalive: true }); }
     } catch (e) { /* never break search */ }
   }
-  function push(o) { try { (root.dataLayer = root.dataLayer || []).push(o); } catch (e) { /* no GTM */ } }
+  function push(o) { if (TEST) { return; } try { (root.dataLayer = root.dataLayer || []).push(o); } catch (e) { /* no GTM */ } }
   function commit(how, type, pos) {
     var q = (currentField() || {}).value || '';
     q = q.trim().toLowerCase();
@@ -1115,7 +1125,11 @@
       var c = root.location.search.match(/[?&]campus=(chaofah|cherngtalay)/);
       if (c) { state.campus = c[1]; }
       var val = decodeURIComponent(m[1].replace(/\+/g, ' '));
-      if (f) { f.value = val; if (f.offsetParent !== null) { f.focus(); } else { open(f, true); } }
+      if (TEST) {
+        // Admin preview: hide pop-ups (e.g. the ISQM announcement) and open the panel without waiting for focus
+        var st = document.createElement('style'); st.textContent = '#hs-isqm{display:none!important}html,body{overflow:auto!important}'; document.head.appendChild(st);
+      }
+      if (f) { f.value = val; if (f.offsetParent !== null) { if (TEST) { open(f, false); } else { f.focus(); } } else { open(f, true); } }
       if (c && panel) { Array.prototype.forEach.call(els.seg.children, function (x) { x.classList.toggle('is-on', x.getAttribute('data-c') === state.campus); }); }
     }
   }

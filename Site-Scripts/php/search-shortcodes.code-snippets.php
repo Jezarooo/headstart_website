@@ -64,6 +64,13 @@ function hs_search_log_term() {
 	$row   = $terms[ $q ] ?? array( 'commits' => 0, 'misses' => 0, 'last' => 0 );
 	$row[ $kind ] = (int) ( $row[ $kind ] ?? 0 ) + 1;
 	$row['last']  = time();
+	// Per day (last 31 days, for "Last 30 days") and per month (last 12 months, for the trend)
+	$day   = gmdate( 'Y-m-d' );
+	$month = gmdate( 'Y-m' );
+	$row[ 'd_' . $kind ]           = array_slice( (array) ( $row[ 'd_' . $kind ] ?? array() ), -31, null, true );
+	$row[ 'd_' . $kind ][ $day ]   = (int) ( $row[ 'd_' . $kind ][ $day ] ?? 0 ) + 1;
+	$row[ 'm_' . $kind ]           = array_slice( (array) ( $row[ 'm_' . $kind ] ?? array() ), -12, null, true );
+	$row[ 'm_' . $kind ][ $month ] = (int) ( $row[ 'm_' . $kind ][ $month ] ?? 0 ) + 1;
 	$terms[ $q ]  = $row;
 	if ( count( $terms ) > 300 ) {
 		uasort( $terms, function ( $a, $b ) { return ( $b['last'] ?? 0 ) <=> ( $a['last'] ?? 0 ); } );
