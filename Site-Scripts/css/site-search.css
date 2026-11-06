@@ -734,3 +734,7 @@ body.admin-bar .hs-search-panel.is-sheet { top: 32px !important; }
   line-height: 30px;
   cursor: pointer;
 }
+
+/* Search terms: promoted results and synonym note */
+.hs-sp-tag.hs-sp-tag--rec { flex: none; border-color: var(--hs-s-gold); color: var(--hs-s-gold); }
+.hs-sp-also { margin-left: 6px; color: var(--hs-s-muted); font-size: 12px; font-style: italic; }

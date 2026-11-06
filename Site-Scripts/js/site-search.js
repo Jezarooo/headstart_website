@@ -451,7 +451,8 @@
    * UI
    * ====================================================================== */
   var href = String(root.location && root.location.href);
-  if (href.indexOf('et_fb=1') > -1 || href.indexOf('et_pb_preview=true') > -1 || root.top !== root.self) { return; }
+  var TEST = /[?&]hs_search_test=1/.test(href); // Site search → Search terms preview frame
+  if (href.indexOf('et_fb=1') > -1 || href.indexOf('et_pb_preview=true') > -1 || (root.top !== root.self && !TEST)) { return; }
 
   var INDEX_URL = '/wp-content/uploads/hs-search/index.json';
   var AJAX_URL = '/wp-admin/admin-ajax.php';
@@ -470,6 +471,7 @@
     pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>'
   };
   var INFOBTN = '<span class="hs-sp-info" role="button" aria-label="Details" data-info="1"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6h.01"/></svg>Info</span>';
+  var REC = '<span class="hs-sp-tag hs-sp-tag--rec">Recommended</span>';
   var DOCTYPE = { gdoc: 'Google Doc', gsheet: 'Google Sheet', gslides: 'Google Slides', gform: 'Google Form', folder: 'Google Drive folder', file: 'Google Drive file', pdf: 'PDF', word: 'Word document', excel: 'Spreadsheet', ppt: 'Presentation', zip: 'Zip file' };
   var FT = { gdoc: 'DOC', gsheet: 'SHEET', gslides: 'SLIDES', gform: 'FORM', folder: 'FOLDER', file: 'FILE', pdf: 'PDF', word: 'DOC', excel: 'XLS', ppt: 'PPT', zip: 'ZIP' };
 
@@ -756,7 +758,7 @@
           '<span class="hs-sp-info hs-sp-info--photo" role="button" aria-label="Details" data-info="1">i</span></span>';
         var staffUrl = (it.u || '/staff-directory/') + ((it.u || '').indexOf('?') > -1 ? '&' : '?') + 'hs_staff=' + encodeURIComponent(it.ti);
         return '<a class="hs-sp-row hs-sp-row--person" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="person" data-pos="' + idx + '" data-tip="1" href="' + esc(staffUrl) + '">' + photo +
-          '<span class="hs-sp-tx"><span class="hs-sp-ti"><span class="hs-sp-ti-t">' + hl(it.ti, words) + '</span></span>' +
+          '<span class="hs-sp-tx"><span class="hs-sp-ti"><span class="hs-sp-ti-t">' + hl(it.ti, words) + '</span>' + (r.promoted ? REC : '') + '</span>' +
           '<span class="hs-sp-role">' + hl(it.s || '', words) + '</span>' +
           '<span class="hs-sp-tags">' + (it.g ? '<span class="hs-sp-tag hs-sp-tag--class">' + esc(it.g) + '</span>' : '') + campusTag(it.c) + '</span></span>' +
           '<span class="hs-sp-go">View in directory ↵</span></a>';
@@ -769,7 +771,7 @@
         var on = it.on || {};
         return '<a class="hs-sp-row hs-sp-row--doc" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="doc" data-pos="' + idx + '" data-tip="1" href="' + esc(it.u) + '" target="_blank" rel="noopener">' +
           '<span class="hs-sp-leadcol"><span class="hs-sp-lead hs-sp-lead--doc">' + ICON.doc + '</span>' + INFOBTN + '</span>' +
-          '<span class="hs-sp-tx"><span class="hs-sp-ti"><span class="hs-sp-ti-t">' + hl(it.ti, words) + '</span>' + campusTag(it.c) + '</span>' +
+          '<span class="hs-sp-tx"><span class="hs-sp-ti"><span class="hs-sp-ti-t">' + hl(it.ti, words) + '</span>' + (r.promoted ? REC : '') + campusTag(it.c) + '</span>' +
           '<span class="hs-sp-line">' + hl((on.ti || '') + (on.sec ? ' › ' + on.sec : ''), words) + '</span>' +
           '<span class="hs-sp-line hs-sp-ft">' + (on.d ? '<b class="hs-sp-date">' + hl(fmtDate(on.d, true), words) + '</b> · ' : '') + esc(DOCTYPE[it.ft] || 'Document') + '</span></span>' +
           '<span class="hs-sp-go">Open document ↗</span></a>';
@@ -805,7 +807,7 @@
     }
     var url = it.t === 'topic' ? ((it.b && it.b[0] && it.b[0][1]) || '#') : it.u;
     return '<a class="hs-sp-row" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="' + it.t + '" data-pos="' + idx + '"' + (it.t !== 'topic' ? ' data-tip="1"' : '') + ' href="' + esc(url) + '"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>' +
-      (it.t !== 'topic' ? '<span class="hs-sp-leadcol">' + lead + INFOBTN + '</span>' : lead) + '<span class="hs-sp-tx"><span class="hs-sp-ti"><span class="hs-sp-ti-t">' + hl(it.ti, words) + '</span>' + (it.t === 'topic' ? '' : campusTag(it.c)) + '</span>' +
+      (it.t !== 'topic' ? '<span class="hs-sp-leadcol">' + lead + INFOBTN + '</span>' : lead) + '<span class="hs-sp-tx"><span class="hs-sp-ti"><span class="hs-sp-ti-t">' + hl(it.ti, words) + '</span>' + (r.promoted ? REC : '') + (it.t === 'topic' ? '' : campusTag(it.c)) + '</span>' +
       '<span class="hs-sp-su">' + text + '</span></span><span class="hs-sp-go">' + go + '</span></a>';
   }
 
@@ -863,7 +865,8 @@
           return '<span class="hs-sp-chip' + (c.k === 'campus' ? ' hs-sp-chip--campus' : '') + '">' + esc(c.label) + '<button type="button" data-rm="' + esc(c.words) + '" aria-label="Remove ' + esc(c.label) + '">✕</button></span>';
         }).join('');
       var fix = r.corrected && r.results.length ? '<span class="hs-sp-fix">Showing results for <b>' + esc(r.corrected) + '</b></span>' : '';
-      els.under.innerHTML = state.sheet ? fix : 'Understood as: ' + chips + fix; // phones: only the typo hint
+      var alsoNote = r.also && r.also.length ? '<span class="hs-sp-also">also: ' + esc(r.also.slice(0, 6).join(', ')) + '</span>' : '';
+      els.under.innerHTML = state.sheet ? fix : 'Understood as: ' + chips + alsoNote + fix; // phones: only the typo hint
     } else {
       els.under.innerHTML = state.sheet ? '' : 'Add a campus or a type to the same box, e.g. <i>science teacher chaofah</i>';
     }
