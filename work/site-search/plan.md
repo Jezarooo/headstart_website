@@ -63,7 +63,7 @@ We want one search box in the utility bar that finds people, class teachers, pag
     - Each campus shows two emails: **Enquiries** (`info.city@` / `info.north@`) and **Current families** (`office.city@` / `office.north@`) (UAT 6 Nov).
   - More department emails from the Contact page (UAT 6 Nov): **ECAs & clubs** note with `eca.city@` / `eca.north@`; **Careers** note with `recruiting@`; new **Parent Portal help** card (portal, engage, login, password…; button to the Engage portal, `portalsupport@`); new **Language support** card (translator, interpreter, thai/russian/mandarin speaking…; the six language-coordinator emails, Contact page button).
   - Fees card: one page, `/resources-and-information/tuition-fees/`, plus `fees@headstartphuket.com` (the Contact page lists the same fees address for both campuses).
-  - Enrol card: `/resources-and-information/enrolment-and-visa-support/` and `/booking/`. Term dates: `/resources-and-information/calendars-key-dates/`. Uniform: no page yet, left as a draft.
+  - Enrol card: `/resources-and-information/enrolment-and-visa-support/` and `/contact-us/#school-tours` (not `/booking/`: that is the occasional ticket-booking page). The Book a tour card notes the two campus emails (info.city@, info.north@). Term dates: `/resources-and-information/calendars-key-dates/`. Uniform: no page yet, left as a draft.
 
 ## Audit of the structure this builds on (local, 6 Nov)
 | Area | Finding | Consequence for the plan |
