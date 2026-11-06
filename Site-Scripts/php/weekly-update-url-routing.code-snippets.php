@@ -2,8 +2,6 @@
 
 /**
  * Weekly-Update--URL-Routing
- *
- * Handles the dynamic URL routing for the Weekly Update Custom Post Type. It registers the rewrite tags, adds custom rewrite rules to map URL structures like /cherngtalay/weekly-update/post-name, and filters links on the backend/frontend to dynamically insert the ticked campus taxonomy slug.
  */
 /**
  * =============================================================================

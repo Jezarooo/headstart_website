@@ -3094,14 +3094,23 @@ button.mfp-close:hover, div.mfp-close:hover {
     }
 }
 
-/* Strip Divi's injected Section and Row padding from Theme Builder layouts */
-.et_pb_post_content .et-l--post .et_pb_section,
-.et_pb_post_content .et-l--post .et_pb_row,
-.et_pb_post_content .et-l--post .et_pb_module {
+/* Strip Divi's default Section and Row padding/margin (50px / 4%) from content shown through a
+   Theme Builder template. Modules are left alone, so their spacing is set in the Divi builder.
+   Add the class hs-keep-spacing to a section or row to keep the spacing set on it in Divi. */
+.et_pb_post_content .et-l--post .et_pb_section:not(.hs-keep-spacing),
+.et_pb_post_content .et-l--post .et_pb_row:not(.hs-keep-spacing) {
     padding-top: 0 !important;
     padding-bottom: 0 !important;
     margin-top: 0 !important;
     margin-bottom: 0 !important;
+}
+
+/* Force full width on sections, rows and modules, but skip modules that have a
+   Divi column class (e.g. et_flex_column_16_24 / _8_24) so their 2/3 + 1/3 sizing
+   from the builder isn't overridden by width: 100% !important. */
+.et_pb_post_content .et-l--post .et_pb_section,
+.et_pb_post_content .et-l--post .et_pb_row,
+.et_pb_post_content .et-l--post .et_pb_module:not([class*="et_flex_column_"]) {
     width: 100% !important;
     max-width: 100% !important;
 }
@@ -13908,4 +13917,23 @@ body.et-fb .hs-alumni-stories.hs-as-ready .hs-story-invite { display: none !impo
   .hs-alumni-stories:not(.hs-as-ready) .hs-story-slides .et_pb_gallery_item { flex-basis: 100% !important; width: 100% !important; height: auto; aspect-ratio: 4 / 5; }
   .hs-alumni-stories:not(.hs-as-ready) .hs-story-text { height: auto; border-radius: 0 0 10px 10px; }
   .hs-alumni-stories:not(.hs-as-ready) .hs-story-card { display: none !important; }
+}
+
+
+/* Photo testimonials: make each card fill its slide, whatever the image size
+   -----------------------------------------------------------------------------
+   PROBLEM: Divi lays out the card module as a flex child of the carousel group,
+   so it shrinks to fit its content. The figure's "width: 100%" then has nothing
+   definite to resolve against, and the card ends up as wide as the image's own
+   pixel width. Cards with 300px thumbnails rendered 300px wide and the rest
+   388px, so the cards came out different sizes. Lazy-loaded images that hadn't
+   loaded yet collapsed to 0x0.
+   FIX: give the module, its inner wrapper and the plugin's wrapper an explicit
+   100% width so the figure's 1 / 1.35 aspect ratio always has a real width to
+   work from, independent of the image. */
+.hs-section-photo-testimonials .et_pb_group_carousel_slide > .et_pb_group > .dipl_interactive_image_card,
+.hs-section-photo-testimonials .dipl_interactive_image_card .et_pb_module_inner,
+.hs-section-photo-testimonials .dipl_interactive_image_card_wrapper {
+  width: 100% !important;
+  max-width: 100% !important;
 }
