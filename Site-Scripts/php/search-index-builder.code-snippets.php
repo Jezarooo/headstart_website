@@ -521,6 +521,7 @@ function hs_search_build_index() {
 				$c      = hs_search_norm_campus( array_merge( hs_search_term_slugs( $p->ID, 'hs_campus' ), array( get_post_meta( $p->ID, 'hs_campus', true ) ) ) );
 				$date   = get_the_date( 'Y-m-d', $p );
 				$title  = html_entity_decode( get_the_title( $p ), ENT_QUOTES, 'UTF-8' );
+				$title  = trim( preg_replace( '/[,\s–-]+\d{1,2}(st|nd|rd|th)?\s+[A-Za-z]+\s+\d{4}\s*$/', '', $title ) ); // "Weekly Update #38, 26 June 2026" → "Weekly Update #38"
 				$blocks = hs_search_blocks( $p->post_content );
 				if ( $settings['src_issue'] ) {
 					$add( array_filter( array(
