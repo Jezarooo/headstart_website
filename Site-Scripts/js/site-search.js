@@ -359,5 +359,441 @@
   if (typeof document === 'undefined') { return; }
   root.HSSearchEngine = HSSearchEngine;
 
-  /* UI: added in the next build step. */
+  /* =========================================================================
+   * UI
+   * ====================================================================== */
+  var href = String(root.location && root.location.href);
+  if (href.indexOf('et_fb=1') > -1 || href.indexOf('et_pb_preview=true') > -1 || root.top !== root.self) { return; }
+
+  var INDEX_URL = '/wp-content/uploads/hs-search/index.json';
+  var AJAX_URL = '/wp-admin/admin-ajax.php';
+  var DEBUG = /[?&]hs_search_debug=1/.test(root.location.search);
+  var GROUP_LABEL = { person: 'People', page: 'Pages', topic: 'Quick answers', issue: 'Weekly updates', event: 'Events', doc: 'Documents' };
+  var MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var ICON = {
+    search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
+    page: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg>',
+    issue: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8z"/></svg>',
+    doc: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9.5 14.5 12 17l2.5-2.5"/></svg>',
+    person: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="4"/><path d="M4 22c0-4.4 3.6-8 8-8s8 3.6 8 8z"/></svg>',
+    phone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>',
+    pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>'
+  };
+  var FT = { gdoc: 'DOC', gsheet: 'SHEET', gslides: 'SLIDES', gform: 'FORM', folder: 'FOLDER', file: 'FILE', pdf: 'PDF', word: 'DOC', excel: 'XLS', ppt: 'PPT', zip: 'ZIP' };
+
+  var state = { ctx: null, loading: null, campus: '', expanded: {}, active: 0, flat: [], field: null, wrap: null, sheet: false, lastQ: '', idleT: 0, committed: '' };
+  var panel = null, els = {};
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function hl(text, words) {
+    var out = esc(text);
+    (words || []).filter(function (w) { return w && w.length > 0; }).forEach(function (w) {
+      var re = new RegExp('(^|[^\\p{L}\\p{N}])(' + esc(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'giu');
+      out = out.replace(re, '$1<mark>$2</mark>');
+    });
+    return out;
+  }
+  function fmtDate(d, upper) {
+    if (!d) { return ''; }
+    var p = d.split('-');
+    var s = (+p[2]) + ' ' + MONTH[+p[1] - 1];
+    return upper ? s.toUpperCase() : s;
+  }
+  function campusTag(c) {
+    if (!c || !c.length) { return '<span class="hs-sp-tag">Both</span>'; }
+    var name = c[0] === 'chaofah' ? 'Chaofah' : 'Cherngtalay';
+    return '<span class="hs-sp-tag hs-sp-tag--campus">' + name + '</span>';
+  }
+  function tel(n) { return 'tel:' + String(n).replace(/[^\d+]/g, ''); }
+  function lsGet(k) { try { return JSON.parse(root.localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+  function lsSet(k, v) { try { root.localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* private mode */ } }
+
+  /* ---------- index loading ---------- */
+  function loadIndex() {
+    if (state.ctx || state.loading) { return state.loading; }
+    var t0 = Date.now();
+    var parse = function (json) {
+      state.ctx = HSSearchEngine.build(json);
+      if (DEBUG) { console.log('[hs-search] index', json.items.length, 'items in', Date.now() - t0, 'ms'); }
+      render();
+    };
+    state.loading = fetch(INDEX_URL, { cache: 'no-cache', credentials: 'same-origin' })
+      .then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); })
+      .catch(function () {
+        var body = new URLSearchParams(); body.append('action', 'hs_search_index');
+        return fetch(AJAX_URL, { method: 'POST', body: body, credentials: 'same-origin' }).then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); });
+      })
+      .then(parse)
+      .catch(function () { state.failed = true; render(); });
+    return state.loading;
+  }
+
+  /* ---------- panel ---------- */
+  function buildPanel() {
+    if (panel) { return panel; }
+    panel = document.createElement('div');
+    panel.className = 'hs-search-panel';
+    panel.id = 'hs-search-panel';
+    panel.setAttribute('role', 'region');
+    panel.setAttribute('aria-label', 'Search results');
+    panel.innerHTML =
+      '<div class="hs-sp-sheethead">' + ICON.search +
+        '<input class="hs-sp-sheetfield" type="search" autocomplete="off" spellcheck="false" placeholder="Search the site…" aria-label="Search the site" role="combobox" aria-controls="hs-search-list" aria-expanded="true">' +
+        '<button type="button" class="hs-sp-close" aria-label="Close search">Close</button></div>' +
+      '<div class="hs-sp-filters"><div class="hs-sp-seg" role="group" aria-label="Campus">' +
+        '<button type="button" data-c="" class="is-on">Both campuses</button><button type="button" data-c="chaofah">Chaofah</button><button type="button" data-c="cherngtalay">Cherngtalay</button>' +
+      '</div><div class="hs-sp-understood"></div></div>' +
+      '<div class="hs-sp-body" id="hs-search-list" role="listbox" aria-label="Results"></div>' +
+      '<div class="hs-sp-foot"><span><b>↑ ↓</b> move</span><span><b>Enter</b> open</span><span><b>Esc</b> clear / close</span><span class="hs-sp-sp"></span><span>Press <b>/</b> or <b>Ctrl K</b> to search</span></div>' +
+      '<div class="hs-sp-live" aria-live="polite"></div>';
+    els = {
+      body: panel.querySelector('.hs-sp-body'),
+      under: panel.querySelector('.hs-sp-understood'),
+      seg: panel.querySelector('.hs-sp-seg'),
+      live: panel.querySelector('.hs-sp-live'),
+      sheetField: panel.querySelector('.hs-sp-sheetfield')
+    };
+    els.seg.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) { return; }
+      state.campus = b.getAttribute('data-c');
+      Array.prototype.forEach.call(els.seg.children, function (x) { x.classList.toggle('is-on', x === b); });
+      state.active = 0; render(); currentField().focus();
+    });
+    els.under.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-rm]'); if (!b) { return; }
+      var f = currentField();
+      f.value = (' ' + f.value + ' ').replace(new RegExp('\\s' + b.getAttribute('data-rm').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=\\s)', 'i'), ' ').replace(/\s+/g, ' ').trim();
+      syncFields(f); render(); f.focus();
+    });
+    els.body.addEventListener('mousemove', function (e) {
+      var r = e.target.closest('.hs-sp-row'); if (!r) { return; }
+      var i = +r.getAttribute('data-i'); if (i !== state.active) { state.active = i; markActive(false); }
+    });
+    els.body.addEventListener('click', function (e) {
+      var q = e.target.closest('[data-q]');
+      if (q) { e.preventDefault(); setQuery(q.getAttribute('data-q')); return; }
+      var ex = e.target.closest('[data-ex]');
+      if (ex) { e.preventDefault(); var k = ex.getAttribute('data-ex'); state.expanded[k] = !state.expanded[k]; render(); return; }
+      var a = e.target.closest('a[href]');
+      if (a) { commit('click', a.getAttribute('data-type') || 'link', +(a.getAttribute('data-pos') || 0)); }
+    });
+    panel.querySelector('.hs-sp-close').addEventListener('click', close);
+    els.sheetField.addEventListener('input', onInput);
+    els.sheetField.addEventListener('keydown', onKey);
+    return panel;
+  }
+
+  function currentField() { return state.sheet ? els.sheetField : state.field; }
+  function syncFields(from) {
+    if (state.field && from !== state.field) { state.field.value = from.value; }
+    if (els.sheetField && from !== els.sheetField) { els.sheetField.value = from.value; }
+    if (state.wrap) {
+      var clr = state.wrap.querySelector('.hs-search-clear');
+      if (clr) { clr.hidden = !from.value; }
+    }
+  }
+
+  function isOpen() { return panel && panel.classList.contains('is-open'); }
+
+  function open(field, sheet) {
+    buildPanel();
+    loadIndex();
+    state.sheet = !!sheet;
+    if (field) { state.field = field; state.wrap = field.closest('.hs-search'); }
+    if (state.sheet) {
+      document.body.appendChild(panel);
+      panel.classList.add('is-sheet');
+      els.sheetField.value = state.field ? state.field.value : els.sheetField.value;
+    } else {
+      panel.classList.remove('is-sheet');
+      if (state.wrap && panel.parentNode !== state.wrap) { state.wrap.appendChild(panel); }
+    }
+    document.documentElement.classList.toggle('hs-search-sheet-open', state.sheet);
+    panel.classList.add('is-open');
+    if (state.wrap) { state.wrap.classList.add('is-open'); }
+    if (state.field) { state.field.setAttribute('aria-expanded', 'true'); }
+    place();
+    render();
+    if (state.sheet) { setTimeout(function () { els.sheetField.focus(); }, 30); }
+  }
+
+  function close() {
+    if (!panel) { return; }
+    panel.classList.remove('is-open');
+    document.documentElement.classList.remove('hs-search-sheet-open');
+    if (state.wrap) { state.wrap.classList.remove('is-open'); }
+    if (state.field) { state.field.setAttribute('aria-expanded', 'false'); }
+    commitIdle();
+  }
+
+  /** Desktop: drop the panel under the utility bar, kept inside the viewport. */
+  function place() {
+    if (!panel || state.sheet || !state.wrap) { return; }
+    var wide = root.innerWidth >= 1200;
+    panel.classList.toggle('is-cols', wide);
+    var vw = document.documentElement.clientWidth;
+    var width = Math.min(wide ? 1140 : 760, vw - 32);
+    var wr = state.wrap.getBoundingClientRect();
+    var bar = state.wrap.closest('.hs-utility-bar') || state.wrap.closest('.et_pb_section') || state.wrap;
+    var br = bar.getBoundingClientRect();
+    var left = wide ? (vw - width) / 2 : Math.max(16, Math.min(wr.left - 12, vw - width - 16));
+    panel.style.width = width + 'px';
+    panel.style.left = (left - wr.left) + 'px';
+    panel.style.top = (br.bottom - wr.top) + 'px';
+    panel.style.maxHeight = Math.max(240, root.innerHeight - br.bottom - 24) + 'px';
+  }
+
+  /* ---------- rendering ---------- */
+  function rowHTML(r, words, idx) {
+    var it = r.it, lead, title = hl(it.ti, words), sub = '', meta = '', tagAfterTitle = true, ext = false, go = 'Open ↵';
+    switch (it.t) {
+      case 'person':
+        lead = '<span class="hs-sp-lead hs-sp-lead--photo">' + (it.img ? '<img src="' + esc(it.img) + '" alt="" loading="lazy" decoding="async">' : ICON.person) + '</span>';
+        sub = '<span>' + hl(it.s || '', words) + '</span>' + (it.g ? '<span class="hs-sp-tag hs-sp-tag--class">' + esc(it.g) + '</span>' : '') + campusTag(it.c);
+        tagAfterTitle = false; go = 'View in directory ↵';
+        break;
+      case 'event':
+        lead = '<span class="hs-sp-lead hs-sp-lead--date">' + esc((it.d || '').slice(8)) + '<small>' + esc(MONTH[+(it.d || '').slice(5, 7) - 1] || '') + '</small></span>';
+        sub = '<span>' + esc([it.tm, it.loc].filter(Boolean).join(' · ') || it.s || '') + '</span>';
+        break;
+      case 'doc':
+        lead = '<span class="hs-sp-lead hs-sp-lead--doc">' + ICON.doc + '<i>' + esc(FT[it.ft] || 'DOC') + '</i></span>';
+        sub = '<span>Found on: ' + esc(((it.on || {}).ti || '') + ((it.on || {}).sec ? ' › ' + it.on.sec : '')) + '</span>';
+        ext = true; go = 'Open document ↗';
+        break;
+      case 'issue':
+        lead = '<span class="hs-sp-lead hs-sp-lead--issue">' + ICON.issue + '</span>';
+        sub = '<span>' + esc([it.wk ? 'Week ' + it.wk : '', fmtDate(it.d)].filter(Boolean).join(' · ')) + (it.k && it.k.length ? ' · In this issue: ' + hl(it.k.slice(0, 6).join(', '), words) : '') + '</span>';
+        break;
+      case 'article':
+        lead = '<span class="hs-sp-lead hs-sp-lead--issue">' + ICON.issue + '</span>';
+        sub = '<span class="hs-sp-snip">' + hl(HSSearchEngine.snippet(it.sn || '', words, 150), words) + '</span>';
+        meta = '<span>' + esc([it.p || (it.k && it.k[0]) || 'Weekly update article', it.sec, fmtDate(it.d)].filter(Boolean).join(' · ')) + '</span>' + campusTag(it.c);
+        tagAfterTitle = false;
+        break;
+      default:
+        lead = '<span class="hs-sp-lead hs-sp-lead--page">' + ICON.page + '</span>';
+        sub = '<span>' + esc(it.bc ? it.bc + ' › ' + (it.s || '') : (it.s || '')) + '</span>';
+    }
+    return '<a class="hs-sp-row" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="' + it.t + '" data-pos="' + idx + '" href="' + esc(it.u) + '"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>' +
+      lead + '<span class="hs-sp-tx"><span class="hs-sp-ti"><span>' + title + '</span>' + (tagAfterTitle ? campusTag(it.c) : '') + '</span>' +
+      '<span class="hs-sp-su' + (it.t === 'person' ? ' hs-sp-fl' : '') + '">' + sub + '</span>' + (meta ? '<span class="hs-sp-mt">' + meta + '</span>' : '') +
+      '</span><span class="hs-sp-go">' + go + '</span></a>';
+  }
+
+  function cardHTML(it) {
+    var btns = (it.b || []).map(function (b, i) { return '<a class="hs-sp-btn" data-type="topic" data-pos="0" href="' + esc(b[1]) + '">' + esc(b[0]) + ' →</a>'; }).join('');
+    if (it.card === 'contact') {
+      return '<div class="hs-sp-card hs-sp-card--contact"><div class="hs-sp-card-k">Quick answer</div><div class="hs-sp-card-q">' + esc(it.ti) + '</div><div class="hs-sp-ct">' +
+        (it.cc || []).map(function (c) {
+          return '<div class="hs-sp-cp"><div class="hs-sp-cp-n">' + esc(c.n) + '</div>' + (c.ad ? '<p class="hs-sp-cp-ad">' + esc(c.ad) + '</p>' : '') +
+            '<div class="hs-sp-cp-bt">' + (c.ph || []).map(function (n) { return '<a class="hs-sp-btn" data-type="topic" href="' + esc(tel(n)) + '">' + ICON.phone + esc(n) + '</a>'; }).join('') +
+            (c.map ? '<a class="hs-sp-btn hs-sp-btn--o" data-type="topic" href="' + esc(c.map) + '" target="_blank" rel="noopener">' + ICON.pin + 'Google Maps</a>' : '') + '</div>' +
+            (c.em ? '<a class="hs-sp-cp-em" data-type="topic" href="mailto:' + esc(c.em) + '">' + esc(c.em) + '</a>' : '') + '</div>';
+        }).join('') + '</div>' +
+        '<div class="hs-sp-ct-foot"><div class="hs-sp-ct-h">' + (it.hl ? '<b>' + esc(it.hl) + '</b>' : '') + esc(it.h || '') + '</div>' + btns + '</div></div>';
+    }
+    var note = it.note ? esc(it.note).replace(/([\w.+-]+@[\w-]+\.[\w.-]+)/g, '<a href="mailto:$1" data-type="topic">$1</a>') : '';
+    return '<div class="hs-sp-card"><div class="hs-sp-card-k">Quick answer</div><div class="hs-sp-card-q">' + esc(it.ti) + '</div>' +
+      (it.a ? '<p>' + esc(it.a) + '</p>' : '') + (note ? '<p class="hs-sp-card-note">' + note + '</p>' : '') + '<div class="hs-sp-card-bt">' + btns + '</div></div>';
+  }
+
+  function emptyHTML() {
+    var ctx = state.ctx, html = '<div class="hs-sp-empty">';
+    var recent = lsGet('hs_search_recent') || [];
+    if (recent.length) {
+      html += '<div class="hs-sp-h">Recent searches</div><div class="hs-sp-try">' + recent.map(function (q) { return '<button type="button" data-q="' + esc(q) + '">' + esc(q) + '</button>'; }).join('') + '</div>';
+    }
+    var pins = ctx ? ctx.items.filter(function (it) { return it.t === 'topic' && it.pin; }) : [];
+    if (pins.length) {
+      html += '<div class="hs-sp-h">Quick answers</div><div class="hs-sp-qa">' + pins.map(function (it) {
+        return '<button type="button" data-q="' + esc(it.ti.toLowerCase()) + '"><b>' + esc(it.ti) + '</b>' + (it.a ? '<span>' + esc(it.a) + '</span>' : '') + '</button>';
+      }).join('') + '</div>';
+    }
+    html += '<div class="hs-sp-h">Try</div><div class="hs-sp-try">' + ['fees', 'year 3', 'science teacher', 'weekly update', 'parent handbook', 'contact'].map(function (q) { return '<button type="button" data-q="' + q + '">' + q + '</button>'; }).join('') + '</div></div>';
+    return html;
+  }
+
+  function render() {
+    if (!panel || !isOpen()) { return; }
+    var f = currentField();
+    var raw = f ? f.value : '';
+    var t0 = Date.now();
+    state.flat = [];
+    if (state.failed && !state.ctx) { els.body.innerHTML = '<div class="hs-sp-none">Search is not available right now. <a href="/?s=' + encodeURIComponent(raw) + '">Search the whole site</a></div>'; return; }
+    if (!state.ctx) { els.under.innerHTML = ''; els.body.innerHTML = '<div class="hs-sp-loading">Loading search…</div>'; return; }
+
+    var r = HSSearchEngine.search(state.ctx, raw, { campus: state.campus, lang: (document.documentElement.lang || 'en').slice(0, 2) });
+    var words = r.words;
+
+    // "Understood as" chips
+    if (raw.trim()) {
+      var chips = (r.parsed.free.length ? '<span class="hs-sp-chip">' + esc(r.parsed.free.join(' ')) + '</span>' : '') +
+        r.parsed.chips.map(function (c) {
+          if (c.k === 'type') { return '<span class="hs-sp-chip hs-sp-chip--type">' + esc(c.label) + '</span>'; }
+          return '<span class="hs-sp-chip' + (c.k === 'campus' ? ' hs-sp-chip--campus' : '') + '">' + esc(c.label) + '<button type="button" data-rm="' + esc(c.words) + '" aria-label="Remove ' + esc(c.label) + '">✕</button></span>';
+        }).join('');
+      els.under.innerHTML = 'Understood as: ' + chips;
+    } else {
+      els.under.innerHTML = 'Add a campus or a type to the same box, e.g. <i>science teacher chaofah</i>';
+    }
+
+    if (!raw.trim() && !state.campus) { els.body.innerHTML = emptyHTML(); els.live.textContent = ''; return; }
+
+    var results = r.results, html = '', R = function (arr) { return arr.map(function (x) { state.flat.push(x.it); return rowHTML(x, words, state.flat.length - 1); }).join(''); };
+    var card = r.topic && r.topic.score >= 45 ? r.topic.it : null;
+    if (!results.length && !card) {
+      els.body.innerHTML = '<div class="hs-sp-none"><b>No results for “' + esc(raw) + '”</b>Try fewer words, check the spelling, or choose “Both campuses”.' +
+        '<div class="hs-sp-try"><button type="button" data-q="fees">fees</button><button type="button" data-q="contact">contact</button><button type="button" data-q="staff directory">staff directory</button></div>' +
+        '<a class="hs-sp-all" href="/?s=' + encodeURIComponent(raw) + '">Search the whole site →</a></div>';
+      els.live.textContent = 'No results';
+      scheduleMiss(raw);
+      return;
+    }
+    if (r.relaxed) { html += '<div class="hs-sp-relaxed">No exact matches, showing close results.</div>'; }
+    if (card) { html += cardHTML(card); }
+    var groups = HSSearchEngine.group(results);
+    var wide = panel.classList.contains('is-cols') && !state.sheet;
+    if (!wide) {
+      groups.forEach(function (g) {
+        var open = state.expanded[g.key], shown = open ? g.items : g.items.slice(0, 3);
+        html += '<div class="hs-sp-grp"><div class="hs-sp-h">' + GROUP_LABEL[g.key] + '<em>' + g.items.length + '</em>' +
+          (g.items.length > 3 ? '<a href="#" data-ex="' + g.key + '">' + (open ? 'Show less' : 'See all ' + g.items.length) + '</a>' : '') + '</div>' + R(shown) + '</div>';
+      });
+    } else {
+      var by = {}; groups.forEach(function (g) { by[g.key] = g.items; });
+      var col = function (key, n) {
+        var arr = by[key] || []; if (!arr.length) { return ''; }
+        var open = state.expanded[key], shown = open ? arr : arr.slice(0, n);
+        return '<div class="hs-sp-grp"><div class="hs-sp-h">' + GROUP_LABEL[key] + '<em>' + arr.length + '</em></div>' + R(shown) +
+          (arr.length > n ? '<a href="#" class="hs-sp-more" data-ex="' + key + '">' + (open ? 'Show less' : '+ ' + (arr.length - n) + ' more') + '</a>' : '') + '</div>';
+      };
+      var cols = [col('person', 5), col('page', 4), col('issue', 4) + col('event', 3)].filter(Boolean);
+      html += '<div class="hs-sp-cols" style="grid-template-columns:repeat(' + Math.max(1, cols.length) + ',minmax(0,1fr))">' + cols.map(function (c) { return '<div class="hs-sp-col">' + c + '</div>'; }).join('') + '</div>';
+      var docs = col('doc', 4);
+      if (docs) { html += '<div class="hs-sp-docs">' + docs + '</div>'; }
+    }
+    els.body.innerHTML = html;
+    state.active = Math.min(state.active, Math.max(0, state.flat.length - 1));
+    markActive(false);
+    els.live.textContent = results.length + (results.length === 1 ? ' result' : ' results');
+    if (DEBUG) { console.log('[hs-search] "' + raw + '"', results.length, 'results in', Date.now() - t0, 'ms'); }
+    scheduleIdle(raw, results.length);
+  }
+
+  function markActive(scroll) {
+    var rows = els.body.querySelectorAll('.hs-sp-row');
+    Array.prototype.forEach.call(rows, function (row) { row.classList.toggle('is-active', +row.getAttribute('data-i') === state.active); });
+    var f = currentField();
+    if (f) { if (rows.length) { f.setAttribute('aria-activedescendant', 'hs-sp-opt-' + state.active); } else { f.removeAttribute('aria-activedescendant'); } }
+    if (scroll) { var a = els.body.querySelector('.hs-sp-row.is-active'); if (a) { a.scrollIntoView({ block: 'nearest' }); } }
+  }
+
+  /* ---------- analytics + logging ---------- */
+  function okTerm(q) { return q && q.length >= 2 && q.indexOf('@') < 0 && !/\d{6,}/.test(q) && !/https?:|www\./i.test(q); }
+  function beacon(q, kind, n) {
+    if (!okTerm(q)) { return; }
+    try {
+      var body = new URLSearchParams(); body.append('action', 'hs_search_log'); body.append('q', q.slice(0, 60)); body.append('kind', kind); body.append('n', String(n || 0));
+      if (navigator.sendBeacon) { navigator.sendBeacon(AJAX_URL, body); } else { fetch(AJAX_URL, { method: 'POST', body: body, keepalive: true }); }
+    } catch (e) { /* never break search */ }
+  }
+  function push(o) { try { (root.dataLayer = root.dataLayer || []).push(o); } catch (e) { /* no GTM */ } }
+  function commit(how, type, pos) {
+    var q = (currentField() || {}).value || '';
+    q = q.trim().toLowerCase();
+    if (!q) { return; }
+    if (state.committed !== q) {
+      state.committed = q;
+      push({ event: 'hs_search', search_term: okTerm(q) ? q : '(filtered)', hs_results: state.flat.length, hs_campus: state.campus || 'both' });
+      beacon(q, 'commit', state.flat.length);
+      var recent = (lsGet('hs_search_recent') || []).filter(function (x) { return x !== q; });
+      recent.unshift(q); lsSet('hs_search_recent', recent.slice(0, 5));
+    }
+    if (how === 'click') { push({ event: 'hs_search_click', search_term: okTerm(q) ? q : '(filtered)', hs_result_type: type, hs_result_position: pos + 1 }); }
+  }
+  function scheduleIdle(q, n) {
+    clearTimeout(state.idleT);
+    state.idleT = setTimeout(function () { if (n && q.trim().length >= 3) { commit('idle'); } }, 2500);
+  }
+  function commitIdle() { clearTimeout(state.idleT); }
+  function scheduleMiss(q) {
+    clearTimeout(state.idleT);
+    state.idleT = setTimeout(function () {
+      q = q.trim().toLowerCase();
+      if (q.length >= 3 && state.missed !== q) { state.missed = q; push({ event: 'hs_search_no_results', search_term: okTerm(q) ? q : '(filtered)' }); beacon(q, 'miss', 0); }
+    }, 1200);
+  }
+
+  /* ---------- events ---------- */
+  function onInput(e) {
+    syncFields(e.target);
+    state.active = 0; state.expanded = {};
+    if (!isOpen()) { open(state.field, state.sheet); }
+    render();
+  }
+  function onKey(e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); if (!isOpen()) { open(state.field, state.sheet); } state.active = Math.min(state.flat.length - 1, state.active + 1); markActive(true); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); state.active = Math.max(0, state.active - 1); markActive(true); }
+    else if (e.key === 'Enter') {
+      e.preventDefault();
+      var row = els.body && els.body.querySelector('.hs-sp-row.is-active');
+      if (!row) { var card = els.body && els.body.querySelector('.hs-sp-card a'); if (card) { commit('click', 'topic', 0); root.location.href = card.href; } return; }
+      commit('click', row.getAttribute('data-type'), +row.getAttribute('data-i'));
+      if (row.target === '_blank') { root.open(row.href, '_blank', 'noopener'); } else { root.location.href = row.href; }
+    } else if (e.key === 'Escape') {
+      if (e.target.value) { e.target.value = ''; syncFields(e.target); render(); }
+      else { close(); if (!state.sheet) { e.target.blur(); } }
+    }
+  }
+  function setQuery(q) {
+    var f = currentField(); if (!f) { return; }
+    f.value = q; syncFields(f); state.active = 0; state.expanded = {}; render(); f.focus();
+  }
+
+  function init() {
+    var fields = document.querySelectorAll('.hs-search .hs-search-field');
+    Array.prototype.forEach.call(fields, function (f) {
+      var wrap = f.closest('.hs-search');
+      var warm = function () { loadIndex(); };
+      wrap.addEventListener('pointerenter', warm, { once: true });
+      f.addEventListener('focus', function () { open(f, false); });
+      f.addEventListener('input', function (e) { state.field = f; state.wrap = wrap; onInput(e); });
+      f.addEventListener('keydown', onKey);
+      var form = wrap.querySelector('form');
+      if (form) { form.addEventListener('submit', function (e) { if (state.ctx) { e.preventDefault(); } }); }
+      var clr = wrap.querySelector('.hs-search-clear');
+      if (clr) { clr.addEventListener('click', function () { f.value = ''; syncFields(f); render(); f.focus(); }); }
+    });
+
+    // mobile magnifier (delegated, so cloned drawer copies work too)
+    document.addEventListener('click', function (e) {
+      var t = e.target.closest && e.target.closest('.hs-search-trigger');
+      if (t) { e.preventDefault(); open(document.querySelector('.hs-search .hs-search-field'), true); return; }
+      if (isOpen() && !state.sheet && !e.target.closest('.hs-search')) { close(); }
+    });
+    document.addEventListener('keydown', function (e) {
+      var tag = (document.activeElement && document.activeElement.tagName) || '';
+      var typing = /INPUT|TEXTAREA|SELECT/.test(tag) || (document.activeElement && document.activeElement.isContentEditable);
+      if ((e.key === '/' && !typing) || ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K'))) {
+        var f = document.querySelector('.hs-search .hs-search-field');
+        e.preventDefault();
+        if (f && f.offsetParent !== null) { f.focus(); } else { open(f, true); }
+      } else if (e.key === 'Escape' && isOpen() && state.sheet && document.activeElement !== els.sheetField) { close(); }
+    });
+    root.addEventListener('resize', function () { if (isOpen()) { place(); render(); } });
+
+    // ?q= opens the panel pre-filled
+    var m = root.location.search.match(/[?&]q=([^&]+)/);
+    if (m) {
+      var f = document.querySelector('.hs-search .hs-search-field');
+      var c = root.location.search.match(/[?&]campus=(chaofah|cherngtalay)/);
+      if (c) { state.campus = c[1]; }
+      var val = decodeURIComponent(m[1].replace(/\+/g, ' '));
+      if (f) { f.value = val; if (f.offsetParent !== null) { f.focus(); } else { open(f, true); } }
+      if (c && panel) { Array.prototype.forEach.call(els.seg.children, function (x) { x.classList.toggle('is-on', x.getAttribute('data-c') === state.campus); }); }
+    }
+  }
+
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
 })(typeof window !== 'undefined' ? window : this);
