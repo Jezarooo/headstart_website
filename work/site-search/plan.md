@@ -189,6 +189,18 @@ Plain ES2017, one IIFE, header in the style of `noticeboard.js`. Two parts:
 - **On live** it becomes a new Custom CSS & JS entry "Site Search" (front end, header), so the shared "Core CSS" that Nick edits is not touched.
 - **Local loader** (`app/public/wp-content/mu-plugins/headstart-local-loader.php`, tracked, local only): under the `no-css` option skip only `core.css`, so other `Site-Scripts/css/*.css` files load. One-line change; nothing else in the loader changes.
 
+### 5b. Search terms: synonyms, expansions, promoted results, report actions, test box (approved 6 Nov)
+A new admin screen **Site search → Search terms** (capability `edit_others_posts`) in `search-index-builder.code-snippets.php`, stored in the non-autoloaded option `hs_search_vocab`. Saving rebuilds the index (about 30 s). The rules travel in `index.json` (`rules`) and the engine applies them while matching, so nothing else on the site changes.
+1. **Synonym groups (two-way):** a list of groups, each a set of words or short phrases that mean the same ("uniform, kit, clothing"; "eca, club, activities, after school"). A search containing any member also matches the others. Each group can be switched off.
+2. **One-way expansions:** "from → to" rows ("ks1 → year 1, year 2"; "eyfs → foundation, reception, preschool"). Only the "from" side expands.
+   - The spelling variants that were hard-coded in `site-search.js` (enrol/enroll/enrolment/enrollment, programme/program, colour/color, centre/center, organise/organize) are **seeded as editable synonym groups** and removed from the code.
+   - **Campus names** (Chaofah: chaofah, chao fah, city campus, hsc; Cherngtalay: cherngtalay, cherng talay, north, hsn) become two editable lists on the same screen and replace the hard-coded campus aliases.
+3. **Promoted results ("best bets"):** rows of "search term → up to 5 results" chosen with a picker that searches the current index (pages, people, documents, articles, weekly updates, quick answers). When a search is or contains the term, those results go first in their group with a small **"Recommended"** tag, even if their text would not have matched.
+4. **Search report with actions:** the "Top searches" and "Searches with no results" tables move to this screen. The log now also counts per month (last 12 months kept), with a "Last 30 days / All time" switch. Each row has buttons **Add synonym** (opens the synonym form with the term filled in), **Promote a result** (opens the promoted-results form with the term) and **Mark handled** (hides the row until the term is searched again).
+5. **Test box:** type a search and see exactly what visitors get: the screen shows the expanded words (synonyms, expansions, campus, type) and an embedded preview of the live search panel for that query (the front end opened in a frame with `?q=…&hs_search_test=1`; the search script allows itself to run in that frame only with this flag).
+- **Visitors** see the expansion in the "Understood as" row on desktop as a quiet "also: kit, clothing" note.
+- **Tests:** engine cases for a synonym group, a one-way expansion (and that it does not work in reverse), a multi-word synonym, and a promoted result that would not otherwise match.
+
 ### 6. `Site-Scripts/js/MANIFEST.tsv`
 Add `site-search.js` after `global-utilities.js`, purpose "Site search field, panel, index loader, analytics". Live file name assigned at handover.
 
@@ -208,6 +220,7 @@ Add `site-search.js` after `global-utilities.js`, purpose "Site search field, pa
 7. `feat(search): panel UI, keyboard, layouts A/C` + MANIFEST row
 8. `style(search): panel styles from the mock-up`
 9. `feat(search): analytics events + admin terms report`
+10. `feat(search): Search terms screen: synonyms, expansions, campus names, promoted results, report actions, test box`
 
 ## Risks & rollback
 - **Index missing or stale:** admin-ajax fallback, then "Search the whole site". "Rebuild now" and the daily rebuild fix it.
@@ -244,6 +257,7 @@ Add `site-search.js` after `global-utilities.js`, purpose "Site search field, pa
 - [ ] Ticking "Hide from site search" on a page removes it after a rebuild.
 - [ ] Documents screen: a newly linked document appears as Included; Excluding it removes it from search; Pinning moves it up; a title override shows in results; the age limit and URL-pattern rules behave as set.
 - [ ] Site search → Index status shows counts, size and the document audit; Rebuild works; quick answers can be edited and published.
+- [ ] Search terms: a new synonym group, a one-way expansion and a promoted result each change the results within a minute; the report's Add synonym / Promote / Mark handled buttons work; the test box shows the expansion and the live result panel.
 - [ ] Feels instant on a mid-range phone.
 - [ ] Mega menu, mobile drawer, staff directory, events calendar and weekly updates behave as before.
 
