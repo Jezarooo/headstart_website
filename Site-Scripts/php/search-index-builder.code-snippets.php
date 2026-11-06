@@ -30,7 +30,7 @@ function hs_search_settings() {
 		'events_url'       => '',
 		'doc_age_months'   => 0,
 		'doc_exclude'      => '',
-		'article_months'   => 0,
+		'article_months'   => 24,
 	);
 	$s = get_option( 'hs_search_settings', array() );
 	return array_merge( $d, is_array( $s ) ? $s : array() );
@@ -78,17 +78,57 @@ function hs_search_norm_campus( $values ) {
 	return 2 === count( $out ) ? array() : $out;
 }
 
+/** Terms from the object cache (primed by the batch queries), not a query per post (O2). */
+function hs_search_terms_of( $post_id, $tax ) {
+	$t = taxonomy_exists( $tax ) ? get_the_terms( $post_id, $tax ) : array();
+	return ( ! $t || is_wp_error( $t ) ) ? array() : $t;
+}
 function hs_search_term_slugs( $post_id, $tax ) {
-	$t = taxonomy_exists( $tax ) ? wp_get_post_terms( $post_id, $tax, array( 'fields' => 'slugs' ) ) : array();
-	return is_wp_error( $t ) ? array() : $t;
+	return wp_list_pluck( hs_search_terms_of( $post_id, $tax ), 'slug' );
 }
 function hs_search_term_names( $post_id, $tax ) {
-	$t = taxonomy_exists( $tax ) ? wp_get_post_terms( $post_id, $tax, array( 'fields' => 'names' ) ) : array();
-	return is_wp_error( $t ) ? array() : array_map( function ( $n ) { return html_entity_decode( $n, ENT_QUOTES, 'UTF-8' ); }, $t );
+	return array_map( function ( $t ) { return html_entity_decode( $t->name, ENT_QUOTES, 'UTF-8' ); }, hs_search_terms_of( $post_id, $tax ) );
 }
 
 function hs_search_excluded( $post_id ) {
 	return (bool) get_post_meta( $post_id, 'hs_search_exclude', true );
+}
+
+/** Every item type: password-protected or Yoast "noindex" content stays out of the public index (S3). */
+function hs_search_skip_post( $post ) {
+	return post_password_required( $post ) || '' !== (string) $post->post_password
+		|| '1' === (string) get_post_meta( $post->ID, '_yoast_wpseo_meta-robots-noindex', true )
+		|| hs_search_excluded( $post->ID );
+}
+
+/**
+ * Links in the index must be http(s), mailto, tel, a site path or an anchor (S4).
+ * Anything with another scheme (javascript:, data:, …) becomes ''.
+ */
+function hs_search_safe_url( $url ) {
+	$url  = trim( (string) $url );
+	$test = preg_replace( '/[\x00-\x20]+/', '', $url );
+	if ( preg_match( '/^([a-z][a-z0-9+.\-]*):/i', $test, $m ) && ! in_array( strtolower( $m[1] ), array( 'http', 'https', 'mailto', 'tel' ), true ) ) {
+		return '';
+	}
+	return $url;
+}
+
+/** Posts of one query, 100 at a time, so a build never holds every post in memory at once (O3). */
+function hs_search_posts( $args ) {
+	$args = array_merge( array( 'post_status' => 'publish', 'orderby' => array( 'date' => 'DESC', 'ID' => 'DESC' ) ), $args, array( 'posts_per_page' => 100, 'no_found_rows' => true ) );
+	for ( $page = 1; ; $page++ ) {
+		$batch = get_posts( array_merge( $args, array( 'paged' => $page ) ) );
+		foreach ( $batch as $p ) {
+			yield $p;
+		}
+		if ( count( $batch ) < 100 ) {
+			return;
+		}
+		if ( function_exists( 'wp_cache_flush_runtime' ) ) {
+			wp_cache_flush_runtime();
+		}
+	}
 }
 
 /* ---------------------------------------------------------------------------
@@ -97,15 +137,18 @@ function hs_search_excluded( $post_id ) {
 
 /** Blocks of a post with Divi global layouts expanded in place. */
 function hs_search_blocks( $content, $depth = 0 ) {
+	return hs_search_expand_blocks( parse_blocks( (string) $content ), $depth );
+}
+/** Replace Divi global layouts (at any level, up to 3 deep) with their blocks; each layout is read once per build. */
+function hs_search_expand_blocks( $list, $depth ) {
 	static $layout_cache = array();
-	$blocks = parse_blocks( (string) $content );
-	$out    = array();
-	foreach ( $blocks as $b ) {
+	$out = array();
+	foreach ( $list as $b ) {
 		if ( 'divi/global-layout' === $b['blockName'] && ! empty( $b['attrs']['globalModule'] ) && $depth < 3 ) {
 			$id = (int) $b['attrs']['globalModule'];
 			if ( ! isset( $layout_cache[ $id ] ) ) {
-				$lp                   = get_post( $id );
-				$layout_cache[ $id ]  = $lp ? hs_search_blocks( $lp->post_content, $depth + 1 ) : array();
+				$lp                  = get_post( $id );
+				$layout_cache[ $id ] = $lp ? hs_search_blocks( $lp->post_content, $depth + 1 ) : array();
 			}
 			foreach ( $layout_cache[ $id ] as $lb ) {
 				$out[] = $lb;
@@ -113,24 +156,7 @@ function hs_search_blocks( $content, $depth = 0 ) {
 			continue;
 		}
 		if ( ! empty( $b['innerBlocks'] ) ) {
-			$b['innerBlocks'] = hs_search_expand_inner( $b['innerBlocks'], $depth );
-		}
-		$out[] = $b;
-	}
-	return $out;
-}
-function hs_search_expand_inner( $inner, $depth ) {
-	$out = array();
-	foreach ( $inner as $b ) {
-		if ( 'divi/global-layout' === $b['blockName'] && ! empty( $b['attrs']['globalModule'] ) && $depth < 3 ) {
-			$lp = get_post( (int) $b['attrs']['globalModule'] );
-			foreach ( ( $lp ? hs_search_blocks( $lp->post_content, $depth + 1 ) : array() ) as $lb ) {
-				$out[] = $lb;
-			}
-			continue;
-		}
-		if ( ! empty( $b['innerBlocks'] ) ) {
-			$b['innerBlocks'] = hs_search_expand_inner( $b['innerBlocks'], $depth );
+			$b['innerBlocks'] = hs_search_expand_blocks( $b['innerBlocks'], $depth );
 		}
 		$out[] = $b;
 	}
@@ -233,16 +259,13 @@ function hs_search_page_campus( $post ) {
 }
 
 function hs_search_skip_page( $post ) {
-	if ( post_password_required( $post ) || '' !== $post->post_password ) {
+	if ( hs_search_skip_post( $post ) ) {
 		return true;
 	}
 	if ( false !== stripos( $post->post_title, 'DO NOT DELETE' ) || in_array( $post->post_name, array( 'homepage-router', 'chaofah', 'cherngtalay' ), true ) ) {
 		return true;
 	}
 	if ( preg_match( '/thank-?you|thanks/', $post->post_name ) ) {
-		return true;
-	}
-	if ( '1' === (string) get_post_meta( $post->ID, '_yoast_wpseo_meta-robots-noindex', true ) ) {
 		return true;
 	}
 	return false;
@@ -296,7 +319,7 @@ function hs_search_doc_collect( $html, $ctx, &$docs ) {
 			$m   = $xpath->query( 'preceding::hs-section[1]', $a );
 			$sec = $m->length ? $m->item( 0 )->getAttribute( 'data-label' ) : '';
 		}
-		if ( in_array( $rule, array( 4, 5, 6 ), true ) && 5 === $rule && $heading && $sec && $heading !== $sec ) {
+		if ( 5 === $rule && $heading && $sec && $heading !== $sec ) {
 			$title = $sec . ': ' . $title;
 		}
 
@@ -482,15 +505,26 @@ function hs_search_build_index() {
 	$counts   = array();
 	$errors   = array();
 	$add      = function ( $item ) use ( &$items, &$counts ) {
+		foreach ( array( 'u', 'img' ) as $k ) {
+			if ( isset( $item[ $k ] ) ) {
+				$item[ $k ] = hs_search_safe_url( $item[ $k ] );
+				if ( '' === $item[ $k ] ) {
+					unset( $item[ $k ] );
+					if ( 'u' === $k ) {
+						return; // a result without a usable link is left out
+					}
+				}
+			}
+		}
 		$items[]               = $item;
 		$counts[ $item['t'] ] = ( $counts[ $item['t'] ] ?? 0 ) + 1;
 	};
 	$langs = array( 'en' => 1, 'th' => 1, 'ru' => 1, 'zh' => 1 );
 
 	/* Pages */
-	foreach ( get_posts( array( 'post_type' => 'page', 'post_status' => 'publish', 'numberposts' => -1 ) ) as $p ) {
+	foreach ( hs_search_posts( array( 'post_type' => 'page' ) ) as $p ) {
 		try {
-			if ( hs_search_skip_page( $p ) || hs_search_excluded( $p->ID ) ) {
+			if ( hs_search_skip_page( $p ) ) {
 				continue;
 			}
 			$html = hs_search_blocks_html( hs_search_blocks( $p->post_content ) );
@@ -529,7 +563,7 @@ function hs_search_build_index() {
 	/* People */
 	if ( $settings['src_person'] ) {
 		$dir = hs_search_find_page_with( '[hs_staff_directory' ) ?: '/staff-directory/';
-		foreach ( get_posts( array( 'post_type' => 'staff', 'post_status' => 'publish', 'numberposts' => -1 ) ) as $p ) {
+		foreach ( hs_search_posts( array( 'post_type' => 'staff' ) ) as $p ) {
 			try {
 				$title  = (string) get_post_meta( $p->ID, 'job_title', true );
 				$groups = hs_search_term_names( $p->ID, 'staff_display_group' );
@@ -558,9 +592,9 @@ function hs_search_build_index() {
 	$articles = array(); // normalised headline => index into $items
 	$cut_date = $settings['article_months'] ? gmdate( 'Y-m-d', strtotime( '-' . (int) $settings['article_months'] . ' months' ) ) : '';
 	if ( $settings['src_issue'] || $settings['src_doc'] ) {
-		foreach ( get_posts( array( 'post_type' => 'weekly_update', 'post_status' => 'publish', 'numberposts' => -1, 'orderby' => 'date', 'order' => 'DESC' ) ) as $p ) {
+		foreach ( hs_search_posts( array( 'post_type' => 'weekly_update' ) ) as $p ) {
 			try {
-				if ( hs_search_excluded( $p->ID ) ) {
+				if ( hs_search_skip_post( $p ) ) {
 					continue;
 				}
 				$u      = hs_search_rel_url( get_permalink( $p ) );
@@ -569,8 +603,9 @@ function hs_search_build_index() {
 				$title  = html_entity_decode( get_the_title( $p ), ENT_QUOTES, 'UTF-8' );
 				$title  = trim( preg_replace( '/[,\s–-]+\d{1,2}(st|nd|rd|th)?\s+[A-Za-z]+\s+\d{4}\s*$/', '', $title ) ); // "Weekly Update #38, 26 June 2026" → "Weekly Update #38"
 				$blocks = hs_search_blocks( $p->post_content );
+				$html   = hs_search_blocks_html( $blocks ); // once, for the articles fallback and the documents (O5)
 				if ( $settings['src_issue'] ) {
-					$issue_articles = hs_search_issue_articles( $blocks );
+					$issue_articles = hs_search_issue_articles( $blocks, $html );
 					$add( array_filter( array(
 						'id' => 'w' . $p->ID, 't' => 'issue', 'ti' => $title, 'wk' => (int) get_post_meta( $p->ID, 'hs_week_number', true ),
 						'd'  => $date, 'k' => hs_search_term_names( $p->ID, 'in_this_issue' ), 'c' => $c, 'u' => $u,
@@ -592,7 +627,7 @@ function hs_search_build_index() {
 					}
 				}
 				if ( $settings['src_doc'] ) {
-					hs_search_doc_collect( hs_search_blocks_html( $blocks ), array( 'src' => 'issue', 'ti' => $title, 'u' => $u, 'c' => $c, 'date' => $date, 'd' => $date ), $docs );
+					hs_search_doc_collect( $html, array( 'src' => 'issue', 'ti' => $title, 'u' => $u, 'c' => $c, 'date' => $date, 'd' => $date ), $docs );
 				}
 			} catch ( Throwable $e ) {
 				$errors[] = 'weekly_update ' . $p->ID . ': ' . $e->getMessage();
@@ -602,9 +637,9 @@ function hs_search_build_index() {
 
 	/* Posts (own pages; replace a matching issue article) */
 	if ( $settings['src_post'] || $settings['src_doc'] ) {
-		foreach ( get_posts( array( 'post_type' => 'post', 'post_status' => 'publish', 'numberposts' => -1 ) ) as $p ) {
+		foreach ( hs_search_posts( array( 'post_type' => 'post' ) ) as $p ) {
 			try {
-				if ( hs_search_excluded( $p->ID ) ) {
+				if ( hs_search_skip_post( $p ) ) {
 					continue;
 				}
 				$u      = hs_search_rel_url( get_permalink( $p ) );
@@ -613,8 +648,9 @@ function hs_search_build_index() {
 				$title  = html_entity_decode( get_the_title( $p ), ENT_QUOTES, 'UTF-8' );
 				$blocks = hs_search_blocks( $p->post_content );
 				if ( $settings['src_post'] ) {
-					$arts = hs_search_issue_articles( $blocks );
-					$sn   = $p->post_excerpt ? hs_search_cut( $p->post_excerpt, 230 ) : ( $arts ? $arts[0]['sn'] : hs_search_cut( hs_search_blocks_html( $blocks ), 230 ) );
+					$html = hs_search_blocks_html( $blocks );
+					$arts = hs_search_issue_articles( $blocks, $html );
+					$sn   = $p->post_excerpt ? hs_search_cut( $p->post_excerpt, 230 ) : ( $arts ? $arts[0]['sn'] : hs_search_cut( $html, 230 ) );
 					$item = array(
 						'id' => 'n' . $p->ID, 't' => 'article', 'ti' => $title, 'sn' => $sn,
 						'k'  => hs_search_term_names( $p->ID, 'hs_department' ), 'd' => $date, 'c' => $c, 'u' => $u,
@@ -642,9 +678,9 @@ function hs_search_build_index() {
 	$events_url = $settings['events_url'] ?: hs_search_find_page_with( 'hs_events_calendar' );
 	if ( $settings['src_event'] && $events_url ) {
 		$from = gmdate( 'Ymd', strtotime( '-60 days' ) );
-		foreach ( get_posts( array( 'post_type' => 'events', 'post_status' => 'publish', 'numberposts' => -1 ) ) as $p ) {
+		foreach ( hs_search_posts( array( 'post_type' => 'events' ) ) as $p ) {
 			try {
-				if ( hs_search_excluded( $p->ID ) ) {
+				if ( hs_search_skip_post( $p ) ) {
 					continue;
 				}
 				$start = (string) get_post_meta( $p->ID, 'event_start_date', true );
@@ -682,8 +718,9 @@ function hs_search_build_index() {
 		$card = $m( 'card' ) ?: 'standard';
 		$btns = array();
 		foreach ( array( 1, 2 ) as $n ) {
-			if ( $m( "btn{$n}_label" ) && $m( "btn{$n}_url" ) ) {
-				$btns[] = array( $m( "btn{$n}_label" ), $m( "btn{$n}_url" ) );
+			$bu = hs_search_safe_url( $m( "btn{$n}_url" ) );
+			if ( $m( "btn{$n}_label" ) && $bu ) {
+				$btns[] = array( $m( "btn{$n}_label" ), $bu );
 			}
 		}
 		if ( 'standard' === $card && ! $btns ) {
@@ -695,7 +732,7 @@ function hs_search_build_index() {
 			$item['cc'] = array();
 			foreach ( array( 'c1', 'c2' ) as $c ) {
 				if ( $m( $c . '_name' ) ) {
-					$item['cc'][] = array_filter( array( 'n' => $m( $c . '_name' ), 'ad' => $m( $c . '_address' ), 'ph' => array_values( array_filter( array( $m( $c . '_phone1' ), $m( $c . '_phone2' ) ) ) ), 'em' => $m( $c . '_email' ), 'em2' => $m( $c . '_email2' ), 'map' => $m( $c . '_map' ) ) );
+					$item['cc'][] = array_filter( array( 'n' => $m( $c . '_name' ), 'ad' => $m( $c . '_address' ), 'ph' => array_values( array_filter( array( $m( $c . '_phone1' ), $m( $c . '_phone2' ) ) ) ), 'em' => $m( $c . '_email' ), 'em2' => $m( $c . '_email2' ), 'map' => hs_search_safe_url( $m( $c . '_map' ) ) ) );
 				}
 			}
 			$item['hl'] = $m( 'hours_label' );
@@ -766,7 +803,7 @@ function hs_search_headline_key( $s ) {
 }
 
 /** Articles inside an issue: groups with class hs-weekly-article. */
-function hs_search_issue_articles( $blocks ) {
+function hs_search_issue_articles( $blocks, $html = null ) {
 	$out = array();
 	$sec = '';
 	$walk = function ( $list, $section_label ) use ( &$walk, &$out, &$sec ) {
@@ -809,7 +846,7 @@ function hs_search_issue_articles( $blocks ) {
 	};
 	$walk( $blocks, '' );
 	if ( ! $out ) {
-		$out = hs_search_html_articles( hs_search_blocks_html( $blocks ) );
+		$out = hs_search_html_articles( null === $html ? hs_search_blocks_html( $blocks ) : $html );
 	}
 	return $out;
 }
@@ -952,7 +989,11 @@ add_action( 'save_post', function ( $id, $post ) {
 		hs_search_schedule_build();
 	}
 }, 20, 2 );
-add_action( 'deleted_post', function () { hs_search_schedule_build(); } );
+add_action( 'deleted_post', function ( $id, $post = null ) {
+	if ( $post && in_array( $post->post_type, array( 'page', 'post', 'weekly_update', 'events', 'staff', 'hs_search_topic', 'et_pb_layout' ), true ) ) {
+		hs_search_schedule_build();
+	}
+}, 10, 2 );
 foreach ( array( 'edited_term', 'created_term', 'delete_term' ) as $hs_search_hook ) {
 	add_action( $hs_search_hook, function ( $term_id, $tt_id = 0, $taxonomy = '' ) {
 		if ( in_array( $taxonomy, array( 'staff_campus', 'staff_department', 'staff_display_group', 'hs_campus', 'hs_post_campus', 'hs_department', 'in_this_issue' ), true ) ) {

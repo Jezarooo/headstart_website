@@ -43,7 +43,7 @@ function hs_search_render_status_page() {
 	}
 	$meta = get_option( 'hs_search_index_meta', array() );
 	$s    = hs_search_settings();
-	$msgs = array( 'built' => 'Index rebuilt.', 'busy' => 'A build is already running; another one is queued.', 'saved' => 'Settings saved; the index rebuilds in about 30 seconds.', 'cleared' => 'Search terms cleared.' );
+	$msgs = array( 'built' => 'Index rebuilt.', 'busy' => 'A build is already running; another one is queued.', 'saved' => 'Settings saved; the index rebuilds in about 30 seconds.' );
 	$msg  = sanitize_key( $_GET['hs_msg'] ?? '' );
 	echo '<div class="wrap"><h1>Site search: index status</h1>';
 	if ( isset( $msgs[ $msg ] ) ) {
@@ -82,32 +82,8 @@ function hs_search_render_status_page() {
 	echo '<p><label>Keep article previews for the last <input type="number" min="0" style="width:70px" name="article_months" value="' . (int) $s['article_months'] . '"> months (0 = all)</label></p>';
 	echo '<p><button class="button" name="save" value="1">Save settings</button></p>';
 
-	// Class-teacher coverage.
-	$cov = hs_search_class_coverage();
-	echo '<h2>Class teachers</h2><p>' . (int) $cov['with'] . ' of ' . (int) $cov['total'] . ' people in a class display group have class search words.' . ( $cov['missing'] ? ' Missing: ' . esc_html( implode( ', ', $cov['missing'] ) ) : '' ) . '</p>';
-
 	echo '<h2>Search report, synonyms and promoted results</h2><p><a class="button" href="' . esc_url( admin_url( 'admin.php?page=hs-site-search-terms' ) ) . '">Open Search terms</a></p>';
 	echo '</form></div>';
-}
-
-function hs_search_class_coverage() {
-	$total   = 0;
-	$with    = 0;
-	$missing = array();
-	foreach ( get_posts( array( 'post_type' => 'staff', 'post_status' => 'publish', 'numberposts' => -1 ) ) as $p ) {
-		$groups = hs_search_term_names( $p->ID, 'staff_display_group' );
-		$class  = preg_grep( '/^(Year \d+|Reception|Preschool|Pre-?Nursery|Nursery|Early Years)/i', $groups );
-		if ( ! $class ) {
-			continue;
-		}
-		$total++;
-		if ( hs_search_class_tokens( $groups, (string) get_post_meta( $p->ID, 'job_title', true ) ) ) {
-			$with++;
-		} elseif ( count( $missing ) < 10 ) {
-			$missing[] = get_the_title( $p );
-		}
-	}
-	return compact( 'total', 'with', 'missing' );
 }
 
 /* ---------------------------------------------------------------------------
