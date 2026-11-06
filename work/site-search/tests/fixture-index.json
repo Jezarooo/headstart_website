@@ -1,0 +1,46 @@
+{
+  "v": 1,
+  "built": "2026-11-06T10:00:00+07:00",
+  "_note": "Synthetic fixture: every person is invented. Pages, issues and documents mirror the site's structure only.",
+  "campuses": [
+    {"k": "chaofah", "l": "Chaofah", "a": ["chaofah", "chao fah", "city campus"]},
+    {"k": "cherngtalay", "l": "Cherngtalay", "a": ["cherngtalay", "cherng talay"]}
+  ],
+  "items": [
+    {"id": "q1", "t": "topic", "card": "standard", "ti": "School fees", "syn": ["fees", "fee", "cost", "costs", "price", "tuition", "how much", "payment", "pay"], "a": "Tuition fees for both campuses are on one page.", "note": "Questions about fees? fees@example.org", "b": [["Tuition & Fees", "/resources-and-information/tuition-fees/"]], "pin": 1},
+    {"id": "q2", "t": "topic", "card": "standard", "ti": "How to enrol", "syn": ["admissions", "admission", "enrol", "enroll", "enrolment", "enrollment", "apply", "join", "register"], "b": [["Enrolment & Visa Support", "/resources-and-information/enrolment-and-visa-support/"], ["Book a school tour", "/booking/"]], "pin": 1},
+    {"id": "q3", "t": "topic", "card": "contact", "ti": "Contact the school", "syn": ["contact", "contact us", "phone", "call", "email", "address", "map", "directions", "find us"], "b": [["Contact page", "/contact-us/"]], "cc": [{"n": "Chaofah City Campus", "ph": ["+66-00-000001"]}, {"n": "Cherngtalay Campus", "ph": ["+66-00-000002"]}], "pin": 1},
+    {"id": "q4", "t": "topic", "card": "standard", "ti": "Term dates", "syn": ["term dates", "holidays", "half term", "key dates"], "b": [["Calendars & Key Dates", "/resources-and-information/calendars-key-dates/"]]},
+
+    {"id": "s1", "t": "person", "ti": "Alex Example", "s": "Head of Science", "k": ["Science Faculty"], "c": ["chaofah"], "u": "/staff-directory/"},
+    {"id": "s2", "t": "person", "ti": "Bella Sample", "s": "Science Teacher (Biology)", "k": ["Science Faculty"], "c": ["chaofah"], "u": "/staff-directory/"},
+    {"id": "s3", "t": "person", "ti": "Chris Placeholder", "s": "Science Teacher (Chemistry)", "k": ["Science Faculty"], "c": ["cherngtalay"], "u": "/staff-directory/"},
+    {"id": "s4", "t": "person", "ti": "Dana Fictional", "s": "Year 3 (Blue) Homeroom Teacher", "g": "Year 3 (Blue)", "cl": ["year 3", "3", "blue", "3b", "class teacher", "homeroom"], "k": ["Primary"], "c": ["cherngtalay"], "u": "/staff-directory/"},
+    {"id": "s5", "t": "person", "ti": "Evan Madeup", "s": "Year 3 (White) Deputy Teacher", "g": "Year 3 (White)", "cl": ["year 3", "3", "white", "3w"], "k": ["Primary"], "c": ["chaofah"], "u": "/staff-directory/"},
+    {"id": "s6", "t": "person", "ti": "Fiona Invented", "s": "Reception (Yellow) Homeroom Teacher", "g": "Reception (Yellow)", "cl": ["reception", "yellow", "class teacher", "homeroom"], "k": ["Foundation"], "c": ["cherngtalay"], "u": "/staff-directory/"},
+    {"id": "s7", "t": "person", "ti": "Gareth Notreal", "s": "Maths Teacher / Year 10 Coordinator", "cl": ["year 10", "10"], "k": ["Maths Faculty"], "c": ["chaofah"], "u": "/staff-directory/"},
+    {"id": "s8", "t": "person", "ti": "Hana Testperson", "s": "Admissions Officer", "k": ["Admissions & Office"], "c": [], "u": "/staff-directory/"},
+
+    {"id": "p1", "t": "page", "ti": "Tuition & Fees", "s": "Fees, deposits and payment terms.", "bc": "Resources and Information", "lg": "en", "u": "/resources-and-information/tuition-fees/"},
+    {"id": "p2", "t": "page", "ti": "Staff Directory", "s": "Meet our teachers and staff.", "lg": "en", "u": "/staff-directory/"},
+    {"id": "p3", "t": "page", "ti": "Foundation", "s": "Early years at HeadStart.", "x": "Daily routine · Term Dates · School Documents & Policies", "lg": "en", "u": "/en/foundation/"},
+    {"id": "p4", "t": "page", "ti": "Contact Us", "s": "Phone numbers and campus addresses.", "lg": "en", "u": "/contact-us/"},
+    {"id": "p5", "t": "page", "ti": "Calendars & Key Dates", "s": "Term dates and key dates.", "bc": "Resources and Information", "lg": "en", "u": "/resources-and-information/calendars-key-dates/"},
+    {"id": "p6", "t": "page", "ti": "Foundation", "s": "Early years (Thai).", "lg": "th", "u": "/th/foundation/"},
+
+    {"id": "w7", "t": "issue", "ti": "Weekly Update #7", "wk": 7, "d": "2026-10-16", "k": ["House points", "Book Week"], "c": ["chaofah"], "u": "/chaofah/weekly-update/2026/10/weekly-update-7/"},
+    {"id": "w8", "t": "issue", "ti": "Weekly Update #8", "wk": 8, "d": "2026-10-23", "k": ["Science Fair", "World Cup"], "c": [], "u": "/weekly-update/2026/10/weekly-update-8/"},
+    {"id": "w9", "t": "issue", "ti": "Weekly Update #9", "wk": 9, "d": "2026-10-30", "k": ["Chess Tournament", "Friday Market", "Halloween"], "c": ["cherngtalay"], "u": "/cherngtalay/weekly-update/2026/10/weekly-update-9/"},
+    {"id": "a1", "t": "article", "ti": "Parents, Teachers and Students Chess Tournament", "sn": "Ready to test your strategic skills against the wider community? Join the tournament, open to all ability levels.", "sec": "Upcoming events", "p": "Weekly Update #9", "d": "2026-10-30", "c": ["cherngtalay"], "u": "/cherngtalay/weekly-update/2026/10/weekly-update-9/"},
+    {"id": "a2", "t": "article", "ti": "Friday Market: Call for Vendors!", "sn": "Our next Friday Market is on Friday, 13 November, and we invite local vendors to apply for a stall.", "sec": "Upcoming events", "p": "Weekly Update #9", "d": "2026-10-30", "c": ["cherngtalay"], "u": "/cherngtalay/weekly-update/2026/10/weekly-update-9/"},
+    {"id": "a3", "t": "article", "ti": "Year 9 Science Fair Winners Announced", "sn": "Over fifty projects were presented to a panel of judges, with winners investigating water filtration and solar cooking.", "sec": "Secondary", "p": "Weekly Update #8", "d": "2026-10-23", "c": ["chaofah"], "u": "/chaofah/school-life/2026/10/science-fair/"},
+
+    {"id": "e1", "t": "event", "ti": "Christmas Fair", "s": "Stalls, food and music.", "d": "2026-12-12", "de": "2026-12-12", "c": ["cherngtalay"], "u": "/events/"},
+    {"id": "e2", "t": "event", "ti": "Sports Day", "s": "Whole-school sports day.", "d": "2026-11-20", "de": "2026-11-20", "c": ["chaofah"], "u": "/events/"},
+    {"id": "e3", "t": "event", "ti": "Sports Week Launch", "s": "Past event.", "d": "2026-09-01", "de": "2026-09-01", "c": ["chaofah"], "u": "/events/"},
+
+    {"id": "d1", "t": "doc", "ti": "Chaofah City Campus - Foundation Parent Handbook", "ft": "gdoc", "u": "https://docs.google.com/document/d/example1", "on": {"ti": "Foundation", "sec": "Downloads", "u": "/en/foundation/"}, "c": ["chaofah"], "d": "2026-10-01"},
+    {"id": "d2", "t": "doc", "ti": "Primary & Secondary Menu", "ft": "pdf", "u": "/wp-content/uploads/2026/08/menu.pdf", "on": {"ti": "Food Services", "u": "/resources-and-information/food-services/"}, "d": "2026-08-20", "pin": 1},
+    {"id": "d3", "t": "doc", "ti": "Chess Tournament Registration", "ft": "gform", "u": "https://docs.google.com/forms/d/example3", "on": {"ti": "Weekly Update #9", "sec": "Upcoming events", "u": "/cherngtalay/weekly-update/2026/10/weekly-update-9/"}, "c": ["cherngtalay"], "d": "2026-10-30", "up": 1}
+  ]
+}
