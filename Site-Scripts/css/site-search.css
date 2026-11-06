@@ -32,14 +32,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 34px;
+  height: 30px;
   width: 300px;
   max-width: 100%;
   margin: 0;
-  padding: 0 6px 0 11px;
+  padding: 0 5px 0 10px;
   background: #fff;
   border: 1px solid #cbd5e1;
-  border-radius: 4px;
+  border-radius: 5px; /* same height and radius as the Safeguarding button */
   box-sizing: border-box;
   transition: width 0.25s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
@@ -69,7 +69,7 @@
   background: transparent !important;
   box-shadow: none !important;
   color: var(--hs-s-dark);
-  font: 400 0.95rem var(--hs-s-body);
+  font: 400 13.5px/30px var(--hs-s-body);
   -webkit-appearance: none;
   appearance: none;
 }
@@ -77,16 +77,16 @@
 .hs-search .hs-search-field::-webkit-search-cancel-button { display: none; }
 .hs-search .hs-search-clear {
   flex: none;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   margin: 0;
   padding: 0;
   border: 0;
   border-radius: 3px;
   background: #e2e8f0;
   color: #475569;
-  font-size: 11px;
-  line-height: 20px;
+  font-size: 10px;
+  line-height: 18px;
   cursor: pointer;
 }
 .hs-search .hs-search-key {
@@ -98,6 +98,10 @@
   color: #64748b;
   font: 700 10.5px var(--hs-s-head);
 }
+/* In the utility bar: centre the social icons and the field on one line */
+.hs-utility-bar .et_pb_group:has(.hs-search) { align-items: center !important; }
+.hs-utility-bar .et_pb_module:has(> .et_pb_code_inner > .hs-search) { margin: 0 !important; line-height: 0; }
+.hs-utility-bar .et_pb_group:has(.hs-search) > .et_pb_image { display: flex; align-items: center; }
 .hs-search.is-open .hs-search-key,
 .hs-search-form:focus-within .hs-search-key { display: none; }
 

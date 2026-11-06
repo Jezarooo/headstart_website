@@ -92,7 +92,9 @@
       if (it.cl) { f.push([it.cl.join(' '), W.cls]); }
       if (it.g) { f.push([it.g, W.kw]); }
       if (it.k) { f.push([[].concat(it.k).join(' '), W.kw]); }
-      f.push([[it.s, it.sec, it.p, it.bc, on.ti, on.sec, it.loc, it.wk ? 'week ' + it.wk : ''].join(' '), W.sub]);
+      // the year (and month) of dated items, so "christmas 2025" or "prom 2026" work
+      var dt = it.d && /^\d{4}-\d{2}/.test(it.d) ? it.d.slice(0, 4) + ' ' + ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'][+it.d.slice(5, 7) - 1] : '';
+      f.push([[it.s, it.sec, it.p, it.bc, on.ti, on.sec, it.loc, it.wk ? 'week ' + it.wk : '', it.t === 'issue' || it.t === 'article' || it.t === 'doc' ? dt : ''].join(' '), W.sub]);
       f.push([[it.sn, it.x, it.a].join(' '), W.text]);
       return f;
     }
@@ -393,11 +395,10 @@
     });
     return out;
   }
-  function fmtDate(d, upper) {
+  function fmtDate(d, withYear) {
     if (!d) { return ''; }
     var p = d.split('-');
-    var s = (+p[2]) + ' ' + MONTH[+p[1] - 1];
-    return upper ? s.toUpperCase() : s;
+    return (+p[2]) + ' ' + MONTH[+p[1] - 1] + (withYear ? ' ' + p[0] : '');
   }
   function campusTag(c) {
     if (!c || !c.length) { return '<span class="hs-sp-tag">Both</span>'; }
@@ -526,17 +527,15 @@
     commitIdle();
   }
 
-  /** Desktop: drop the panel under the utility bar, kept inside the viewport. */
+  /** Desktop: drop the panel under the utility bar, aligned to the bar's row container (same left edge as the social icons). */
   function place() {
     if (!panel || state.sheet || !state.wrap) { return; }
-    var wide = root.innerWidth >= 1200;
-    panel.classList.toggle('is-cols', wide);
     var vw = document.documentElement.clientWidth;
-    var width = Math.min(wide ? 1140 : 760, vw - 32);
-    var wr = state.wrap.getBoundingClientRect();
     var bar = state.wrap.closest('.hs-utility-bar') || state.wrap.closest('.et_pb_section') || state.wrap;
-    var br = bar.getBoundingClientRect();
-    var left = wide ? (vw - width) / 2 : Math.max(16, Math.min(wr.left - 12, vw - width - 16));
+    var row = state.wrap.closest('.et_pb_row') || bar;
+    var br = bar.getBoundingClientRect(), rr = row.getBoundingClientRect(), wr = state.wrap.getBoundingClientRect();
+    var left = Math.max(8, rr.left), width = Math.min(rr.width, vw - left - 8);
+    panel.classList.toggle('is-cols', vw >= 1100);
     panel.style.width = width + 'px';
     panel.style.left = (left - wr.left) + 'px';
     panel.style.top = (br.bottom - wr.top) + 'px';
@@ -558,22 +557,27 @@
         break;
       case 'doc':
         lead = '<span class="hs-sp-lead hs-sp-lead--doc">' + ICON.doc + '<i>' + esc(FT[it.ft] || 'DOC') + '</i></span>';
-        sub = '<span>Found on: ' + esc(((it.on || {}).ti || '') + ((it.on || {}).sec ? ' › ' + it.on.sec : '')) + '</span>';
+        sub = '<span>Found on: ' + hl(((it.on || {}).ti || '') + ((it.on || {}).sec ? ' › ' + it.on.sec : ''), words) + '</span>';
         ext = true; go = 'Open document ↗';
         break;
       case 'issue':
         lead = '<span class="hs-sp-lead hs-sp-lead--issue">' + ICON.issue + '</span>';
-        sub = '<span>' + esc([it.wk ? 'Week ' + it.wk : '', fmtDate(it.d)].filter(Boolean).join(' · ')) + (it.k && it.k.length ? ' · In this issue: ' + hl(it.k.slice(0, 6).join(', '), words) : '') + '</span>';
+        sub = '<span>' + hl([it.wk ? 'Week ' + it.wk : '', fmtDate(it.d, true)].filter(Boolean).join(' · '), words) + (it.k && it.k.length ? ' · In this issue: ' + hl(it.k.slice(0, 6).join(', '), words) : '') + '</span>';
         break;
       case 'article':
         lead = '<span class="hs-sp-lead hs-sp-lead--issue">' + ICON.issue + '</span>';
         sub = '<span class="hs-sp-snip">' + hl(HSSearchEngine.snippet(it.sn || '', words, 150), words) + '</span>';
-        meta = '<span>' + esc([it.p || (it.k && it.k[0]) || 'Weekly update article', it.sec, fmtDate(it.d)].filter(Boolean).join(' · ')) + '</span>' + campusTag(it.c);
+        meta = '<span>' + hl([it.p || (it.k && it.k[0]) || 'Weekly update article', it.sec, fmtDate(it.d, true)].filter(Boolean).join(' · '), words) + '</span>' + campusTag(it.c);
         tagAfterTitle = false;
         break;
       default:
         lead = '<span class="hs-sp-lead hs-sp-lead--page">' + ICON.page + '</span>';
-        sub = '<span>' + esc(it.bc ? it.bc + ' › ' + (it.s || '') : (it.s || '')) + '</span>';
+        // Description (Yoast or first text); if the search words are only in the page's headings, show those instead.
+        var desc = it.s || '', lowerDesc = desc.toLowerCase();
+        if (words.length && it.x && !words.some(function (w) { return lowerDesc.indexOf(w) > -1; })) {
+          desc = HSSearchEngine.snippet(it.x, words, 150);
+        }
+        sub = '<span class="hs-sp-snip">' + (it.bc ? esc(it.bc) + ' › ' : '') + hl(desc, words) + '</span>';
     }
     return '<a class="hs-sp-row" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="' + it.t + '" data-pos="' + idx + '" href="' + esc(it.u) + '"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>' +
       lead + '<span class="hs-sp-tx"><span class="hs-sp-ti"><span>' + title + '</span>' + (tagAfterTitle ? campusTag(it.c) : '') + '</span>' +
