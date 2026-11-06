@@ -143,32 +143,18 @@ An item with no campus means both campuses.
 3. the nearest preceding heading or tab title + " (" + type label + ")";
 4. the file name, humanised.
 
-**Class teacher tokens (`cl`).** These come from `job_title` (and the display group name) with no staff field changes:
+**Class teacher tokens (`cl`).** The class is already stored on each staff member as their **display group** (taxonomy `staff_display_group`: "Year 3 (Blue)", "Year 3 (White)", "Reception (Yellow)", "Preschool (Blue)", "Early Years (Yellow)" and so on). The job title often repeats it ("Year 3 (Blue) Homeroom Teacher"), but not always. So the tokens come from **both** the display group term names and `job_title`. No staff field is added or changed.
 - `/\b(?:year|yr|y)\s?(\d{1,2})\b/i` gives `year N` plus `N`;
 - `/\b(\d{1,2})\s?([A-Z])\b/` gives `NX`, e.g. `3B`;
-- EYFS words: `pre-nursery`, `nursery`, `reception`, `foundation`, `kindergarten`;
-- if the title contains "class teacher" or "homeroom", add the keyword `class teacher`.
+- the colour in brackets, e.g. `blue`, `white`, `yellow`, becomes a token too, so "year 3 blue" works;
+- EYFS words: `pre-nursery`, `nursery`, `preschool`, `reception`, `foundation`, `kindergarten`, `early years`;
+- if the title or the group contains "homeroom" or "class teacher", add the keyword `class teacher`. Local titles use **"Homeroom Teacher"**, not "Class Teacher", so "homeroom" must map to it.
 
-First task in Build: count how many class teachers on local have a year or class in their title, and report it to the user. If coverage is poor, **stop and ask**. The fix would need a staff field, which is off-limits without their OK.
+Local check on 6 Nov: 115 of 342 staff sit in a Year / Reception / Preschool / Early Years display group, and 13 of those have a title without the class, so the display group is needed. Year 3 (Blue), for example, holds two Homeroom Teachers and two Deputy Teachers.
 
-**Rebuild triggers.** These only schedule a rebuild; they never build inline on save. Each trigger calls `hs_search_schedule_rebuild()`, which runs `wp_schedule_single_event( time() + 30, 'hs_search_rebuild' )` unless one is already scheduled.
-- `save_post_{page,post,weekly_update,events,staff,hs_search_topic}`
-- `deleted_post`, `trashed_post`, `transition_post_status` for those types
-- `set_object_terms` for the relevant taxonomies
-- `acf/save_post` at priority 20 for those types
-- the staff CSV importer finishing: hook into the same action it fires, if any; otherwise `set_object_terms` covers it. Check, but don't edit the importer.
-- Daily: `wp_schedule_event( …, 'daily', 'hs_search_rebuild' )`, so past events drop off.
-- `hs_search_rebuild` calls `hs_search_build_index()`, which needs a lock (transient `hs_search_building`, 120 s) so two builds never overlap.
+First task in Build: report class-teacher coverage again from the built index. Expected: every person in a class display group has a `cl` token. If anyone is missed, report it. No staff field is needed.
 
-**Status page** (Site search → Index status, `manage_options`):
-- built time, item counts per type, file size, build ms, last error;
-- "Rebuild now" (nonce, POST, runs synchronously, shows the result);
-- the search-terms report (section 3);
-- a link to `index.json`.
-
-**Performance target:** a build under 5 s on live; `index.json` under 600 KB raw and **under 150 KB with gzip**. Cloudflare compresses JSON. If over budget, trim `x` to 300 chars and `s` to 140.
-
-### 3. `Site-Scripts/php/search-shortcodes.code-snippets.php` (new): front-end hooks
+## 3. `Site-Scripts/php/search-shortcodes.code-snippets.php` (new): front-end hooks
 - **`[hs_search_button]`** renders `<button type="button" class="hs-search-trigger" aria-label="Search the site" aria-haspopup="dialog"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>`. Font Awesome is already on the site; `staff-directory.js` uses `fa-search`. It has no outer margin or padding (user preference: spacing is set in Divi).
 - **`[hs_search placeholder="Search HeadStart…"]`** renders an inline bar: a `<button>` styled like an input that opens the same panel. It also has no outer margin or padding.
 - **Shortcode output is identical for every visitor**, so page caching stays safe.
