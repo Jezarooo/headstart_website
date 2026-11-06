@@ -34,7 +34,7 @@ We want one search box in the utility bar that finds people, class teachers, pag
 - **Layouts (UAT decision 6 Nov):** on desktop (viewport ≥ 1100 px) **the same structure for every search**: a quick-answer card across the top when there is one, then **three fixed columns** in the same place every time, **People | Pages + Quick answers | Weekly updates + Articles + Events**, then a full-width **Documents** row. An empty column shows a quiet "No … match" line instead of disappearing. Below 1100 px (tablets, phones): one grouped list.
 - **Panel position:** starts at the left edge of the utility bar's row container (aligned with the social icons) and is wide, max 1140 px, but does not stretch to the right edge.
 - **Style: brand blue.** Panel `--hs-dark #003057`, the same as the utility bar; gold `--hs-gold #f0b323` for group headings, the active-row edge and the quick-answer card.
-  - Field: same height as the Safeguarding button (30 px), **square corners** (UAT decision 6 Nov), 1px border `#cbd5e1`, `--hs-font-body`; vertically centred with the social icons. Buttons in the panel: 4px radius, no pill shapes. Focus: gold border plus soft gold ring.
+  - Field: same height as the Safeguarding button (30 px), **square corners** (UAT decision 6 Nov), 1px border `#cbd5e1`, `--hs-font-body`; vertically centred with the social icons. Buttons in the panel: 4px radius, no pill shapes. Focus: a thin **solid** brand-gold border (`1px solid #f0b323`), no glow, gradient or transparency (UAT 6 Nov).
   - Rows: hover is a solid lighter blue (`#0a4377`); the keyboard-active row also gets a **straight** 3px gold bar on the left, right corners rounded 6px; subtle 1px lines between rows (hidden next to the hovered row).
   - Fonts: weights 500-600 only; on the blue panel titles are white, secondary text `#a9c2dc`.
   - **Keyword highlight: gold underline** (2px, offset 3px), no fill.
@@ -85,7 +85,7 @@ Header in the style of `weekly-update-short-links.code-snippets.php`. No permali
   | Contact fields (conditional on `contact`) | text / url / email | For each campus: name, address, phone 1, phone 2, email, map URL; plus visit-times label and text, contact page URL |
 
   Order comes from `menu_order`.
-- **Seed once** (option `hs_search_topics_seeded`, only if no topics exist): **draft** topics with synonyms, and the links already known: Contact the school (full contact data above), School fees, How to enrol, Term dates, Book a tour, Uniform (no link), ECAs & clubs, Careers (`/recruitment/`), Lunch menu, Policies (`/key-policies/`), Alumni (`/alumni-network/`), Transport, Curriculum, Scholarships, Shop. Drafts never reach the index.
+- **Seed once** (option `hs_search_topics_seeded`, only if no topics exist): **draft** topics with synonyms, and the links already known: Contact the school (full contact data above), School fees, How to enrol, Calendar (term dates and key dates), Staff directory, Safeguarding, Book a tour, Uniform (no link), ECAs & clubs, Careers (`/recruitment/`), Lunch menu, Policies (`/key-policies/`), Alumni (`/alumni-network/`), Transport, Curriculum, Scholarships, Shop. Drafts never reach the index.
 - **"Hide from site search"** ACF true_false `hs_search_exclude` in the sidebar of page, post, weekly_update and events (not staff).
 
 ### 2. `Site-Scripts/php/search-index-builder.code-snippets.php` (new): builds the index
@@ -164,7 +164,7 @@ Plain ES2017, one IIFE, header in the style of `noticeboard.js`. Two parts:
   - Results: quick-answer card first (score ≥ 60), then groups People, Pages, Quick answers, Weekly updates, Events, Documents. Layout A: best 3 per group with "See all N"; layout C: columns as in the design.
   - Row content: person (photo, name, role with class and campus tags; opens the directory); page (title, breadcrumb/description, campus tag); issue (title, week · date · "In this issue: …"); article (headline, article snippet around the first match, meta "Weekly Update #9 · Section · date" + campus tag); event (date block, title, time/location); document (icon + type, title, "Found on: page › section", opens in a new tab).
   - Keyboard: ↑ ↓ move, Enter opens the active row (or the first), Esc clears then closes; `role="listbox"` / `role="option"`, `aria-activedescendant`, `aria-live` count.
-  - Empty state: pinned quick answers and the visitor's last 5 searches (`localStorage` `hs_search_recent`, every access in try/catch).
+  - Empty state: the visitor's last 5 searches (`localStorage` `hs_search_recent`, every access in try/catch) and **six pinned quick-answer cards filling the grid** (3 × 2 on desktop): Contact the school, School fees, How to enrol, **Calendar** (renamed from Term dates), **Staff directory** (`/staff-directory/`) and **Safeguarding** (`/resources-and-information/safeguarding-guidelines/`). No "Try" row (UAT 6 Nov).
   - No results: suggestions, the Contact card, and "Search the whole site" (`/?s=`).
   - `?q=` on any URL (optional `&campus=`) opens the panel pre-filled.
   - Not in the Divi builder (same check as `noticeboard.js`).
