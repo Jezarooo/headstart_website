@@ -23,10 +23,10 @@ We want one search panel that finds people, class teachers, pages, common questi
 - **Panel design (mock-up reviewed 6 Nov, `scratch/site-search/mockup/index.html`):**
   - the search field sits **in the utility bar** beside the social icons, and the results **slide out under the bar**, anchored to the field. No modal, no backdrop; Esc clears then closes, and clicking elsewhere closes;
   - layouts **A (grouped list)** and **C (columns)**: A on phones, tablets and narrow desktops, C on wide desktops. B (category rail) is dropped;
-  - **brand colours only** (`--hs-dark #003057`, `--hs-gold #f0b323`). The utility bar is already `--hs-dark`, so the panel continues it. The user picks one of three styles in the mock-up (brand blue / blue strip + white / white and gold);
+  - **brand colours only** (`--hs-dark #003057`, `--hs-gold #f0b323`). The utility bar is already `--hs-dark`, so the panel continues it. The user picks one of three styles in the mock-up (brand blue / blue strip + white / white and gold); brand blue is preferred. Row hover is a solid lighter blue (no yellow tint); the keyboard-active row also gets a 3px gold left edge; rows are separated by subtle 1px lines;
   - the field and buttons follow the site's own components: 1px border, **4px radius** (as `.hs-search-input` and the utility-bar buttons), `--hs-font-body`; no pill shapes;
-  - result icons: **staff photo** (the staff post's featured image, 150px thumbnail, the same image the directory uses), a clear icon tile for pages and weekly updates, the gold date block for events, a file icon with a small type tag for documents;
-  - **"News" is merged into "Weekly updates"**: there is no separate News group. Weekly-update issues and the articles in them are listed together. To check in step 2: how a `post` is tied to its issue; if it isn't, label it "Weekly update article" with its date;
+  - result icons: **staff photo** (the staff post's featured image, 150px thumbnail, the same image the directory uses), a clear icon tile for pages and weekly updates, a square gold date block for events, a file icon with a small type tag for documents;
+  - **"News" is merged into "Weekly updates"**: there is no separate News group. Weekly-update issues and the articles in them are listed together. Articles are read from inside each issue (see "Weekly update articles"), so no tagging is needed;
   - the **Contact the school** quick answer shows both campus phone numbers and addresses, one email, reception hours and one link to the single Contact page.
 - **Removed from scope:** Google sitelinks search-box markup, voice input, and a shared engine inside the staff directory.
 - **No AI answers.** Quick answers are written by the school.
@@ -128,8 +128,8 @@ An item with no campus means both campuses.
 | page | `page`, publish, no password | `ti` = title; `s` = Yoast meta description (`_yoast_wpseo_metadesc`), else the first 200 chars of text; `x` = H1–H3 text + Divi tab titles, capped at 600 chars; `lg` = ACF `page_language` (default `en`) | Skip: Yoast noindex (`_yoast_wpseo_meta-robots-noindex` = `1`); the campus parent pages that `pages-campus-routing` redirects; the language placeholder parents (`get_page_by_path($lang)` for th/ru/zh); pages whose slug contains `thank-you` or `thanks` |
 | person | `staff`, publish, `posts_per_page => -1` | name; `job_title`; `staff_department` and `staff_display_group` names → `k`; campuses; thumbnail (`thumbnail` size) → `img`; `cl` = class tokens (below) | **One item per person**: don't reuse the transient `hs_staff_directory_data`, which clones people per campus × department. No email and no `profile_blurb`: keep the index lean and only show fields the directory already shows on cards. `u` = permalink of the first published page whose content contains `[hs_staff_directory` (found at build time) |
 | event | `events`, publish, `event_end_date` (or `event_start_date`) ≥ today − 60 days | title, `event_blurb`, `event_category` label → `k`, `event_location`, `event_start_date`/`event_end_date` → `d`/`de`, `target_campus`, times | `u` = the events-calendar page (content contains `[hs_events_calendar`). If several pages carry different `campus=` attributes, pick the one matching the event's campus. Add `?hs_event=<sanitize_title(title)>&d=<Y-m-d>` (see section 4, deep link). Events are `publicly_queryable => false`, so no single URL exists |
-| update | `weekly_update`, publish | title, ACF `blurb`, `in_this_issue` term names → `k`, `hs_week_number` → `wk`, `hs_campus`, date, archive flag (`hs_weekly_archive_status` term) → `ar` | `u` = `get_permalink()` (the phantom-link injector already gives the pretty URL). Check what `hs_legacy_archive` does before deciding whether those items link elsewhere |
-| news | `post`, publish | title, excerpt or the first 200 chars of text, `hs_department` → `k`, `hs_post_campus`, date | `u` = `get_permalink()` |
+| update (issue) | `weekly_update`, publish | title (e.g. "Weekly Update #9"), ACF `blurb`, `in_this_issue` term names → `k` (these are the article topics of the issue), `hs_week_number` → `wk`, `hs_campus`, date, archive flag (`hs_weekly_archive_status` term) → `ar` | `u` = `get_permalink()` (the phantom-link injector already gives the pretty URL). Check what `hs_legacy_archive` does before deciding whether those items link elsewhere. Rank newest first when the query is about issues ("weekly update", "week 7") |
+| update (article) | **Parsed from each issue's own content** (below), plus `post`, publish | article headline, section label, first ~160 chars of body, issue id → `p`, date | The articles are not tagged individually, but they are structured: see "Weekly update articles". A `post` with the same normalised headline as an issue article replaces that article's entry and gives the real page `u`. A `post` with no match is listed as its own article |
 | doc | Scan the content of every indexed page, weekly_update and post (below) | link title, file type, the page it was found on, that page's campus | Dedupe by URL: keep the first page as `on`, and add a count if found on more |
 | topic | `hs_search_topic`, **publish only** | title, synonyms (split, trimmed, lowercased, deduped), links, answer, pinned | Skip topics with no link at all |
 
@@ -138,6 +138,12 @@ An item with no campus means both campuses.
 - Load each HTML-ish string into `DOMDocument` (wrapped as UTF-8, errors suppressed) to get text, headings and anchors.
 - Divi tab titles: from `divi/tab` blocks (verify the block name and attribute path on a real page export; dump one with WP-CLI or a temporary debug endpoint on local, never on live).
 - Plain text for `s`/`x`: strip tags, collapse whitespace, and drop shortcode tags (`strip_shortcodes`) and script/style content.
+
+**Weekly update articles.** In an issue, each article is a Divi Group whose class is `hs-weekly-article` (the same class `weekly-update-single.js` and `gallery-mosaic.js` already use). Inside it: the headline is the first `h3` (a text module with the admin label "Heading"), the body is the text modules after it, and the section is the nearest preceding `h2.hs-section` ("Upcoming events", "Upcoming meetings & presentations", a themed heading such as "Halloween Celebrations!") or the Divi section's admin label (Foundation, Primary, Secondary, Academy News). Checked on Weekly Update #9 (Cherngtalay): 16 articles, all with an `h3` headline. So no tagging is needed:
+- Parse with `parse_blocks()`, walk to groups carrying the class `hs-weekly-article`, and take headline, section and a short body snippet. Skip an article with no `h3`.
+- **Deep link:** the articles have no anchors and we can't edit the weekly-update snippets. The result links to the issue (or the matching `post`) with `#a=<slug of the headline>`. `site-search.js` runs on every page: if it finds `#a=` it looks for the `.hs-weekly-article` whose first `h3` slugifies to the same value, scrolls to it and highlights it briefly. If none is found it just opens the page.
+- **Size guard:** about 170 issues × 15 articles is roughly 2,500 article entries. Store only headline, section, a 160-character snippet and the ids. Measure the gzipped `index.json` in build step 2. If it is too big, keep article entries for the last 12 months and index older issues at issue level only.
+- **Display:** an article row shows its headline, with "Weekly Update #9 · Section · date" underneath. An issue row shows "Weekly Update #9", the week and date, and "In this issue: …" from the `in_this_issue` terms. Both sit in one **Weekly updates** group. There is no News group.
 
 **Document links.** A link counts as a document if its href matches any of these:
 - `docs.google.com/(document|spreadsheets|presentation|forms)/`
@@ -208,7 +214,7 @@ Split into two parts so the engine can be unit-tested in Node:
 **Query parser (chips)**
 - Scan the query for recognised words and phrases (longest match first). Each becomes a chip and is removed from the free text:
   - **Campus:** `campuses[].a`.
-  - **Type:** people, staff, teacher(s), person → `person`; event(s), calendar, what's on → `event`; weekly, update(s), newsletter, bulletin → `update`; news, story, stories → `news`; doc(s), document(s), pdf, form(s), handbook → `doc`; page(s) → `page`.
+  - **Type:** people, staff, teacher(s), person → `person`; event(s), calendar, what's on → `event`; weekly, update(s), newsletter, bulletin → `update`; news, story, stories → `update`; doc(s), document(s), pdf, form(s), handbook → `doc`; page(s) → `page`.
   - "Teacher" is both a type hint and a text term, so it boosts people without filtering out "class teacher" topics.
 - Departments: any `facets.dept` value; it filters people and news.
 - Time, resolved against the visitor's local date:
@@ -243,7 +249,7 @@ Split into two parts so the engine can be unit-tested in Node:
 - Chips are hard filters. An item with no campus is in both campuses.
 - If there are zero results with AND: retry with OR over the tokens, and show "No exact matches – showing close results". If still none: the empty-help state.
 
-**Grouping:** a topic card first (best topic if score ≥ 60), then groups People, Pages, Documents, Events, Weekly updates, News, ordered by each group's best score. Show 3 items per group; "See all N" expands that group in place, with a "‹ All results" back control.
+**Grouping:** a topic card first (best topic if score ≥ 60), then groups People, Pages, Documents, Events, Weekly updates, ordered by each group's best score. Show 3 items per group; "See all N" expands that group in place, with a "‹ All results" back control.
 
 **Panel UI**
 - Built once and appended to `<body>`. It's a `role="dialog" aria-modal="true" aria-label="Site search"`.
