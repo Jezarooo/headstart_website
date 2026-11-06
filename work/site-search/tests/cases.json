@@ -168,5 +168,29 @@
   {
     "q": "the",
     "zero": true
+  },
+  {
+    "q": "kit",
+    "topTitle": "Uniform Shop"
+  },
+  {
+    "q": "ks1",
+    "includes": [
+      "KS1 Phonics Guide",
+      "Year 1 Curriculum"
+    ]
+  },
+  {
+    "q": "year 1",
+    "notTitle": "KS1 Phonics Guide"
+  },
+  {
+    "q": "after school",
+    "topTitle": "ECA Programme"
+  },
+  {
+    "q": "costs",
+    "topTitle": "Tuition & Fees",
+    "promoted": true
   }
 ]

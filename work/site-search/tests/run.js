@@ -27,6 +27,8 @@ function check(c) {
   if (c.noType && r.results.some(function (x) { return x.it.t === c.noType; })) { errs.push('should have no ' + c.noType + ' results'); }
   if (c.corrected && r.corrected !== c.corrected) { errs.push('corrected "' + r.corrected + '" != "' + c.corrected + '"'); }
   if (c.corrected && r.words.indexOf(c.corrected) < 0) { errs.push('corrected word not in highlight words'); }
+  (c.includes || []).forEach(function (t) { if (!r.results.some(function (x) { return x.it.ti === t; })) { errs.push('missing ' + t); } });
+  if (c.promoted && !(r.results[0] && r.results[0].promoted)) { errs.push('top result not promoted'); }
   if (c.notTitle && r.results.some(function (x) { return x.it.ti === c.notTitle; })) { errs.push('should not include ' + c.notTitle); }
   if (c.allCampus && r.results.some(function (x) { return x.it.c && x.it.c.length && x.it.c.indexOf(c.allCampus) < 0; })) { errs.push('result outside ' + c.allCampus); }
   (c.chips || []).forEach(function (ch) {

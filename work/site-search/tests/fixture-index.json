@@ -495,6 +495,75 @@
       ],
       "d": "2026-10-30",
       "up": 1
+    },
+    {
+      "id": "p7",
+      "t": "page",
+      "ti": "Uniform Shop",
+      "s": "Opening times and price list.",
+      "lg": "en",
+      "u": "/uniform-shop/"
+    },
+    {
+      "id": "p8",
+      "t": "page",
+      "ti": "Year 1 Curriculum",
+      "s": "What children learn in Year 1.",
+      "lg": "en",
+      "u": "/year-1/"
+    },
+    {
+      "id": "p9",
+      "t": "page",
+      "ti": "KS1 Phonics Guide",
+      "s": "Phonics at home.",
+      "lg": "en",
+      "u": "/ks1-phonics/"
+    },
+    {
+      "id": "p10",
+      "t": "page",
+      "ti": "ECA Programme",
+      "s": "Clubs for every age.",
+      "lg": "en",
+      "u": "/ecas/"
     }
-  ]
+  ],
+  "rules": {
+    "g": [
+      [
+        "uniform",
+        "kit",
+        "clothing"
+      ],
+      [
+        "eca",
+        "after school",
+        "club"
+      ],
+      [
+        "enrol",
+        "enroll",
+        "enrolment",
+        "enrollment"
+      ]
+    ],
+    "x": [
+      [
+        "ks1",
+        [
+          "year 1",
+          "year 2"
+        ]
+      ]
+    ],
+    "p": [
+      [
+        "costs",
+        [
+          "p1"
+        ]
+      ]
+    ]
+  }
 }

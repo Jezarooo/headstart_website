@@ -22,7 +22,8 @@
     var STOP = {};
     'how much what is the a an do does i my for of to in at and are when where can you me about on with from by'.split(' ').forEach(function (w) { STOP[w] = 1; });
 
-    var VARIANTS = { enroll: 'enrol', enrolment: 'enrolment', enrollment: 'enrolment', enrolling: 'enrol', enrolled: 'enrol', program: 'programme', programs: 'programmes', color: 'colour', colors: 'colours', center: 'centre', organize: 'organise', yr: 'year' };
+    // Spelling variants and campus names are editable in Site search → Search terms and arrive in index.rules.
+    var VARIANTS = {};
 
     var TYPE_WORDS = {
       staff: 'person', people: 'person', person: 'person', teacher: 'person', teachers: 'person', who: 'person',
@@ -122,7 +123,22 @@
         (c.a || []).concat([c.k]).forEach(function (a) { aliases.push({ k: c.k, l: c.l, a: norm(a) }); });
       });
       aliases.sort(function (a, b) { return b.a.length - a.a.length; });
-      return { items: items, postings: postings, tokens: tokens, topics: topics, aliases: aliases, campuses: (index && index.campuses) || [] };
+      // Search terms rules: synonym groups (two-way), expansions (one-way), promoted results
+      var rules = [], R = (index && index.rules) || {};
+      var toks = function (x) { return norm(x).split(' ').filter(Boolean); };
+      (R.g || []).forEach(function (grp) {
+        var alts = grp.map(toks).filter(function (a) { return a.length; });
+        alts.forEach(function (m) { rules.push({ match: m, alts: alts }); });
+      });
+      (R.x || []).forEach(function (row) {
+        var from = toks(row[0]); if (!from.length) { return; }
+        rules.push({ match: from, alts: [from].concat((row[1] || []).map(toks).filter(function (a) { return a.length; })) });
+      });
+      rules.sort(function (a, b) { return b.match.length - a.match.length; });
+      var idIdx = {};
+      items.forEach(function (it, idx) { idIdx[it.id] = idx; });
+      var promos = (R.p || []).map(function (row) { return { term: norm(row[0]), ids: row[1] || [] }; }).filter(function (x) { return x.term; });
+      return { items: items, postings: postings, tokens: tokens, topics: topics, aliases: aliases, campuses: (index && index.campuses) || [], rules: rules, promos: promos, idIdx: idIdx };
     }
 
     function lowerBound(arr, s) {
@@ -154,6 +170,40 @@
           j++;
         }
       }
+      return out;
+    }
+
+    /** Group the query words into slots; a slot has one or more alternatives (synonyms / expansions). */
+    function slotsFor(ctx, words) {
+      var slots = [], i = 0;
+      while (i < words.length) {
+        var best = 0, alts = [];
+        (ctx.rules || []).forEach(function (r) {
+          var L = r.match.length;
+          if (L < best || i + L > words.length || words.slice(i, i + L).join(' ') !== r.match.join(' ')) { return; }
+          if (L > best) { best = L; alts = []; }
+          r.alts.forEach(function (a) { if (!alts.some(function (b) { return b.join(' ') === a.join(' '); })) { alts.push(a); } });
+        });
+        if (best) { slots.push({ text: words.slice(i, i + best).join(' '), alts: alts }); i += best; }
+        else { slots.push({ text: words[i], alts: [[words[i]]] }); i++; }
+      }
+      return slots;
+    }
+
+    /** item idx -> score for a slot: the best of its alternatives (a multi-word alternative needs all its words). */
+    function matchSlot(ctx, slot, isLast, fuzzyHits) {
+      var out = Object.create(null);
+      slot.alts.forEach(function (alt) {
+        var own = alt.join(' ') === slot.text, factor = own ? 1 : 0.9, m = null;
+        alt.forEach(function (tok, k) {
+          var one = matchToken(ctx, tok, (own && isLast && k === alt.length - 1) || tok.length >= 3, own ? fuzzyHits : null);
+          if (m === null) { m = one; return; }
+          var next = Object.create(null);
+          for (var key in m) { if (one[key] !== undefined) { next[key] = m[key] + one[key]; } }
+          m = next;
+        });
+        for (var key2 in m) { var v = m[key2] * factor / alt.length * (alt.length > 1 ? 1.2 : 1); if (!(out[key2] >= v)) { out[key2] = v; } }
+      });
       return out;
     }
 
@@ -273,11 +323,14 @@
       }
 
       var fuzzyHits = [];
+      var slots = slotsFor(ctx, words);
+      var also = [];
+      slots.forEach(function (sl) { sl.alts.forEach(function (a) { var t = a.join(' '); if (t !== sl.text && also.indexOf(t) < 0) { also.push(t); } }); });
       var run = function (mode) {
         var scores = null;
         fuzzyHits.length = 0;
-        var lists = words.map(function (w, i) { return matchToken(ctx, w, i === words.length - 1 || w.length >= 3, fuzzyHits); });
-        if (words.length) {
+        var lists = slots.map(function (sl, i) { return matchSlot(ctx, sl, i === slots.length - 1, fuzzyHits); });
+        if (slots.length) {
           if (mode === 'and') {
             lists.forEach(function (m) {
               if (scores === null) { scores = Object.create(null); for (var k in m) { scores[k] = m[k]; } return; }
@@ -331,14 +384,29 @@
       };
 
       res = run('and');
-      if (!res.length && words.length > 1) { res = run('or'); relaxed = res.length > 0; }
+      if (!res.length && slots.length > 1) { res = run('or'); relaxed = res.length > 0; }
+      // Promoted results ("best bets") for this search go first, even if their text would not have matched
+      var padded = ' ' + norm(raw) + ' ';
+      (ctx.promos || []).forEach(function (pr) {
+        if (padded.indexOf(' ' + pr.term + ' ') < 0) { return; }
+        pr.ids.forEach(function (id, n) {
+          var idx = ctx.idIdx[id]; if (idx === undefined) { return; }
+          var it = ctx.items[idx];
+          if (campus && it.c && it.c.length && it.c.indexOf(campus) < 0) { return; }
+          var hit = null;
+          res.forEach(function (r) { if (r.it === it) { hit = r; } });
+          if (hit) { hit.score += 1000 - n; hit.promoted = true; } else { res.push({ it: it, score: 1000 - n, promoted: true }); }
+        });
+      });
       res.sort(function (a, b) { return b.score - a.score || (b.it.d || '').localeCompare(a.it.d || '') || a.it.ti.localeCompare(b.it.ti); });
       if (opts.limit) { res = res.slice(0, opts.limit); }
       // Typo tolerance: highlight (and report) the words that actually matched, e.g. "internationl" → "international"
       var corrected = {}, extra = [];
       fuzzyHits.forEach(function (h) { if (!corrected[h[0]]) { corrected[h[0]] = h[1]; } if (extra.indexOf(h[1]) < 0) { extra.push(h[1]); } });
       var shownWords = words.map(function (w) { return corrected[w] || w; });
-      return { parsed: p, results: res, topic: topic, topics: topics, relaxed: relaxed, words: words.concat(p.optional, extra),
+      var altWords = [];
+      slots.forEach(function (sl) { sl.alts.forEach(function (a) { a.forEach(function (t) { if (altWords.indexOf(t) < 0) { altWords.push(t); } }); }); });
+      return { parsed: p, results: res, topic: topic, topics: topics, relaxed: relaxed, words: words.concat(p.optional, extra, altWords), also: also,
         corrected: Object.keys(corrected).length ? shownWords.join(' ') : '' };
     }
 
