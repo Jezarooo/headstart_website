@@ -16,8 +16,9 @@ We want one search box in the utility bar that finds people, class teachers, pag
 - **No new page.** Results drop down from the search field. No `/search/` page, no results shortcode. WordPress `/?s=` stays only as the no-JavaScript fallback.
 - **Don't touch** the staff directory, events calendar, mega menu, mobile navigation or the weekly-update snippets.
 - **Class teachers** are found through the staff display group ("Year 3 (Blue)") plus the job title. No staff field is added.
-- **Weekly updates replace "News".** One group holds issues ("Weekly Update #9") and the articles inside them. Article results show a preview of the article's own text.
+- **Weekly updates replace "News".** Two groups (UAT decision 6 Nov): **Weekly updates** holds the issues ("Weekly Update #9"); **Articles** holds posts and the articles inside issues, each showing "From Weekly Update #9 · section · date" and a preview of the article's own text. A post opens its own page; an issue-only article opens the issue.
 - **Documents** are found by scanning content; titles come from the HTML around each link.
+- **Legacy Drive galleries are left out (UAT decision 6 Nov).** The school no longer shares Google Drive photo galleries. A Google Drive *folder* link (`drive.google.com/drive/folders/…`) found only in weekly updates or posts is treated as a legacy gallery and not indexed (local: all 153 folder links are of this kind; none are on pages). All other Google links stay: Docs, Sheets, Slides, Forms, Drive files, and PDFs. A folder linked from a regular page is still a document. Any folder can be brought back by Pinning it on the Documents screen.
 - **Posts and events are forward-looking sources (6 Nov).** Posts are only partly used today (imports), and the school will soon move from Google Calendar to the site calendar. Both must be searchable as they grow:
   - **posts** are indexed in their own right (every published post, its own page link), not only as copies of weekly-update articles;
   - **events** follow the existing `events` post type and meta keys (no new structure expected); they appear automatically once a public calendar page exists.
@@ -30,9 +31,10 @@ We want one search box in the utility bar that finds people, class teachers, pag
 ### Design (from the mock-up)
 - **Placement:** a real search field in the **utility bar**, next to the social icons (`[hs_search]` in a Divi Code module). The results panel **slides down from under the bar**, anchored to the field. No modal, no backdrop, no scroll lock. Esc clears, a second Esc closes; clicking outside closes. `/` or Ctrl/Cmd+K focuses the field.
 - **Mobile:** the utility bar is hidden on small screens, so `[hs_search_button]` (magnifier icon) goes in the mobile header. It opens the same panel as a full-width sheet with the field at the top. Exact spot chosen by the user in Divi.
-- **Layouts:** **A (grouped list)** below 1100 px panel width, **C (columns)** on wide desktops: People | Pages + Quick answers | Weekly updates + Events, Documents in a full-width row underneath. A quick-answer card always sits on top.
+- **Layouts (UAT decision 6 Nov):** on desktop (viewport ≥ 1100 px) **the same structure for every search**: a quick-answer card across the top when there is one, then **three fixed columns** in the same place every time, **People | Pages + Quick answers | Weekly updates + Articles + Events**, then a full-width **Documents** row. An empty column shows a quiet "No … match" line instead of disappearing. Below 1100 px (tablets, phones): one grouped list.
+- **Panel position:** starts at the left edge of the utility bar's row container (aligned with the social icons) and is wide, max 1140 px, but does not stretch to the right edge.
 - **Style: brand blue.** Panel `--hs-dark #003057`, the same as the utility bar; gold `--hs-gold #f0b323` for group headings, the active-row edge and the quick-answer card.
-  - Field and buttons copy the site's own components: 1px border `#cbd5e1`, **4px radius**, `--hs-font-body`; no pill shapes. Focus: gold border plus soft gold ring.
+  - Field: same height as the Safeguarding button (30 px), **square corners** (UAT decision 6 Nov), 1px border `#cbd5e1`, `--hs-font-body`; vertically centred with the social icons. Buttons in the panel: 4px radius, no pill shapes. Focus: gold border plus soft gold ring.
   - Rows: hover is a solid lighter blue (`#0a4377`); the keyboard-active row also gets a **straight** 3px gold bar on the left, right corners rounded 6px; subtle 1px lines between rows (hidden next to the hovered row).
   - Fonts: weights 500-600 only; on the blue panel titles are white, secondary text `#a9c2dc`.
   - **Keyword highlight: gold underline** (2px, offset 3px), no fill.
@@ -117,7 +119,7 @@ No campus (`c: []`) means both campuses.
 | article | `.hs-weekly-article` groups inside each issue | headline (first `h3`), section (nearest `h2.hs-section`, else the Divi section admin label), 160-char body snippet `sn`, parent issue, date, campus | Links to the issue. If an article group later carries an `id`, the link adds `#id` (for the anchors the user will add). Dropped when a post has the same normalised headline (the post wins) |
 | post | `post`, publish (all of them, not only matches) | title, 160-char snippet (excerpt, else first text; the first `.hs-weekly-article` body if present), `hs_department` → `k`, `hs_post_campus`, date, the issue it also appears in (if any) → `p` | Own permalink. Shown in the Weekly updates group; the meta line reads "Weekly Update #9 · section · date" when it matches an issue article, otherwise "department · date". Works whether or not the post uses `hs-weekly-article`, so new-style posts need no change |
 | event | `events`, end (or start) date ≥ today − 60 days | title, `event_blurb`, category, location, dates (`Ymd` → ISO), times, `target_campus` | Uses the existing post type and meta keys, so the new calendar content is picked up without code changes. **Only included once a public calendar page exists:** the builder looks for a published page or Divi layout containing `hs_events_calendar`, or a URL set on the status page; with neither, events are skipped (the 287 imported events never link to a page that isn't live). `u` = that page; a deep link to the event popup can be added when the new calendar is built |
-| doc | links found in pages, issues and posts | title (rules below or override), file type, found-on page + section, campus, pinned | Dedupe by URL; respects the Documents manager states and rules (2c) |
+| doc | links found in pages, issues and posts | title (rules below or override), file type, found-on page + section, campus, pinned | Dedupe by URL; respects the Documents manager states and rules (2c); Drive folders found only in weekly updates/posts are skipped as legacy galleries unless Pinned (shown as "Legacy gallery, left out" on the Documents screen) |
 | topic | `hs_search_topic`, publish | as the index shape above | Skip a standard card with no button |
 
 **2b. Documents: titles from the surrounding HTML.** A link is a document if it points to `docs.google.com/(document|spreadsheets|presentation|forms)`, `drive.google.com/(drive/folders|file|open)`, or ends in `pdf|docx?|xlsx?|pptx?|zip|csv`. Title, first match wins:
@@ -220,7 +222,9 @@ Add `site-search.js` after `global-utilities.js`, purpose "Site search field, pa
 - [ ] A staff name (and a typo of it) finds the person with their square photo, role, class and campus; it opens the staff directory, which is unchanged.
 - [ ] "year 3", "3b" and "class teacher" find the class teachers.
 - [ ] "science teacher chaofah" shows the Chaofah chip and the right people.
-- [ ] "weekly update" lists the newest issues first; a word from inside an article finds that article with a preview of its text.
+- [ ] "weekly update" lists the newest issues first; a word from inside an article finds that article in the **Articles** group with a preview of its text; posts open their own page.
+- [ ] Desktop panel always shows the same three columns and the Documents row, starts at the left edge of the social icons and is not full width.
+- [ ] Old Drive photo-gallery folders no longer appear; Google Docs, Sheets, Slides, Forms and PDFs still do.
 - [ ] A post (including one not in any weekly update) is findable by its title and opens its own page.
 - [ ] Events stay out of search while no calendar page exists; setting the calendar page URL (or publishing one) brings them in after a rebuild. Source switches turn a source off and on.
 - [ ] A Google Doc or PDF from a tabbed section is findable by name and shows "Found on: page › section".
