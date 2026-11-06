@@ -22,8 +22,7 @@
     var STOP = {};
     'how much what is the a an do does i my for of to in at and are when where can you me about on with from by'.split(' ').forEach(function (w) { STOP[w] = 1; });
 
-    // Spelling variants and campus names are editable in Site search → Search terms and arrive in index.rules.
-    var VARIANTS = {};
+    // Spelling variants (synonym groups) and campus names are edited in Site search → Search terms and arrive in index.rules.
 
     var TYPE_WORDS = {
       staff: 'person', people: 'person', person: 'person', teacher: 'person', teachers: 'person', who: 'person',
@@ -56,7 +55,7 @@
       if (!n) { return []; }
       var out = [];
       n.split(' ').forEach(function (w) {
-        if (/^[a-z0-9]+$/.test(w)) { out.push(VARIANTS[w] || w); return; }
+        if (/^[a-z0-9]+$/.test(w)) { out.push(w); return; }
         // Thai, Chinese and other scripts without spaces
         if (SEG) {
           var it = SEG.segment(w);
@@ -94,7 +93,7 @@
       if (it.g) { f.push([it.g, W.kw]); }
       if (it.k) { f.push([[].concat(it.k).join(' '), W.kw]); }
       // the year (and month) of dated items, so "christmas 2025" or "prom 2026" work
-      var dt = it.d && /^\d{4}-\d{2}/.test(it.d) ? it.d.slice(0, 4) + ' ' + ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'][+it.d.slice(5, 7) - 1] : '';
+      var dt = it.d && /^\d{4}-\d{2}/.test(it.d) ? it.d.slice(0, 4) + ' ' + MONTHS[+it.d.slice(5, 7) - 1] : '';
       f.push([[it.s, it.sec, it.p, it.bc, on.ti, on.sec, it.loc, it.wk ? 'week ' + it.wk : '', it.t === 'issue' || it.t === 'article' || it.t === 'doc' ? dt : ''].join(' '), W.sub]);
       f.push([[it.sn, it.x, it.a].join(' '), W.text]);
       return f;
@@ -257,7 +256,6 @@
       var free = [], optional = [], types = {};
       var hasEventWord = words.some(function (w) { return TYPE_WORDS[w] === 'event'; });
       words.forEach(function (w, wi) {
-        w = VARIANTS[w] || w;
         // month (+ optional year); "may" only next to an event word or a year
         if (!range && MON3.hasOwnProperty(w) && (w !== 'may' || hasEventWord || /^\d{4}$/.test(words[wi + 1] || ''))) {
           var mi = MON3[w], yr = /^\d{4}$/.test(words[wi + 1] || '') ? +words[wi + 1] : 0;
@@ -450,7 +448,43 @@
       return (from > 0 ? '…' : '') + out.trim() + (from + out.length < text.length ? '…' : '');
     }
 
-    return { norm: norm, words: splitWords, build: build, parse: parse, search: search, group: group, snippet: snippet, dl1: dl1 };
+    /**
+     * HTML-safe highlight: matches (at the start of a word) are found in the plain text, merged,
+     * and only then is each piece escaped, so words like "amp", "quot", "39" or "mark" never break the markup.
+     */
+    function highlight(text, words) {
+      text = String(text == null ? '' : text);
+      var spans = [];
+      (words || []).forEach(function (w) {
+        w = String(w || ''); if (!w) { return; }
+        var re = new RegExp('(^|[^\\p{L}\\p{N}])(' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'giu'), m;
+        while ((m = re.exec(text))) {
+          var s = m.index + m[1].length;
+          spans.push([s, s + m[2].length]);
+          if (re.lastIndex <= s) { re.lastIndex = s + 1; }
+        }
+      });
+      if (!spans.length) { return escHTML(text); }
+      spans.sort(function (a, b) { return a[0] - b[0] || b[1] - a[1]; });
+      var out = '', at = 0, cur = null;
+      spans.forEach(function (sp) {
+        if (cur && sp[0] <= cur[1]) { cur[1] = Math.max(cur[1], sp[1]); return; }
+        if (cur) { out += escHTML(text.slice(at, cur[0])) + '<mark>' + escHTML(text.slice(cur[0], cur[1])) + '</mark>'; at = cur[1]; }
+        cur = [sp[0], sp[1]];
+      });
+      return out + escHTML(text.slice(at, cur[0])) + '<mark>' + escHTML(text.slice(cur[0], cur[1])) + '</mark>' + escHTML(text.slice(cur[1]));
+    }
+    function escHTML(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+    /** Links: only http(s), mailto, tel, site paths and anchors reach an href (anything else becomes "#"). */
+    function safeUrl(u) {
+      u = String(u == null ? '' : u);
+      var m = u.replace(/[\x00-\x20]+/g, '').match(/^([a-z][a-z0-9+.\-]*):/i);
+      return m && !/^(https?|mailto|tel)$/i.test(m[1]) ? '#' : u;
+    }
+
+    return { norm: norm, words: splitWords, build: build, parse: parse, search: search, group: group, snippet: snippet, dl1: dl1,
+      highlight: highlight, esc: escHTML, safeUrl: safeUrl, months: MONTHS };
   })();
 
   if (typeof module !== 'undefined' && module.exports) { module.exports = HSSearchEngine; }
@@ -464,11 +498,11 @@
   var TEST = /[?&]hs_search_test=1/.test(href); // Site search → Search terms preview frame
   if (href.indexOf('et_fb=1') > -1 || href.indexOf('et_pb_preview=true') > -1 || (root.top !== root.self && !TEST)) { return; }
 
-  var INDEX_URL = '/wp-content/uploads/hs-search/index.json';
-  var AJAX_URL = '/wp-admin/admin-ajax.php';
+  var INDEX_FALLBACK = '/wp-content/uploads/hs-search/index.json';
+  var AJAX_FALLBACK = '/wp-admin/admin-ajax.php';
   var DEBUG = /[?&]hs_search_debug=1/.test(root.location.search);
   var GROUP_LABEL = { person: 'People', page: 'Pages', topic: 'Quick answers', issue: 'Weekly updates', article: 'Articles', event: 'Events', doc: 'Documents' };
-  var MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var MONTH = HSSearchEngine.months.map(function (m) { return m.charAt(0).toUpperCase() + m.slice(1, 3); });
   var ICON = {
     search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
     page: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg>',
@@ -483,29 +517,32 @@
   var INFOBTN = '<span class="hs-sp-info" role="button" aria-label="Details" data-info="1"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6h.01"/></svg>Info</span>';
   var REC = '<span class="hs-sp-tag hs-sp-tag--rec">Recommended</span>';
   var DOCTYPE = { gdoc: 'Google Doc', gsheet: 'Google Sheet', gslides: 'Google Slides', gform: 'Google Form', folder: 'Google Drive folder', file: 'Google Drive file', pdf: 'PDF', word: 'Word document', excel: 'Spreadsheet', ppt: 'Presentation', zip: 'Zip file' };
-  var FT = { gdoc: 'DOC', gsheet: 'SHEET', gslides: 'SLIDES', gform: 'FORM', folder: 'FOLDER', file: 'FILE', pdf: 'PDF', word: 'DOC', excel: 'XLS', ppt: 'PPT', zip: 'ZIP' };
 
-  var state = { ctx: null, loading: null, campus: '', expanded: {}, active: 0, flat: [], field: null, wrap: null, sheet: false, lastQ: '', idleT: 0, committed: '' };
+  var state = { ctx: null, loading: null, campus: '', expanded: {}, active: 0, flat: [], field: null, wrap: null, sheet: false, idleT: 0, committed: '' };
   var panel = null, els = {};
 
-  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function hl(text, words) {
-    var out = esc(text);
-    (words || []).filter(function (w) { return w && w.length > 0; }).forEach(function (w) {
-      var re = new RegExp('(^|[^\\p{L}\\p{N}])(' + esc(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'giu');
-      out = out.replace(re, '$1<mark>$2</mark>');
-    });
-    return out;
+  var esc = HSSearchEngine.esc, hl = HSSearchEngine.highlight;
+  function url(u) { return esc(HSSearchEngine.safeUrl(u)); }
+  /** "a%E0" and other malformed values are ignored instead of stopping the script. */
+  function param(name) {
+    var m = root.location.search.match(new RegExp('[?&]' + name + '=([^&]*)'));
+    if (!m) { return null; }
+    try { return decodeURIComponent(m[1].replace(/\+/g, ' ')); } catch (e) { return null; }
+  }
+  /** Paths from the shortcode (data-hs-index / data-hs-ajax), so the uploads folder can move. */
+  function cfg(attr, fallback) {
+    var el = document.querySelector('[' + attr + ']');
+    return (el && el.getAttribute(attr)) || fallback;
   }
   function fmtDate(d, withYear) {
     if (!d) { return ''; }
     var p = d.split('-');
     return (+p[2]) + ' ' + MONTH[+p[1] - 1] + (withYear ? ' ' + p[0] : '');
   }
+  function campusName(c, both) { return !c || !c.length ? both : (c[0] === 'chaofah' ? 'Chaofah' : 'Cherngtalay'); }
   function campusTag(c) {
     if (!c || !c.length) { return '<span class="hs-sp-tag">Both</span>'; }
-    var name = c[0] === 'chaofah' ? 'Chaofah' : 'Cherngtalay';
-    return '<span class="hs-sp-tag hs-sp-tag--campus">' + name + '</span>';
+    return '<span class="hs-sp-tag hs-sp-tag--campus">' + campusName(c) + '</span>';
   }
   function tel(n) { return 'tel:' + String(n).replace(/[^\d+]/g, ''); }
   function lsGet(k) { try { return JSON.parse(root.localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
@@ -520,11 +557,11 @@
       if (DEBUG) { console.log('[hs-search] index', json.items.length, 'items in', Date.now() - t0, 'ms'); }
       render();
     };
-    state.loading = fetch(INDEX_URL, { cache: 'no-cache', credentials: 'same-origin' })
+    state.loading = fetch(cfg('data-hs-index', INDEX_FALLBACK), { cache: 'no-cache', credentials: 'same-origin' })
       .then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); })
       .catch(function () {
         var body = new URLSearchParams(); body.append('action', 'hs_search_index');
-        return fetch(AJAX_URL, { method: 'POST', body: body, credentials: 'same-origin' }).then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); });
+        return fetch(cfg('data-hs-ajax', AJAX_FALLBACK), { method: 'POST', body: body, credentials: 'same-origin' }).then(function (r) { if (!r.ok) { throw new Error(r.status); } return r.json(); });
       })
       .then(parse)
       .catch(function () { state.failed = true; render(); });
@@ -626,7 +663,7 @@
   function showTip(row) {
     var it = state.flat[+row.getAttribute('data-i')];
     if (!it) { return; }
-    var campus = it.c && it.c.length ? (it.c[0] === 'chaofah' ? 'Chaofah' : 'Cherngtalay') : 'Both campuses';
+    var campus = campusName(it.c, 'Both campuses');
     var rows = [], quote = '', list = null, listLabel = '';
     switch (it.t) {
       case 'person':
@@ -759,15 +796,15 @@
    * then exactly two lines of text. Only the icon and the text differ by type.
    */
   function rowHTML(r, words, idx) {
-    var it = r.it, lead, text = '', ext = false, go = 'Open ↵';
+    var it = r.it, lead, text = '', go = 'Open ↵';
     var lead2 = function (main, rest) { return '<b class="hs-sp-from">' + main + '</b>' + (rest ? ' ' + rest : ''); };
     switch (it.t) {
       case 'person':
         // Three single-line rows: name, job title, then class + campus; the photo is as tall as the three rows
-        var photo = '<span class="hs-sp-lead hs-sp-lead--photo">' + (it.img ? '<img src="' + esc(it.img) + '" alt="" loading="lazy" decoding="async">' : ICON.person) +
+        var photo = '<span class="hs-sp-lead hs-sp-lead--photo">' + (it.img ? '<img src="' + url(it.img) + '" alt="" loading="lazy" decoding="async">' : ICON.person) +
           '<span class="hs-sp-info hs-sp-info--photo" role="button" aria-label="Details" data-info="1">i</span></span>';
         var staffUrl = (it.u || '/staff-directory/') + ((it.u || '').indexOf('?') > -1 ? '&' : '?') + 'hs_staff=' + encodeURIComponent(it.ti);
-        return '<a class="hs-sp-row hs-sp-row--person" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="person" data-pos="' + idx + '" data-tip="1" href="' + esc(staffUrl) + '">' + photo +
+        return '<a class="hs-sp-row hs-sp-row--person" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="person" data-pos="' + idx + '" data-tip="1" href="' + url(staffUrl) + '">' + photo +
           '<span class="hs-sp-tx"><span class="hs-sp-ti"><span class="hs-sp-ti-t">' + hl(it.ti, words) + '</span>' + (r.promoted ? REC : '') + '</span>' +
           '<span class="hs-sp-role">' + hl(it.s || '', words) + '</span>' +
           '<span class="hs-sp-tags">' + (it.g ? '<span class="hs-sp-tag hs-sp-tag--class">' + esc(it.g) + '</span>' : '') + campusTag(it.c) + '</span></span>' +
@@ -779,7 +816,7 @@
       case 'doc':
         // Documents have their own row, so their cards are taller: title, then page (› section), date, type
         var on = it.on || {};
-        return '<a class="hs-sp-row hs-sp-row--doc" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="doc" data-pos="' + idx + '" data-tip="1" href="' + esc(it.u) + '" target="_blank" rel="noopener">' +
+        return '<a class="hs-sp-row hs-sp-row--doc" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="doc" data-pos="' + idx + '" data-tip="1" href="' + url(it.u) + '" target="_blank" rel="noopener">' +
           '<span class="hs-sp-leadcol"><span class="hs-sp-lead hs-sp-lead--doc">' + ICON.doc + '</span>' + INFOBTN + '</span>' +
           '<span class="hs-sp-tx"><span class="hs-sp-ti"><span class="hs-sp-ti-t">' + hl(it.ti, words) + '</span>' + (r.promoted ? REC : '') + campusTag(it.c) + '</span>' +
           '<span class="hs-sp-line">' + hl((on.ti || '') + (on.sec ? ' › ' + on.sec : ''), words) + '</span>' +
@@ -815,20 +852,20 @@
         }
         text = (it.bc ? '<b class="hs-sp-from">' + esc(it.bc) + '</b> ' : '') + hl(desc, words);
     }
-    var url = it.t === 'topic' ? ((it.b && it.b[0] && it.b[0][1]) || '#') : it.u;
-    return '<a class="hs-sp-row" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="' + it.t + '" data-pos="' + idx + '"' + (it.t !== 'topic' ? ' data-tip="1"' : '') + ' href="' + esc(url) + '"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>' +
+    var href = it.t === 'topic' ? ((it.b && it.b[0] && it.b[0][1]) || '#') : it.u;
+    return '<a class="hs-sp-row" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="' + it.t + '" data-pos="' + idx + '"' + (it.t !== 'topic' ? ' data-tip="1"' : '') + ' href="' + url(href) + '">' +
       (it.t !== 'topic' ? '<span class="hs-sp-leadcol">' + lead + INFOBTN + '</span>' : lead) + '<span class="hs-sp-tx"><span class="hs-sp-ti"><span class="hs-sp-ti-t">' + hl(it.ti, words) + '</span>' + (r.promoted ? REC : '') + (it.t === 'topic' ? '' : campusTag(it.c)) + '</span>' +
       '<span class="hs-sp-su">' + text + '</span></span><span class="hs-sp-go">' + go + '</span></a>';
   }
 
   function cardHTML(it) {
-    var btns = (it.b || []).map(function (b, i) { return '<a class="hs-sp-btn" data-type="topic" data-pos="0" href="' + esc(b[1]) + '">' + esc(b[0]) + ' →</a>'; }).join('');
+    var btns = (it.b || []).map(function (b, i) { return '<a class="hs-sp-btn" data-type="topic" data-pos="0" href="' + url(b[1]) + '">' + esc(b[0]) + ' →</a>'; }).join('');
     if (it.card === 'contact') {
       return '<div class="hs-sp-card hs-sp-card--contact"><div class="hs-sp-card-k">Quick answer</div><div class="hs-sp-card-q">' + esc(it.ti) + '</div><div class="hs-sp-ct">' +
         (it.cc || []).map(function (c) {
           return '<div class="hs-sp-cp"><div class="hs-sp-cp-n">' + esc(c.n) + '</div>' + (c.ad ? '<p class="hs-sp-cp-ad">' + esc(c.ad) + '</p>' : '') +
             '<div class="hs-sp-cp-bt">' + (c.ph || []).map(function (n) { return '<a class="hs-sp-btn" data-type="topic" href="' + esc(tel(n)) + '">' + ICON.phone + esc(n) + '</a>'; }).join('') +
-            (c.map ? '<a class="hs-sp-btn hs-sp-btn--o" data-type="topic" href="' + esc(c.map) + '" target="_blank" rel="noopener">' + ICON.pin + 'Google Maps</a>' : '') + '</div>' +
+            (c.map ? '<a class="hs-sp-btn hs-sp-btn--o" data-type="topic" href="' + url(c.map) + '" target="_blank" rel="noopener">' + ICON.pin + 'Google Maps</a>' : '') + '</div>' +
             (c.em ? '<div class="hs-sp-cp-ml"><span>Enquiries</span><a class="hs-sp-cp-em" data-type="topic" href="mailto:' + esc(c.em) + '">' + esc(c.em) + '</a></div>' : '') +
             (c.em2 ? '<div class="hs-sp-cp-ml"><span>Current families</span><a class="hs-sp-cp-em" data-type="topic" href="mailto:' + esc(c.em2) + '">' + esc(c.em2) + '</a></div>' : '') + '</div>';
         }).join('') + '</div>' +
@@ -987,11 +1024,11 @@
 
   /* ---------- analytics + logging ---------- */
   function okTerm(q) { return q && q.length >= 2 && q.indexOf('@') < 0 && !/\d{6,}/.test(q) && !/https?:|www\./i.test(q); }
-  function beacon(q, kind, n) {
+  function beacon(q, kind) {
     if (TEST || !okTerm(q)) { return; } // the admin preview never counts as a search
     try {
-      var body = new URLSearchParams(); body.append('action', 'hs_search_log'); body.append('q', q.slice(0, 60)); body.append('kind', kind); body.append('n', String(n || 0));
-      if (navigator.sendBeacon) { navigator.sendBeacon(AJAX_URL, body); } else { fetch(AJAX_URL, { method: 'POST', body: body, keepalive: true }); }
+      var body = new URLSearchParams(), ajax = cfg('data-hs-ajax', AJAX_FALLBACK); body.append('action', 'hs_search_log'); body.append('q', q.slice(0, 60)); body.append('kind', kind);
+      if (navigator.sendBeacon) { navigator.sendBeacon(ajax, body); } else { fetch(ajax, { method: 'POST', body: body, keepalive: true }); }
     } catch (e) { /* never break search */ }
   }
   function push(o) { if (TEST) { return; } try { (root.dataLayer = root.dataLayer || []).push(o); } catch (e) { /* no GTM */ } }
@@ -1002,7 +1039,7 @@
     if (state.committed !== q) {
       state.committed = q;
       push({ event: 'hs_search', search_term: okTerm(q) ? q : '(filtered)', hs_results: state.flat.length, hs_campus: state.campus || 'both' });
-      beacon(q, 'commit', state.flat.length);
+      beacon(q, 'commit');
       var recent = (lsGet('hs_search_recent') || []).filter(function (x) { return x !== q; });
       recent.unshift(q); lsSet('hs_search_recent', recent.slice(0, 5));
     }
@@ -1017,18 +1054,26 @@
     clearTimeout(state.idleT);
     state.idleT = setTimeout(function () {
       q = q.trim().toLowerCase();
-      if (q.length >= 3 && state.missed !== q) { state.missed = q; push({ event: 'hs_search_no_results', search_term: okTerm(q) ? q : '(filtered)' }); beacon(q, 'miss', 0); }
+      if (q.length >= 3 && state.missed !== q) { state.missed = q; push({ event: 'hs_search_no_results', search_term: okTerm(q) ? q : '(filtered)' }); beacon(q, 'miss'); }
     }, 1200);
   }
 
   /* ---------- events ---------- */
+  /** Typing and resizing redraw at most once per frame; keys that act on the results draw first (O6). */
+  var frame = root.requestAnimationFrame ? root.requestAnimationFrame.bind(root) : function (fn) { return setTimeout(fn, 16); };
+  var unframe = root.cancelAnimationFrame ? root.cancelAnimationFrame.bind(root) : clearTimeout;
+  function renderSoon() { if (!state.raf) { state.raf = frame(function () { state.raf = 0; render(); }); } }
+  function renderNow() { if (state.raf) { unframe(state.raf); state.raf = 0; render(); } }
+  function placeSoon() { if (!state.rafP) { state.rafP = frame(function () { state.rafP = 0; if (isOpen()) { place(); } }); } }
+
   function onInput(e) {
     syncFields(e.target);
     state.active = 0; state.expanded = {}; state.docsOpen = false; state.peopleOpen = false; state.pageLang = '';
-    if (!isOpen()) { open(state.field, state.sheet); }
-    render();
+    if (!isOpen()) { open(state.field, state.sheet); return; }
+    renderSoon();
   }
   function onKey(e) {
+    if (/^(ArrowDown|ArrowUp|ArrowRight|Enter)$/.test(e.key)) { renderNow(); }
     if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && els.tip) { els.tipPinned = false; els.tipRow = null; hideTip(); }
     if (e.key === 'Escape' && els.tip && els.tip.classList.contains('is-on')) { e.preventDefault(); els.tipPinned = false; els.tipRow = null; hideTip(); return; }
     if (e.key === 'ArrowDown') { e.preventDefault(); if (!isOpen()) { open(state.field, state.sheet); } state.active = Math.min(state.flat.length - 1, state.active + 1); markActive(true); }
@@ -1063,9 +1108,8 @@
    * campus tab, opens the section, scrolls to the card and pulses it, exactly as when a visitor searches there.
    */
   function staffDeepLink() {
-    var m = root.location.search.match(/[?&]hs_staff=([^&]+)/);
-    if (!m) { return; }
-    var name = decodeURIComponent(m[1].replace(/\+/g, ' '));
+    var name = param('hs_staff');
+    if (!name) { return; }
     var tries = 0;
     (function attempt() {
       var input = document.getElementById('staff-search-new');
@@ -1116,16 +1160,15 @@
         if (f && f.offsetParent !== null) { f.focus(); } else { open(f, true); }
       } else if (e.key === 'Escape' && isOpen() && state.sheet && document.activeElement !== els.sheetField) { close(); }
     });
-    root.addEventListener('resize', function () { if (isOpen()) { place(); render(); } });
-    root.addEventListener('scroll', function () { if (isOpen() && !state.sheet) { place(); } }, { passive: true });
+    root.addEventListener('resize', function () { if (isOpen()) { placeSoon(); renderSoon(); } });
+    root.addEventListener('scroll', function () { if (isOpen() && !state.sheet) { placeSoon(); } }, { passive: true });
 
     // ?q= opens the panel pre-filled
-    var m = root.location.search.match(/[?&]q=([^&]+)/);
-    if (m) {
+    var val = param('q');
+    if (val) {
       var f = document.querySelector('.hs-search .hs-search-field');
       var c = root.location.search.match(/[?&]campus=(chaofah|cherngtalay)/);
       if (c) { state.campus = c[1]; }
-      var val = decodeURIComponent(m[1].replace(/\+/g, ' '));
       if (TEST) {
         // Admin preview: hide pop-ups (e.g. the ISQM announcement) and open the panel without waiting for focus
         var st = document.createElement('style'); st.textContent = '#hs-isqm{display:none!important}html,body{overflow:auto!important}'; document.head.appendChild(st);

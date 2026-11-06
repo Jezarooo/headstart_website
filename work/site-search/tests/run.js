@@ -49,7 +49,17 @@ var unit = [
   ['dl1 deletion', E.dl1('exampe', 'example')],
   ['dl1 rejects 2 edits', !E.dl1('exmapel', 'example')],
   ['norm & accents', E.norm('Café & Bar') === 'cafe and bar'],
-  ['snippet window', E.snippet('a '.repeat(100) + 'target word here', ['target'], 40).indexOf('target') > -1]
+  ['snippet window', E.snippet('a '.repeat(100) + 'target word here', ['target'], 40).indexOf('target') > -1],
+  // Highlighting never breaks entities or its own tags (review B1)
+  ['highlight "amp" keeps &amp;', E.highlight('Arts & Crafts', ['amp']) === 'Arts &amp; Crafts'],
+  ['highlight "39" skips &#39;', E.highlight("Sam's 39 tips", ['39']) === 'Sam&#39;s <mark>39</mark> tips'],
+  ['highlight "year mark"', E.highlight('Year 3 maths', ['year', 'mark']) === '<mark>Year</mark> 3 maths'],
+  ['highlight overlapping words merge', E.highlight('international day', ['inter', 'international']) === '<mark>international</mark> day'],
+  ['highlight escapes markup', E.highlight('<b>x</b>', ['x']) === '&lt;b&gt;<mark>x</mark>&lt;/b&gt;'],
+  ['highlight start of word only', E.highlight('paint pain', ['ain']) === 'paint pain'],
+  // Link check (review S4)
+  ['safeUrl blocks javascript:', E.safeUrl('java\tscript:alert(1)') === '#' && E.safeUrl(' JavaScript:x') === '#' && E.safeUrl('data:text/html,x') === '#'],
+  ['safeUrl keeps http, mailto, tel, paths', E.safeUrl('https://a.b/c') === 'https://a.b/c' && E.safeUrl('mailto:a@b.c') === 'mailto:a@b.c' && E.safeUrl('tel:+6676') === 'tel:+6676' && E.safeUrl('/contact-us/#school-tours') === '/contact-us/#school-tours']
 ];
 unit.forEach(function (u) { if (!u[1]) { fails++; console.log('FAIL  unit: ' + u[0]); } else { console.log('ok    unit: ' + u[0]); } });
 

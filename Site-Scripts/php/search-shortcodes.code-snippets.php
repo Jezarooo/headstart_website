@@ -18,11 +18,18 @@
  * No rewrite rules: no permalink flush needed.
  */
 
+/** data-hs-index / data-hs-ajax attributes: where the script finds the index and admin-ajax (the same for every visitor). */
+function hs_search_paths_attr() {
+	$index = wp_make_link_relative( trailingslashit( wp_upload_dir()['baseurl'] ) . 'hs-search/index.json' );
+	$ajax  = wp_make_link_relative( admin_url( 'admin-ajax.php' ) );
+	return ' data-hs-index="' . esc_attr( $index ) . '" data-hs-ajax="' . esc_attr( $ajax ) . '"';
+}
+
 add_shortcode( 'hs_search', 'hs_search_field_shortcode' );
 function hs_search_field_shortcode( $atts ) {
 	$atts = shortcode_atts( array( 'placeholder' => 'Search the site…' ), $atts, 'hs_search' );
 	$icon = '<svg class="hs-search-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
-	return '<div class="hs-search" data-hs-search>'
+	return '<div class="hs-search" data-hs-search' . hs_search_paths_attr() . '>'
 		. '<form class="hs-search-form" role="search" action="' . esc_url( home_url( '/' ) ) . '" method="get">'
 		. $icon
 		. '<input class="hs-search-field" type="search" name="s" autocomplete="off" spellcheck="false" placeholder="' . esc_attr( $atts['placeholder'] ) . '" aria-label="Search the site" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="hs-search-panel">'
@@ -33,7 +40,7 @@ function hs_search_field_shortcode( $atts ) {
 
 add_shortcode( 'hs_search_button', 'hs_search_button_shortcode' );
 function hs_search_button_shortcode() {
-	return '<button type="button" class="hs-search-trigger" aria-label="Search the site" aria-haspopup="dialog">'
+	return '<button type="button" class="hs-search-trigger" aria-label="Search the site" aria-haspopup="dialog"' . hs_search_paths_attr() . '>'
 		. '<svg class="hs-search-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>'
 		. '</button>';
 }
