@@ -282,7 +282,10 @@ A scoped `/* Site search */` block, appended at the end:
 - no outer margin or padding on the trigger and inline bar.
 
 ### 7. Header placement (Divi, done by the user, not code)
-Place `[hs_search_button]` in a Divi Code module in the header template for desktop and in the mobile drawer area. Don't edit `mega-menu.js` or `mobile-navigation.js`. If the mobile drawer moves or clones nodes ("form teleport") and breaks the button, the trigger uses a delegated listener on `document` for `.hs-search-trigger`, so clones still work.
+**Decided 6 Nov:** the search icon goes in the **top utility bar, next to the social links** (Facebook, Instagram, YouTube), added through the `[hs_search_button]` shortcode in a Divi Code module placed beside the socials.
+- Style requirement (step 6): in the utility bar the trigger must look like a sibling of the social icons: white magnifier on the dark bar, roughly the same size (about 22-24px), the same hover as the social icons, no outer margin or padding (spacing is set in Divi), and a tap target of at least 44px on touch through padding inside the button only. The panel itself opens above everything (z-index 100000), so the utility bar's stacking context does not clip it.
+- The utility bar is hidden on small screens in the Divi header, so the mobile drawer needs its own `[hs_search_button]` somewhere the user chooses (a Code module in the mobile bar or the drawer). Still to be decided; it does not block the build.
+- Don't edit `mega-menu.js` or `mobile-navigation.js`. If the mobile drawer moves or clones nodes ("form teleport") and breaks the button, the trigger uses a delegated listener on `document` for `.hs-search-trigger`, so clones still work.
 
 ### Explicitly not changed
 - `staff-directory.js` and all `staff-directory-*.php`
