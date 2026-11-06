@@ -18,7 +18,10 @@ We want one search box in the utility bar that finds people, class teachers, pag
 - **Class teachers** are found through the staff display group ("Year 3 (Blue)") plus the job title. No staff field is added.
 - **Weekly updates replace "News".** One group holds issues ("Weekly Update #9") and the articles inside them. Article results show a preview of the article's own text.
 - **Documents** are found by scanning content; titles come from the HTML around each link.
-- **Events** are low priority: the listing is being reworked with blurbs. Index what exists; no events-specific features.
+- **Posts and events are forward-looking sources (6 Nov).** Posts are only partly used today (imports), and the school will soon move from Google Calendar to the site calendar. Both must be searchable as they grow:
+  - **posts** are indexed in their own right (every published post, its own page link), not only as copies of weekly-update articles;
+  - **events** follow the existing `events` post type and meta keys (no new structure expected); they appear automatically once a public calendar page exists.
+- **Source switches** on the Index status screen let the school turn each source (pages, people, weekly updates, posts, events, documents) on or off without code.
 - **Search tracking** is wanted (GA4 via the existing `dataLayer`, plus a small admin report).
 - **No AI answers.** Quick answers are written by the school.
 - **Documents are curated** in a back-end Documents manager: new links go in automatically; the school can exclude, pin or retitle any document, with optional rules (age limit for weekly-update documents, exclude by type or URL pattern).
@@ -86,7 +89,7 @@ Header in the style of `weekly-update-short-links.code-snippets.php`. No permali
 ### 2. `Site-Scripts/php/search-index-builder.code-snippets.php` (new): builds the index
 - **Entry point** `hs_search_build_index()`: builds the array, writes `uploads/hs-search/index.json` through a `.tmp` file + `rename()`, stores `hs_search_index_meta` (built time, counts per type, raw and gzip bytes, ms, last error).
 - **Triggers:** `save_post` / `delete_post` / `transition_post_status` for page, post, weekly_update, events, staff, hs_search_topic, plus term edits on the campus, department and display-group taxonomies. Each schedules one single WP-Cron build 30 s later (debounced; a transient lock stops overlapping builds). A daily rebuild catches anything missed. "Rebuild now" on the status page.
-- **Admin screens** under Site search: **Index status** (counts per type, size raw/gzip, build ms, last error, Rebuild now, class-teacher coverage, top searches and no-result searches with "Clear"), **Documents** (section 2c, which also shows the audit: markup, chosen title and rule used) and **Quick answers** (the CPT list).
+- **Admin screens** under Site search: **Index status** (source switches for pages, people, weekly updates, posts, events and documents; counts per type, size raw/gzip, build ms, last error, Rebuild now, class-teacher coverage, top searches and no-result searches with "Clear"), **Documents** (section 2c, which also shows the audit: markup, chosen title and rule used) and **Quick answers** (the CPT list).
 
 **Index shape** (short keys):
 ```json
@@ -111,8 +114,9 @@ No campus (`c: []`) means both campuses.
 | person | `staff` | name, `job_title`, display group → `g` and class tokens `cl`, department → `k`, campus, 150 px thumbnail | One item per person. No email, no blurb. `u` = the page holding `[hs_staff_directory` (local: `/staff-directory/`) |
 | page | `page`, no password | title, Yoast description or first 200 chars, H1-H3 + Divi tab titles (≤ 600 chars) → `x`, `page_language` → `lg` | Skip Yoast noindex, campus parent pages redirected by `pages-campus-routing`, language placeholder parents, thank-you pages |
 | issue | `weekly_update` | title, `hs_week_number`, date, `in_this_issue` terms → `k`, `hs_campus` | `u` = permalink. Newest first for issue queries ("weekly update", "week 7") |
-| article | `.hs-weekly-article` groups inside each issue, plus `post` | headline (first `h3`), section (nearest `h2.hs-section`, else the Divi section admin label), 160-char body snippet `sn`, parent issue, date, campus | A post whose normalised headline matches an issue article replaces it and supplies its permalink; other posts are added as articles. Articles link to the issue (or post). If an article group later carries an `id`, the link adds `#id` (for the anchors the user will add) |
-| event | `events`, end (or start) date ≥ today − 60 days | title, `event_blurb`, category, location, dates (`Ymd` → ISO), `target_campus` | `u` = events page found at build time; no deep link |
+| article | `.hs-weekly-article` groups inside each issue | headline (first `h3`), section (nearest `h2.hs-section`, else the Divi section admin label), 160-char body snippet `sn`, parent issue, date, campus | Links to the issue. If an article group later carries an `id`, the link adds `#id` (for the anchors the user will add). Dropped when a post has the same normalised headline (the post wins) |
+| post | `post`, publish (all of them, not only matches) | title, 160-char snippet (excerpt, else first text; the first `.hs-weekly-article` body if present), `hs_department` → `k`, `hs_post_campus`, date, the issue it also appears in (if any) → `p` | Own permalink. Shown in the Weekly updates group; the meta line reads "Weekly Update #9 · section · date" when it matches an issue article, otherwise "department · date". Works whether or not the post uses `hs-weekly-article`, so new-style posts need no change |
+| event | `events`, end (or start) date ≥ today − 60 days | title, `event_blurb`, category, location, dates (`Ymd` → ISO), times, `target_campus` | Uses the existing post type and meta keys, so the new calendar content is picked up without code changes. **Only included once a public calendar page exists:** the builder looks for a published page or Divi layout containing `hs_events_calendar`, or a URL set on the status page; with neither, events are skipped (the 287 imported events never link to a page that isn't live). `u` = that page; a deep link to the event popup can be added when the new calendar is built |
 | doc | links found in pages, issues and posts | title (rules below or override), file type, found-on page + section, campus, pinned | Dedupe by URL; respects the Documents manager states and rules (2c) |
 | topic | `hs_search_topic`, publish | as the index shape above | Skip a standard card with no button |
 
@@ -218,6 +222,8 @@ Add `site-search.js` after `global-utilities.js`, purpose "Site search field, pa
 - [ ] "year 3", "3b" and "class teacher" find the class teachers.
 - [ ] "science teacher chaofah" shows the Chaofah chip and the right people.
 - [ ] "weekly update" lists the newest issues first; a word from inside an article finds that article with a preview of its text.
+- [ ] A post (including one not in any weekly update) is findable by its title and opens its own page.
+- [ ] Events stay out of search while no calendar page exists; setting the calendar page URL (or publishing one) brings them in after a rebuild. Source switches turn a source off and on.
 - [ ] A Google Doc or PDF from a tabbed section is findable by name and shows "Found on: page › section".
 - [ ] Ticking "Hide from site search" on a page removes it after a rebuild.
 - [ ] Documents screen: a newly linked document appears as Included; Excluding it removes it from search; Pinning moves it up; a title override shows in results; the age limit and type/pattern rules behave as set.
