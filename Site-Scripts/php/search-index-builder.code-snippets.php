@@ -191,6 +191,21 @@ function hs_search_dom( $html ) {
 	return $dom;
 }
 
+/** Text with a space between block elements ("Heading" + "Paragraph" never run together). */
+function hs_search_block_text( $node ) {
+	$block = array( 'p', 'div', 'li', 'ul', 'ol', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'section', 'article', 'table', 'tr', 'td', 'th', 'br', 'span' );
+	$out   = '';
+	foreach ( $node->childNodes as $c ) {
+		if ( XML_TEXT_NODE === $c->nodeType ) {
+			$out .= $c->nodeValue;
+		} elseif ( XML_ELEMENT_NODE === $c->nodeType ) {
+			$sep  = in_array( strtolower( $c->nodeName ), $block, true ) ? ' ' : '';
+			$out .= $sep . hs_search_block_text( $c ) . $sep;
+		}
+	}
+	return trim( preg_replace( '/\s+/u', ' ', $out ) );
+}
+
 function hs_search_node_text( $node ) {
 	return $node ? trim( preg_replace( '/\s+/u', ' ', $node->textContent ) ) : '';
 }
@@ -285,11 +300,40 @@ function hs_search_doc_collect( $html, $ctx, &$docs ) {
 		}
 
 		$markup = $dom->saveHTML( $a->parentNode ?: $a );
+		// Context for the tooltip: the text of the paragraph / list item / card around the link (without the title)
+		// Only real prose counts: link texts are removed first, so a grid of download cards gives no context.
+		$cx = '';
+		for ( $p = $a->parentNode, $i = 0; $p && $p->nodeType === XML_ELEMENT_NODE && $i < 4; $p = $p->parentNode, $i++ ) {
+			$clone = $p->cloneNode( true );
+			foreach ( iterator_to_array( $clone->getElementsByTagName( 'a' ) ) as $link ) {
+				$link->parentNode->removeChild( $link );
+			}
+			$t = trim( preg_replace( '/\b(View|Open|Download) (Document|PDF|File)\b/i', '', hs_search_block_text( $clone ) ) );
+			if ( 'hs-root' === $p->getAttribute( 'id' ) || mb_strlen( $t ) > 700 ) {
+				break; // too broad (a whole section): use the text just before the link instead
+			}
+			if ( mb_strlen( $t ) >= 40 ) {
+				$cx = $t;
+				break;
+			}
+		}
+		if ( '' === $cx ) {
+			$before = '';
+			$prev   = $xpath->query( 'preceding::text()[normalize-space()][position() <= 40]', $a );
+			for ( $k = $prev->length - 1; $k >= 0 && mb_strlen( $before ) < 260; $k-- ) {
+				$before = trim( $prev->item( $k )->nodeValue ) . ' ' . $before;
+			}
+			$before = trim( preg_replace( '/\s+/u', ' ', $before ) );
+			$cx     = mb_strlen( $before ) > 220 ? '…' . ltrim( mb_substr( $before, -220 ) ) : $before;
+		}
+		$cx = hs_search_cut( $cx, 220 );
 		if ( isset( $docs[ $url ] ) ) {
 			$docs[ $url ]['n']++;
 			$docs[ $url ]['srcs'][ $ctx['src'] ] = 1;
 			if ( 'page' === $ctx['src'] && 'page' !== $docs[ $url ]['on']['src'] ) {
-				$docs[ $url ]['on'] = array( 'ti' => $ctx['ti'], 'sec' => hs_search_cut( $sec, 60 ), 'u' => $ctx['u'], 'src' => $ctx['src'] );
+				$docs[ $url ]['on'] = array( 'ti' => $ctx['ti'], 'sec' => hs_search_cut( $sec, 60 ), 'u' => $ctx['u'], 'src' => $ctx['src'], 'd' => '' );
+			} elseif ( 'issue' === $ctx['src'] && 'issue' === $docs[ $url ]['on']['src'] && ( $ctx['d'] ?? '' ) > ( $docs[ $url ]['on']['d'] ?? '' ) ) {
+				$docs[ $url ]['on'] = array( 'ti' => $ctx['ti'], 'sec' => hs_search_cut( $sec, 60 ), 'u' => $ctx['u'], 'src' => $ctx['src'], 'd' => $ctx['d'] ); // newest issue it appears in
 			}
 			$docs[ $url ]['last'] = max( $docs[ $url ]['last'], $ctx['date'] );
 			continue;
@@ -299,12 +343,13 @@ function hs_search_doc_collect( $html, $ctx, &$docs ) {
 			'ti'     => $title,
 			'rule'   => $rule,
 			'ft'     => $ft,
-			'on'     => array( 'ti' => $ctx['ti'], 'sec' => hs_search_cut( $sec, 60 ), 'u' => $ctx['u'], 'src' => $ctx['src'] ),
+			'on'     => array( 'ti' => $ctx['ti'], 'sec' => hs_search_cut( $sec, 60 ), 'u' => $ctx['u'], 'src' => $ctx['src'], 'd' => $ctx['d'] ?? '' ),
 			'c'      => $ctx['c'],
 			'n'      => 1,
 			'srcs'   => array( $ctx['src'] => 1 ),
 			'last'   => $ctx['date'],
 			'markup' => mb_substr( preg_replace( '/\s+/u', ' ', strip_tags( $markup, '<a><span><strong><h2><h3><h4><p>' ) ), 0, 400 ),
+			'cx'     => $cx,
 		);
 	}
 }
@@ -466,7 +511,7 @@ function hs_search_build_index() {
 				$parent = $p->post_parent ? get_post( $p->post_parent ) : null;
 				$add( array_filter( array(
 					'id' => 'p' . $p->ID, 't' => 'page', 'ti' => html_entity_decode( get_the_title( $p ), ENT_QUOTES, 'UTF-8' ),
-					's'  => hs_search_cut( $desc ?: hs_search_node_text( $dom->documentElement ), 160 ),
+					's'  => hs_search_cut( $desc ?: hs_search_node_text( $dom->documentElement ), 260 ),
 					'x'  => hs_search_cut( implode( ' · ', array_unique( array_filter( $heads ) ) ), 600 ),
 					'bc' => ( $parent && false === stripos( $parent->post_title, 'DO NOT DELETE' ) && ! isset( $langs[ $parent->post_name ] ) ) ? html_entity_decode( $parent->post_title, ENT_QUOTES, 'UTF-8' ) : '',
 					'c'  => $c, 'lg' => $lg, 'u' => $u,
@@ -524,12 +569,15 @@ function hs_search_build_index() {
 				$title  = trim( preg_replace( '/[,\s–-]+\d{1,2}(st|nd|rd|th)?\s+[A-Za-z]+\s+\d{4}\s*$/', '', $title ) ); // "Weekly Update #38, 26 June 2026" → "Weekly Update #38"
 				$blocks = hs_search_blocks( $p->post_content );
 				if ( $settings['src_issue'] ) {
+					$issue_articles = hs_search_issue_articles( $blocks );
 					$add( array_filter( array(
 						'id' => 'w' . $p->ID, 't' => 'issue', 'ti' => $title, 'wk' => (int) get_post_meta( $p->ID, 'hs_week_number', true ),
 						'd'  => $date, 'k' => hs_search_term_names( $p->ID, 'in_this_issue' ), 'c' => $c, 'u' => $u,
+						// the headlines of the articles inside, so the issue itself is found by them ("international" → the issue with International Day)
+						'x'  => hs_search_cut( implode( ' · ', wp_list_pluck( $issue_articles, 'ti' ) ), 900 ),
 						'ar' => has_term( '', 'hs_weekly_archive_status', $p ) ? 1 : 0,
 					), 'hs_search_keep' ) );
-					foreach ( hs_search_issue_articles( $blocks ) as $i => $art ) {
+					foreach ( $issue_articles as $i => $art ) {
 						$key = hs_search_headline_key( $art['ti'] );
 						if ( isset( $articles[ $key ] ) ) {
 							continue; // the same article in another issue (newest kept)
@@ -543,7 +591,7 @@ function hs_search_build_index() {
 					}
 				}
 				if ( $settings['src_doc'] ) {
-					hs_search_doc_collect( hs_search_blocks_html( $blocks ), array( 'src' => 'issue', 'ti' => $title, 'u' => $u, 'c' => $c, 'date' => $date ), $docs );
+					hs_search_doc_collect( hs_search_blocks_html( $blocks ), array( 'src' => 'issue', 'ti' => $title, 'u' => $u, 'c' => $c, 'date' => $date, 'd' => $date ), $docs );
 				}
 			} catch ( Throwable $e ) {
 				$errors[] = 'weekly_update ' . $p->ID . ': ' . $e->getMessage();
@@ -565,7 +613,7 @@ function hs_search_build_index() {
 				$blocks = hs_search_blocks( $p->post_content );
 				if ( $settings['src_post'] ) {
 					$arts = hs_search_issue_articles( $blocks );
-					$sn   = $p->post_excerpt ? hs_search_cut( $p->post_excerpt, 160 ) : ( $arts ? $arts[0]['sn'] : hs_search_cut( hs_search_blocks_html( $blocks ), 160 ) );
+					$sn   = $p->post_excerpt ? hs_search_cut( $p->post_excerpt, 230 ) : ( $arts ? $arts[0]['sn'] : hs_search_cut( hs_search_blocks_html( $blocks ), 230 ) );
 					$item = array(
 						'id' => 'n' . $p->ID, 't' => 'article', 'ti' => $title, 'sn' => $sn,
 						'k'  => hs_search_term_names( $p->ID, 'hs_department' ), 'd' => $date, 'c' => $c, 'u' => $u,
@@ -581,9 +629,8 @@ function hs_search_build_index() {
 						$articles[ $key ] = count( $items ) - 1;
 					}
 				}
-				if ( $settings['src_doc'] ) {
-					hs_search_doc_collect( hs_search_blocks_html( $blocks ), array( 'src' => 'post', 'ti' => $title, 'u' => $u, 'c' => $c, 'date' => $date ), $docs );
-				}
+				// Documents inside posts are not collected: posts are copies of weekly-update articles,
+				// so the same links are already found in the issue (with its date).
 			} catch ( Throwable $e ) {
 				$errors[] = 'post ' . $p->ID . ': ' . $e->getMessage();
 			}
@@ -656,12 +703,15 @@ function hs_search_build_index() {
 		$add( array_filter( $item, 'hs_search_keep' ) );
 	}
 
+	// Campus codes are internal: always show the names (HSC → Chaofah, HSN → Cherngtalay)
+	$items = hs_search_campus_names( $items );
+
 	$index = array(
 		'v'        => 1,
 		'built'    => current_time( 'c' ),
 		'campuses' => array(
-			array( 'k' => 'chaofah', 'l' => 'Chaofah', 'a' => array( 'chaofah', 'chao fah', 'city campus' ) ),
-			array( 'k' => 'cherngtalay', 'l' => 'Cherngtalay', 'a' => array( 'cherngtalay', 'cherng talay' ) ),
+			array( 'k' => 'chaofah', 'l' => 'Chaofah', 'a' => array( 'chaofah', 'chao fah', 'city campus', 'hsc' ) ),
+			array( 'k' => 'cherngtalay', 'l' => 'Cherngtalay', 'a' => array( 'cherngtalay', 'cherng talay', 'hsn' ) ),
 		),
 		'items'    => $items,
 	);
@@ -692,6 +742,20 @@ function hs_search_build_index() {
 	), false );
 
 	return $index;
+}
+
+/** Replace the internal campus codes HSC / HSN with the campus names in every text field (never in URLs). */
+function hs_search_campus_names( $v, $key = '' ) {
+	if ( is_array( $v ) ) {
+		foreach ( $v as $k => $x ) {
+			$v[ $k ] = hs_search_campus_names( $x, is_string( $k ) ? $k : $key );
+		}
+		return $v;
+	}
+	if ( ! is_string( $v ) || in_array( $key, array( 'u', 'img', 'id' ), true ) ) {
+		return $v;
+	}
+	return preg_replace( array( '/\bHSC\b/', '/\bHSN\b/' ), array( 'Chaofah', 'Cherngtalay' ), $v );
 }
 
 function hs_search_keep( $v ) {
@@ -726,7 +790,7 @@ function hs_search_issue_articles( $blocks ) {
 				$id = (string) ( $b['attrs']['module']['advanced']['htmlAttributes']['desktop']['value']['id'] ?? '' );
 				$out[] = array(
 					'ti'  => $head,
-					'sn'  => hs_search_cut( hs_search_node_text( $dom->documentElement ), 160 ),
+					'sn'  => hs_search_cut( hs_search_node_text( $dom->documentElement ), 230 ),
 					'sec' => $sec ?: $section_label,
 					'id'  => $id,
 				);
@@ -782,7 +846,7 @@ function hs_search_html_articles( $html ) {
 		}
 		$out[] = array(
 			'ti'  => $ti,
-			'sn'  => hs_search_cut( hs_search_node_text( $clone ), 160 ),
+			'sn'  => hs_search_cut( hs_search_node_text( $clone ), 230 ),
 			'sec' => $secn->length ? hs_search_cut( hs_search_node_text( $secn->item( 0 ) ), 60 ) : '',
 			'id'  => preg_match( '/^[A-Za-z][\w-]*$/', $id ) ? $id : '',
 		);
@@ -836,8 +900,8 @@ function hs_search_docs_apply( $docs, $settings ) {
 		}
 		$items[] = array_filter( array(
 			'id' => 'd' . substr( $h, 0, 10 ), 't' => 'doc', 'ti' => $rec['title'] ?: $d['ti'], 'ft' => $d['ft'], 'u' => $d['url'],
-			'on' => array_filter( array( 'ti' => html_entity_decode( $d['on']['ti'], ENT_QUOTES, 'UTF-8' ), 'sec' => $d['on']['sec'], 'u' => $d['on']['u'] ) ),
-			'c'  => $d['c'], 'd' => $d['last'], 'pin' => $pinned ? 1 : 0, 'up' => $only_updates ? 1 : 0,
+			'on' => array_filter( array( 'ti' => html_entity_decode( $d['on']['ti'], ENT_QUOTES, 'UTF-8' ), 'sec' => $d['on']['sec'], 'u' => $d['on']['u'], 'd' => $d['on']['d'] ?? '' ) ),
+			'c'  => $d['c'], 'd' => $d['last'], 'pin' => $pinned ? 1 : 0, 'up' => $only_updates ? 1 : 0, 'cx' => $d['cx'] ?? '',
 		), 'hs_search_keep' );
 	}
 	update_option( 'hs_search_docs', $store, false );

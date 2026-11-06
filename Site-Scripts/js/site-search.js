@@ -132,7 +132,7 @@
     }
 
     /** item idx -> best weighted score for one query token. */
-    function matchToken(ctx, tok, allowPrefix) {
+    function matchToken(ctx, tok, allowPrefix, fuzzyHits) {
       var out = Object.create(null);
       var add = function (t, factor) {
         var p = ctx.postings[t];
@@ -150,7 +150,7 @@
         var j = lowerBound(ctx.tokens, tok[0]);
         while (j < ctx.tokens.length && ctx.tokens[j][0] === tok[0]) {
           var t = ctx.tokens[j];
-          if (Math.abs(t.length - tok.length) <= 1 && dl1(tok, t)) { add(t, 0.4); }
+          if (Math.abs(t.length - tok.length) <= 1 && dl1(tok, t)) { add(t, 0.4); if (fuzzyHits) { fuzzyHits.push([tok, t]); } }
           j++;
         }
       }
@@ -251,6 +251,11 @@
       var p = parse(ctx, raw, now);
       var campus = opts.campus || p.campus;
       var words = p.free.filter(function (w) { return w.length; });
+      // "staff" / "people" on their own are searched as text, not as "list every member of staff":
+      // they find the Staff Directory page and quick answer, and only people whose first or last name
+      // contains the word (never their job title or profile). (Other type words alone, e.g. "documents", still list that type.)
+      var typeOnly = !words.length && p.optional.length > 0 && !p.range && !p.week && !!p.types.person;
+      if (typeOnly) { words = p.optional.slice(); }
       var res = [], relaxed = false;
       var topic = null, topics = [];
 
@@ -267,9 +272,11 @@
         return { parsed: p, results: [], topic: topic, topics: topics, relaxed: false, words: [] };
       }
 
+      var fuzzyHits = [];
       var run = function (mode) {
         var scores = null;
-        var lists = words.map(function (w, i) { return matchToken(ctx, w, i === words.length - 1 || w.length >= 3); });
+        fuzzyHits.length = 0;
+        var lists = words.map(function (w, i) { return matchToken(ctx, w, i === words.length - 1 || w.length >= 3, fuzzyHits); });
         if (words.length) {
           if (mode === 'and') {
             lists.forEach(function (m) {
@@ -295,6 +302,7 @@
           if (it.t === 'topic') { continue; }
           if (campus && it.c && it.c.length && it.c.indexOf(campus) < 0) { continue; }
           if (p.types.person && it.t !== 'person' && words.length === 0) { continue; }
+          if (typeOnly && it.t === 'person' && !words.every(function (w) { return (' ' + it._tn + ' ').indexOf(' ' + w) > -1; })) { continue; }
           if (p.range) {
             if (it.t === 'event') { if ((it.de || it.d) < p.range.from || it.d > p.range.to) { continue; } }
             else if (it.t === 'issue' || it.t === 'article') { if (!it.d || it.d < p.range.from || it.d > p.range.to) { continue; } }
@@ -308,7 +316,7 @@
           }
           if (p.types[it.t]) { s += 25; }
           if (campus && it.c && it.c.indexOf(campus) > -1) { s += 5; }
-          if (p.optional.length && words.length) {
+          if (p.optional.length && words.length && !typeOnly) {
             p.optional.forEach(function (w) { var m = ctx.postings[w]; if (m && m[key]) { s += m[key] / 5; } });
           }
           if (it.t === 'event') { s += ((it.de || it.d) >= ymd(now)) ? 15 : -25; }
@@ -326,7 +334,12 @@
       if (!res.length && words.length > 1) { res = run('or'); relaxed = res.length > 0; }
       res.sort(function (a, b) { return b.score - a.score || (b.it.d || '').localeCompare(a.it.d || '') || a.it.ti.localeCompare(b.it.ti); });
       if (opts.limit) { res = res.slice(0, opts.limit); }
-      return { parsed: p, results: res, topic: topic, topics: topics, relaxed: relaxed, words: words.concat(p.optional) };
+      // Typo tolerance: highlight (and report) the words that actually matched, e.g. "internationl" → "international"
+      var corrected = {}, extra = [];
+      fuzzyHits.forEach(function (h) { if (!corrected[h[0]]) { corrected[h[0]] = h[1]; } if (extra.indexOf(h[1]) < 0) { extra.push(h[1]); } });
+      var shownWords = words.map(function (w) { return corrected[w] || w; });
+      return { parsed: p, results: res, topic: topic, topics: topics, relaxed: relaxed, words: words.concat(p.optional, extra),
+        corrected: Object.keys(corrected).length ? shownWords.join(' ') : '' };
     }
 
     var ORDER = ['person', 'page', 'topic', 'issue', 'article', 'event', 'doc'];
@@ -344,9 +357,12 @@
     function snippet(text, words, len) {
       text = String(text || '');
       len = len || 150;
-      if (text.length <= len) { return text; }
       var lower = text.toLowerCase(), at = -1;
       (words || []).forEach(function (w) { var j = lower.indexOf(w); if (j > -1 && (at < 0 || j < at)) { at = j; } });
+      // Short text, or the match is near the start: show it from the beginning.
+      // Otherwise start just before the match, so it is visible within the 2-3 lines a card shows.
+      if (at < 70 && text.length <= len) { return text; }
+      if (at < 70) { at = -1; }
       var lead = Math.min(40, Math.floor(len / 3));
       var from = at > lead ? at - lead : 0;
       if (from > 0) { var sp = text.indexOf(' ', from); if (sp > -1 && sp < at) { from = sp + 1; } }
@@ -379,11 +395,14 @@
     page: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg>',
     issue: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8z"/></svg>',
     doc: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9.5 14.5 12 17l2.5-2.5"/></svg>',
+    info: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6h.01"/></svg>',
     topic: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg>',
     person: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="4"/><path d="M4 22c0-4.4 3.6-8 8-8s8 3.6 8 8z"/></svg>',
     phone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>',
     pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>'
   };
+  var INFOBTN = '<span class="hs-sp-info" role="button" aria-label="Details" data-info="1"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6h.01"/></svg>Info</span>';
+  var DOCTYPE = { gdoc: 'Google Doc', gsheet: 'Google Sheet', gslides: 'Google Slides', gform: 'Google Form', folder: 'Google Drive folder', file: 'Google Drive file', pdf: 'PDF', word: 'Word document', excel: 'Spreadsheet', ppt: 'Presentation', zip: 'Zip file' };
   var FT = { gdoc: 'DOC', gsheet: 'SHEET', gslides: 'SLIDES', gform: 'FORM', folder: 'FOLDER', file: 'FILE', pdf: 'PDF', word: 'DOC', excel: 'XLS', ppt: 'PPT', zip: 'ZIP' };
 
   var state = { ctx: null, loading: null, campus: '', expanded: {}, active: 0, flat: [], field: null, wrap: null, sheet: false, lastQ: '', idleT: 0, committed: '' };
@@ -476,16 +495,100 @@
     els.body.addEventListener('click', function (e) {
       var q = e.target.closest('[data-q]');
       if (q) { e.preventDefault(); setQuery(q.getAttribute('data-q')); return; }
+      var dt = e.target.closest('[data-docs]');
+      if (dt) { e.preventDefault(); state.docsOpen = !state.docsOpen; place(); render(); return; }
+      var lg = e.target.closest('[data-lang]');
+      if (lg) { e.preventDefault(); state.pageLang = lg.getAttribute('data-lang'); state.active = 0; state.keepActive = true; render(); return; }
+      var pt = e.target.closest('[data-people]');
+      if (pt) { e.preventDefault(); state.peopleOpen = !state.peopleOpen; place(); render(); return; }
       var ex = e.target.closest('[data-ex]');
       if (ex) { e.preventDefault(); var k = ex.getAttribute('data-ex'); state.expanded[k] = !state.expanded[k]; render(); return; }
       var a = e.target.closest('a[href]');
       if (a) { commit('click', a.getAttribute('data-type') || 'link', +(a.getAttribute('data-pos') || 0)); }
     });
     panel.querySelector('.hs-sp-close').addEventListener('click', close);
+
+    // Document tooltip: our own (quick, readable) instead of the browser's slow title tooltip
+    els.tip = document.createElement('div');
+    els.tip.className = 'hs-sp-tip';
+    els.tip.setAttribute('role', 'tooltip');
+    document.body.appendChild(els.tip);
+    // Details appear only from the ⓘ on the hovered / selected card (option C): hover it (instant),
+    // tap or click it (toggle, for touch), or press → at the end of the typed text.
+    els.body.addEventListener('mouseover', function (e) {
+      var ic = e.target.closest('[data-info]');
+      if (!ic) { return; }
+      var row = ic.closest('[data-tip]');
+      if (row && row !== els.tipRow) { els.tipRow = row; showTip(row); }
+    });
+    els.body.addEventListener('mouseout', function (e) {
+      var ic = e.target.closest('[data-info]');
+      if (ic && !ic.contains(e.relatedTarget) && !els.tipPinned) { els.tipRow = null; hideTip(); }
+    });
+    els.body.addEventListener('click', function (e) {
+      var ic = e.target.closest('[data-info]');
+      if (!ic) { if (els.tipPinned) { els.tipPinned = false; els.tipRow = null; hideTip(); } return; }
+      e.preventDefault(); e.stopPropagation();
+      var row = ic.closest('[data-tip]');
+      if (els.tipPinned && els.tipRow === row) { els.tipPinned = false; els.tipRow = null; hideTip(); return; }
+      els.tipRow = row; els.tipPinned = true; showTip(row);
+    }, true);
+    els.body.addEventListener('scroll', hideTip, true);
     els.sheetField.addEventListener('input', onInput);
     els.sheetField.addEventListener('keydown', onKey);
     return panel;
   }
+
+  /** One tooltip for every result type (same look as the document tooltip). */
+  function showTip(row) {
+    var it = state.flat[+row.getAttribute('data-i')];
+    if (!it) { return; }
+    var campus = it.c && it.c.length ? (it.c[0] === 'chaofah' ? 'Chaofah' : 'Cherngtalay') : 'Both campuses';
+    var rows = [], quote = '', list = null, listLabel = '';
+    switch (it.t) {
+      case 'person':
+        rows = [['Job title', it.s || ''], ['Department', (it.k || []).join(', ')]];
+        break;
+      case 'doc':
+        var on = it.on || {};
+        rows = [['Found on', (on.ti || '') + (on.sec ? ' › ' + on.sec : '')], ['Date', on.d ? fmtDate(on.d, true) : ''], ['Type', DOCTYPE[it.ft] || 'Document'], ['Campus', campus]];
+        quote = it.cx || '';
+        break;
+      case 'page':
+        rows = [['Section', it.bc || ''], ['Language', (it.lg || 'en') === 'th' ? 'Thai' : (it.lg || 'en') === 'en' ? 'English' : (it.lg || '').toUpperCase()], ['Campus', campus]];
+        quote = it.s || '';
+        if (it.x) { list = it.x.split(' · ').filter(Boolean).slice(0, 5); listLabel = 'On this page'; }
+        break;
+      case 'article':
+        rows = [['From', it.p || (it.k || []).join(', ')], ['Date', fmtDate(it.d, true)], ['Section', it.sec && it.sec !== it.ti ? it.sec : ''], ['Campus', campus]];
+        quote = it.sn || '';
+        break;
+      case 'issue':
+        rows = [['Week', it.wk ? String(it.wk) : ''], ['Date', fmtDate(it.d, true)], ['Campus', campus]];
+        // matching headlines first, so the reason it was found is visible
+        var all = (it.x ? it.x.split(' · ') : (it.k || [])).filter(Boolean), tw = state.words || [];
+        var hits = all.filter(function (h) { var l = h.toLowerCase(); return tw.some(function (w) { return l.indexOf(w) > -1; }); });
+        list = hits.concat(all.filter(function (h) { return hits.indexOf(h) < 0; })).slice(0, 6); listLabel = 'In this issue';
+        break;
+      case 'event':
+        rows = [['Date', fmtDate(it.d, true) + (it.de && it.de !== it.d ? ' – ' + fmtDate(it.de, true) : '') + (it.tm ? ' · ' + it.tm : '')], ['Location', it.loc || ''], ['Campus', campus]];
+        quote = it.s || '';
+        break;
+      default:
+        return;
+    }
+    rows = rows.filter(function (r) { return r[1]; });
+    els.tip.innerHTML = '<div class="hs-sp-tip-t">' + esc(it.ti) + '</div>' +
+      (rows.length ? '<dl>' + rows.map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + esc(r[1]) + '</dd>'; }).join('') + '</dl>' : '') +
+      (list && list.length ? '<div class="hs-sp-tip-l"><b>' + listLabel + '</b><ul>' + list.map(function (x) { return '<li>' + hl(x, state.words) + '</li>'; }).join('') + '</ul></div>' : '') +
+      (quote ? '<p class="hs-sp-tip-q">' + hl(quote, state.words) + '</p>' : '');
+    var r = row.getBoundingClientRect(), vw = document.documentElement.clientWidth, vh = root.innerHeight;
+    els.tip.style.left = Math.max(8, Math.min(r.left + 50, vw - 360)) + 'px';
+    els.tip.classList.add('is-on');
+    var th = els.tip.offsetHeight;
+    els.tip.style.top = (r.bottom + 8 + th <= vh - 8 ? r.bottom + 8 : Math.max(8, r.top - th - 8)) + 'px'; // below, unless no room
+  }
+  function hideTip() { if (els.tip) { els.tip.classList.remove('is-on'); } if (els) { els.tipPinned = false; } }
 
   function currentField() { return state.sheet ? els.sheetField : state.field; }
   function syncFields(from) {
@@ -523,6 +626,7 @@
 
   function close() {
     if (!panel) { return; }
+    hideTip();
     panel.classList.remove('is-open');
     document.documentElement.classList.remove('hs-search-sheet-open');
     if (state.wrap) { state.wrap.classList.remove('is-open'); }
@@ -537,61 +641,86 @@
     var bar = state.wrap.closest('.hs-utility-bar') || state.wrap.closest('.et_pb_section') || state.wrap;
     var row = state.wrap.closest('.et_pb_row') || bar;
     var br = bar.getBoundingClientRect(), rr = row.getBoundingClientRect(), wr = state.wrap.getBoundingClientRect();
-    var left = Math.max(8, rr.left), width = Math.min(1140, rr.width, vw - left - 8);
+    // Below 1920 px the panel spans the row container (aligned left and right); at 1920+ it stays at max 1320 px
+    var left = Math.max(8, rr.left), width = vw >= 1920 ? Math.min(1320, rr.width, vw - left - 8) : Math.min(rr.width, vw - left - 8);
     panel.classList.toggle('is-cols', vw >= 1100);
     panel.style.width = width + 'px';
     panel.style.left = (left - wr.left) + 'px';
     panel.style.top = (br.bottom - wr.top) + 'px';
-    panel.style.maxHeight = Math.max(240, root.innerHeight - br.bottom - 24) + 'px';
+    // Fixed standard height (~30% shorter than the space below the bar); the columns scroll inside it.
+    // "Show all documents" makes it as tall as the space allows.
+    var space = root.innerHeight - br.bottom - 24;
+    var h = Math.max(300, Math.round(space * (state.docsOpen || state.peopleOpen ? 1 : 0.7)));
+    panel.style.maxHeight = h + 'px';
+    panel.style.height = panel.classList.contains('is-cols') ? h + 'px' : '';
   }
 
   /* ---------- rendering ---------- */
+  /**
+   * One card shape for every result: a 38 px icon/photo, a one-line title (with the campus tag),
+   * then exactly two lines of text. Only the icon and the text differ by type.
+   */
   function rowHTML(r, words, idx) {
-    var it = r.it, lead, title = hl(it.ti, words), sub = '', meta = '', tagAfterTitle = true, ext = false, go = 'Open ↵';
+    var it = r.it, lead, text = '', ext = false, go = 'Open ↵';
+    var lead2 = function (main, rest) { return '<b class="hs-sp-from">' + main + '</b>' + (rest ? ' ' + rest : ''); };
     switch (it.t) {
       case 'person':
-        lead = '<span class="hs-sp-lead hs-sp-lead--photo">' + (it.img ? '<img src="' + esc(it.img) + '" alt="" loading="lazy" decoding="async">' : ICON.person) + '</span>';
-        sub = '<span>' + hl(it.s || '', words) + '</span>' + (it.g ? '<span class="hs-sp-tag hs-sp-tag--class">' + esc(it.g) + '</span>' : '') + campusTag(it.c);
-        tagAfterTitle = false; go = 'View in directory ↵';
-        break;
+        // Three single-line rows: name, job title, then class + campus; the photo is as tall as the three rows
+        var photo = '<span class="hs-sp-lead hs-sp-lead--photo">' + (it.img ? '<img src="' + esc(it.img) + '" alt="" loading="lazy" decoding="async">' : ICON.person) +
+          '<span class="hs-sp-info hs-sp-info--photo" role="button" aria-label="Details" data-info="1">i</span></span>';
+        var staffUrl = (it.u || '/staff-directory/') + ((it.u || '').indexOf('?') > -1 ? '&' : '?') + 'hs_staff=' + encodeURIComponent(it.ti);
+        return '<a class="hs-sp-row hs-sp-row--person" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="person" data-pos="' + idx + '" data-tip="1" href="' + esc(staffUrl) + '">' + photo +
+          '<span class="hs-sp-tx"><span class="hs-sp-ti"><span class="hs-sp-ti-t">' + hl(it.ti, words) + '</span></span>' +
+          '<span class="hs-sp-role">' + hl(it.s || '', words) + '</span>' +
+          '<span class="hs-sp-tags">' + (it.g ? '<span class="hs-sp-tag hs-sp-tag--class">' + esc(it.g) + '</span>' : '') + campusTag(it.c) + '</span></span>' +
+          '<span class="hs-sp-go">View in directory ↵</span></a>';
       case 'event':
         lead = '<span class="hs-sp-lead hs-sp-lead--date">' + esc((it.d || '').slice(8)) + '<small>' + esc(MONTH[+(it.d || '').slice(5, 7) - 1] || '') + '</small></span>';
-        sub = '<span>' + esc([it.tm, it.loc].filter(Boolean).join(' · ') || it.s || '') + '</span>';
+        text = lead2(esc(fmtDate(it.d, true) + (it.tm ? ' · ' + it.tm : '')), hl([it.loc, it.s].filter(Boolean).join(' · '), words));
         break;
       case 'doc':
-        lead = '<span class="hs-sp-lead hs-sp-lead--doc">' + ICON.doc + '<i>' + esc(FT[it.ft] || 'DOC') + '</i></span>';
-        sub = '<span>Found on: ' + hl(((it.on || {}).ti || '') + ((it.on || {}).sec ? ' › ' + it.on.sec : ''), words) + '</span>';
-        ext = true; go = 'Open document ↗';
-        break;
+        // Documents have their own row, so their cards are taller: title, then page (› section), date, type
+        var on = it.on || {};
+        return '<a class="hs-sp-row hs-sp-row--doc" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="doc" data-pos="' + idx + '" data-tip="1" href="' + esc(it.u) + '" target="_blank" rel="noopener">' +
+          '<span class="hs-sp-leadcol"><span class="hs-sp-lead hs-sp-lead--doc">' + ICON.doc + '</span>' + INFOBTN + '</span>' +
+          '<span class="hs-sp-tx"><span class="hs-sp-ti"><span class="hs-sp-ti-t">' + hl(it.ti, words) + '</span>' + campusTag(it.c) + '</span>' +
+          '<span class="hs-sp-line">' + hl((on.ti || '') + (on.sec ? ' › ' + on.sec : ''), words) + '</span>' +
+          '<span class="hs-sp-line hs-sp-ft">' + (on.d ? '<b class="hs-sp-date">' + hl(fmtDate(on.d, true), words) + '</b> · ' : '') + esc(DOCTYPE[it.ft] || 'Document') + '</span></span>' +
+          '<span class="hs-sp-go">Open document ↗</span></a>';
       case 'issue':
         lead = '<span class="hs-sp-lead hs-sp-lead--issue">' + ICON.issue + '</span>';
-        sub = '<span>' + hl([it.wk ? 'Week ' + it.wk : '', fmtDate(it.d, true)].filter(Boolean).join(' · '), words) + (it.k && it.k.length ? ' · In this issue: ' + hl(it.k.slice(0, 6).join(', '), words) : '') + '</span>';
+        // If the search words are in one of its articles, say which; otherwise list the issue's topics
+        var heads = (it.x || '').split(' · '), hit = '';
+        for (var h = 0; h < heads.length && !hit; h++) {
+          var hlow = heads[h].toLowerCase();
+          if (words.some(function (w) { return hlow.indexOf(w) > -1; })) { hit = heads[h]; }
+        }
+        var summary = hit ? 'Includes: ' + hl(hit, words)
+          : (it.k && it.k.length ? 'In this issue: ' + hl(it.k.slice(0, 6).join(', '), words)
+          : (it.x ? 'In this issue: ' + hl(heads.slice(0, 4).join(', '), words) : ''));
+        text = lead2(hl([it.wk ? 'Week ' + it.wk : '', fmtDate(it.d, true)].filter(Boolean).join(' · '), words), summary);
         break;
       case 'article':
         lead = '<span class="hs-sp-lead hs-sp-lead--issue">' + ICON.issue + '</span>';
-        sub = '<span class="hs-sp-snip">' + hl(HSSearchEngine.snippet(it.sn || '', words, 150), words) + '</span>';
-        meta = '<span>' + hl([it.p ? 'From ' + it.p : (it.k && it.k[0]) || 'Article', it.sec, fmtDate(it.d, true)].filter(Boolean).join(' · '), words) + '</span>' + campusTag(it.c);
-        tagAfterTitle = false;
+        text = lead2(hl([it.p || (it.k && it.k[0]) || 'Article', fmtDate(it.d, true)].filter(Boolean).join(' · '), words), hl(HSSearchEngine.snippet(it.sn || '', words, 230), words));
         break;
       case 'topic':
         lead = '<span class="hs-sp-lead hs-sp-lead--topic">' + ICON.topic + '</span>';
-        sub = '<span>' + hl(it.a || (it.b && it.b[0] ? it.b[0][0] : ''), words) + '</span>';
-        tagAfterTitle = false;
+        text = hl(it.a || (it.b && it.b[0] ? it.b[0][0] : ''), words);
         break;
       default:
         lead = '<span class="hs-sp-lead hs-sp-lead--page">' + ICON.page + '</span>';
         // Description (Yoast or first text); if the search words are only in the page's headings, show those instead.
         var desc = it.s || '', lowerDesc = desc.toLowerCase();
         if (words.length && it.x && !words.some(function (w) { return lowerDesc.indexOf(w) > -1; })) {
-          desc = HSSearchEngine.snippet(it.x, words, 150);
+          desc = HSSearchEngine.snippet(it.x, words, 230);
         }
-        sub = '<span class="hs-sp-snip">' + (it.bc ? esc(it.bc) + ' › ' : '') + hl(desc, words) + '</span>';
+        text = (it.bc ? '<b class="hs-sp-from">' + esc(it.bc) + '</b> ' : '') + hl(desc, words);
     }
     var url = it.t === 'topic' ? ((it.b && it.b[0] && it.b[0][1]) || '#') : it.u;
-    return '<a class="hs-sp-row" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="' + it.t + '" data-pos="' + idx + '" href="' + esc(url) + '"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>' +
-      lead + '<span class="hs-sp-tx"><span class="hs-sp-ti"><span>' + title + '</span>' + (tagAfterTitle ? campusTag(it.c) : '') + '</span>' +
-      '<span class="hs-sp-su' + (it.t === 'person' ? ' hs-sp-fl' : '') + '">' + sub + '</span>' + (meta ? '<span class="hs-sp-mt">' + meta + '</span>' : '') +
-      '</span><span class="hs-sp-go">' + go + '</span></a>';
+    return '<a class="hs-sp-row" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="' + it.t + '" data-pos="' + idx + '"' + (it.t !== 'topic' ? ' data-tip="1"' : '') + ' href="' + esc(url) + '"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>' +
+      (it.t !== 'topic' ? '<span class="hs-sp-leadcol">' + lead + INFOBTN + '</span>' : lead) + '<span class="hs-sp-tx"><span class="hs-sp-ti"><span class="hs-sp-ti-t">' + hl(it.ti, words) + '</span>' + (it.t === 'topic' ? '' : campusTag(it.c)) + '</span>' +
+      '<span class="hs-sp-su">' + text + '</span></span><span class="hs-sp-go">' + go + '</span></a>';
   }
 
   function cardHTML(it) {
@@ -638,6 +767,7 @@
 
     var r = HSSearchEngine.search(state.ctx, raw, { campus: state.campus, lang: (document.documentElement.lang || 'en').slice(0, 2) });
     var words = r.words;
+    state.words = words;
 
     // "Understood as" chips
     if (raw.trim()) {
@@ -646,7 +776,7 @@
           if (c.k === 'type') { return '<span class="hs-sp-chip hs-sp-chip--type">' + esc(c.label) + '</span>'; }
           return '<span class="hs-sp-chip' + (c.k === 'campus' ? ' hs-sp-chip--campus' : '') + '">' + esc(c.label) + '<button type="button" data-rm="' + esc(c.words) + '" aria-label="Remove ' + esc(c.label) + '">✕</button></span>';
         }).join('');
-      els.under.innerHTML = 'Understood as: ' + chips;
+      els.under.innerHTML = 'Understood as: ' + chips + (r.corrected && r.results.length ? '<span class="hs-sp-fix">Showing results for <b>' + esc(r.corrected) + '</b></span>' : '');
     } else {
       els.under.innerHTML = 'Add a campus or a type to the same box, e.g. <i>science teacher chaofah</i>';
     }
@@ -677,7 +807,7 @@
           (g.items.length > 3 ? '<a href="#" data-ex="' + g.key + '">' + (open ? 'Show less' : 'See all ' + g.items.length) + '</a>' : '') + '</div>' + R(shown) + '</div>';
       });
     } else {
-      // Desktop: the same three columns and documents row for every search
+      // Desktop: the same four columns and documents row for every search
       var by = {}; groups.forEach(function (g) { by[g.key] = g.items; });
       var col = function (key, n) {
         var arr = by[key] || []; if (!arr.length) { return ''; }
@@ -686,14 +816,56 @@
           (arr.length > n ? '<a href="#" class="hs-sp-more" data-ex="' + key + '">' + (open ? 'Show less' : '+ ' + (arr.length - n) + ' more') + '</a>' : '') + '</div>';
       };
       var none = function (label) { return '<div class="hs-sp-grp"><div class="hs-sp-h">' + label + '</div><div class="hs-sp-nomatch">No ' + label.toLowerCase() + ' match</div></div>'; };
-      var c1 = col('person', 5) || none('People');
-      var c2 = (col('page', 4) + col('topic', 3)) || none('Pages');
-      var c3 = (col('issue', 2) + col('article', 4) + col('event', 3)) || none('Weekly updates');
+      // People: a row of cards above the columns, only when there are matches (not aligned to the columns)
+      var people = by.person || [];
+      if (people.length) {
+        var pOpen = state.peopleOpen, shownP = pOpen ? people : people.slice(0, 5);
+        html += '<div class="hs-sp-people"><div class="hs-sp-grp"><div class="hs-sp-h">People<em>' + people.length + '</em>' +
+          (people.length > 5 ? '<a href="#" data-people="1">' + (pOpen ? 'Show fewer' : 'Show all ' + people.length + ' people') + '</a>' : '') + '</div>' +
+          '<div class="hs-sp-pgrid">' + R(shownP) + '</div></div></div>';
+      }
+      // Pages exist in English and Thai: if both match, a small EN | TH switch filters the Pages column
+      var pagesAll = by.page || [], langs = {};
+      pagesAll.forEach(function (x) { langs[x.it.lg || 'en'] = 1; });
+      var langList = Object.keys(langs).sort(function (a, b) { return a === 'en' ? -1 : b === 'en' ? 1 : a.localeCompare(b); });
+      var pageLang = state.pageLang && langs[state.pageLang] ? state.pageLang : (langs.en ? 'en' : langList[0]); // English by default
+      if (langList.length > 1) { by.page = pagesAll.filter(function (x) { return (x.it.lg || 'en') === pageLang; }); }
+      var langSwitch = langList.length > 1 ? '<span class="hs-sp-lang" role="group" aria-label="Page language">' + langList.map(function (l) {
+        return '<button type="button" data-lang="' + l + '" class="' + (l === pageLang ? 'is-on' : '') + '">' + l.toUpperCase() + '</button>';
+      }).join('') + '</span>' : '';
+      var c1 = (col('page', 8) + col('topic', 4)) || none('Pages');
+      if (langSwitch) { c1 = c1.replace('</div>', langSwitch + '</div>'); }
+      var c2 = (col('issue', 8) + col('event', 6)) || none('Weekly updates');
+      var c3 = col('article', 12) || none('Articles');
       html += '<div class="hs-sp-cols"><div class="hs-sp-col">' + c1 + '</div><div class="hs-sp-col">' + c2 + '</div><div class="hs-sp-col">' + c3 + '</div></div>';
-      html += '<div class="hs-sp-docs">' + (col('doc', 4) || none('Documents')) + '</div>';
+      // Documents: one row (four across); "Show all" makes the whole panel taller instead of scrolling this row
+      var docs = by.doc || [];
+      if (!docs.length) { html += '<div class="hs-sp-docs">' + none('Documents') + '</div>'; }
+      else {
+        var showAll = state.docsOpen, shownDocs = showAll ? docs : docs.slice(0, 4);
+        html += '<div class="hs-sp-docs"><div class="hs-sp-grp"><div class="hs-sp-h">Documents<em>' + docs.length + '</em>' +
+          (docs.length > 4 ? '<a href="#" data-docs="1">' + (showAll ? 'Show fewer' : 'Show all ' + docs.length + ' documents') + '</a>' : '') + '</div>' + R(shownDocs) + '</div></div>';
+      }
+      panel.classList.toggle('is-tall', (!!state.docsOpen && docs.length > 4) || (!!state.peopleOpen && people.length > 5));
     }
+    hideTip();
     els.body.innerHTML = html;
+    // Columns that can scroll get a "More below" hint until scrolled to the end
+    Array.prototype.forEach.call(els.body.querySelectorAll('.hs-sp-col'), function (col) {
+      var hint = document.createElement('div');
+      hint.className = 'hs-sp-hint';
+      hint.innerHTML = '<span>More below ↓</span>';
+      col.appendChild(hint);
+      var update = function () { col.classList.toggle('can-scroll', col.scrollHeight - col.scrollTop - col.clientHeight > 6); };
+      col.addEventListener('scroll', update, { passive: true });
+      setTimeout(update, 0);
+    });
     state.active = Math.min(state.active, Math.max(0, state.flat.length - 1));
+    if (state.keepActive) {
+      state.keepActive = false;
+      var firstPage = els.body.querySelector('.hs-sp-cols .hs-sp-col:first-child .hs-sp-row');
+      if (firstPage) { state.active = +firstPage.getAttribute('data-i'); }
+    }
     markActive(false);
     els.live.textContent = results.length + (results.length === 1 ? ' result' : ' results');
     if (DEBUG) { console.log('[hs-search] "' + raw + '"', results.length, 'results in', Date.now() - t0, 'ms'); }
@@ -747,13 +919,23 @@
   /* ---------- events ---------- */
   function onInput(e) {
     syncFields(e.target);
-    state.active = 0; state.expanded = {};
+    state.active = 0; state.expanded = {}; state.docsOpen = false; state.peopleOpen = false; state.pageLang = '';
     if (!isOpen()) { open(state.field, state.sheet); }
     render();
   }
   function onKey(e) {
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && els.tip) { els.tipPinned = false; els.tipRow = null; hideTip(); }
+    if (e.key === 'Escape' && els.tip && els.tip.classList.contains('is-on')) { e.preventDefault(); els.tipPinned = false; els.tipRow = null; hideTip(); return; }
     if (e.key === 'ArrowDown') { e.preventDefault(); if (!isOpen()) { open(state.field, state.sheet); } state.active = Math.min(state.flat.length - 1, state.active + 1); markActive(true); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); state.active = Math.max(0, state.active - 1); markActive(true); }
+    else if (e.key === 'ArrowRight' && e.target.selectionStart === e.target.value.length && els.body) {
+      var arow = els.body.querySelector('.hs-sp-row.is-active[data-tip]');
+      if (arow) {
+        e.preventDefault();
+        if (els.tipRow === arow && els.tip.classList.contains('is-on')) { els.tipRow = null; els.tipPinned = false; hideTip(); }
+        else { els.tipRow = arow; els.tipPinned = true; showTip(arow); }
+      }
+    }
     else if (e.key === 'Enter') {
       e.preventDefault();
       var row = els.body && els.body.querySelector('.hs-sp-row.is-active');
@@ -770,7 +952,35 @@
     f.value = q; syncFields(f); state.active = 0; state.expanded = {}; render(); f.focus();
   }
 
+  /**
+   * Staff deep link: /staff-directory/?hs_staff=<name> uses the directory's OWN search (staff-directory.js is not
+   * changed): type the name into its search box, then pick the matching suggestion. The directory then switches
+   * campus tab, opens the section, scrolls to the card and pulses it, exactly as when a visitor searches there.
+   */
+  function staffDeepLink() {
+    var m = root.location.search.match(/[?&]hs_staff=([^&]+)/);
+    if (!m) { return; }
+    var name = decodeURIComponent(m[1].replace(/\+/g, ' '));
+    var tries = 0;
+    (function attempt() {
+      var input = document.getElementById('staff-search-new');
+      var ready = input && document.querySelector('.hs-staff-card');
+      if (!ready) { if (++tries < 60) { setTimeout(attempt, 150); } return; }
+      input.value = name;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      setTimeout(function () {
+        var items = document.querySelectorAll('#hs-search-dropdown .hs-suggest-item');
+        var pick = null;
+        Array.prototype.forEach.call(items, function (it) { if (!pick && it.getAttribute('data-exact-name') === name) { pick = it; } });
+        if (!pick && items.length === 1) { pick = items[0]; }
+        if (pick) { pick.click(); }
+        try { root.history.replaceState(null, '', root.location.pathname + root.location.search.replace(/([?&])hs_staff=[^&]*&?/, '$1').replace(/[?&]$/, '') + root.location.hash); } catch (e) { /* old browsers */ }
+      }, 60);
+    })();
+  }
+
   function init() {
+    staffDeepLink();
     var fields = document.querySelectorAll('.hs-search .hs-search-field');
     Array.prototype.forEach.call(fields, function (f) {
       var wrap = f.closest('.hs-search');

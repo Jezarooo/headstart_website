@@ -24,6 +24,9 @@ function check(c) {
   if (c.topTitle && (!top || top.ti !== c.topTitle)) { errs.push('top "' + (top ? top.ti : 'none') + '" != "' + c.topTitle + '"'); }
   if (c.topTitleIncludes && (!top || top.ti.indexOf(c.topTitleIncludes) < 0)) { errs.push('top "' + (top ? top.ti : 'none') + '" lacks "' + c.topTitleIncludes + '"'); }
   if (c.topIn && (!top || c.topIn.indexOf(top.ti) < 0)) { errs.push('top "' + (top ? top.ti : 'none') + '" not in ' + c.topIn.join('/')); }
+  if (c.noType && r.results.some(function (x) { return x.it.t === c.noType; })) { errs.push('should have no ' + c.noType + ' results'); }
+  if (c.corrected && r.corrected !== c.corrected) { errs.push('corrected "' + r.corrected + '" != "' + c.corrected + '"'); }
+  if (c.corrected && r.words.indexOf(c.corrected) < 0) { errs.push('corrected word not in highlight words'); }
   if (c.notTitle && r.results.some(function (x) { return x.it.ti === c.notTitle; })) { errs.push('should not include ' + c.notTitle); }
   if (c.allCampus && r.results.some(function (x) { return x.it.c && x.it.c.length && x.it.c.indexOf(c.allCampus) < 0; })) { errs.push('result outside ' + c.allCampus); }
   (c.chips || []).forEach(function (ch) {
