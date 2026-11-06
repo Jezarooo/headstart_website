@@ -24,7 +24,7 @@ function hs_local_scripts_dir() {
 /**
  * Local options: Site-Scripts/.loader-options (not tracked) may contain
  *   live-order  run JS in live load order (MANIFEST.tsv) instead of the default
- *   no-css      skip Site-Scripts/css/*.css
+ *   no-css      skip Site-Scripts/css/core.css (it already comes from the DB); other css files still load
  * Default JS order is alphabetical by live (hash) file name: the order this site
  * has always used locally. In live order, staff-directory search breaks locally
  * (scripts run inline in the footer here, as deferred files in the head on live).
@@ -111,9 +111,13 @@ add_action(
 add_action(
 	'wp_head',
 	function () {
-		$css = hs_local_option( 'no-css' ) ? array() : ( glob( hs_local_scripts_dir() . '/css/*.css' ) ?: array() );
+		$css = glob( hs_local_scripts_dir() . '/css/*.css' ) ?: array();
 		sort( $css );
 		foreach ( $css as $file ) {
+			// no-css: core.css already comes from the DB (Custom CSS & JS "Core CSS"), so skip only that file.
+			if ( hs_local_option( 'no-css' ) && 'core.css' === basename( $file ) ) {
+				continue;
+			}
 			if ( ! hs_local_is_off( $file ) ) {
 				echo '<style data-hs-src="' . esc_attr( basename( $file ) ) . "\">\n" . file_get_contents( $file ) . "\n</style>\n";
 			}
