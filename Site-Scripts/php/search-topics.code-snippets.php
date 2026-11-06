@@ -222,11 +222,23 @@ function hs_search_seed_topics() {
 			'answer' => 'Visits run Monday to Friday, 9:00 to 15:00, or on Saturday mornings by appointment.',
 			'btn1_label' => 'Book a school tour', 'btn1_url' => '/booking/',
 		) ),
-		array( 'Term dates', array(
+		array( 'Calendar', array(
 			'pinned' => 1,
-			'synonyms' => 'term dates, calendar, holidays, half term, school year, academic calendar, closures, key dates',
-			'answer' => 'Term dates and key dates for the academic year.',
+			'synonyms' => 'calendar, term dates, holidays, half term, school year, academic calendar, closures, key dates',
+			'answer' => 'Term dates, holidays and key dates for the academic year.',
 			'btn1_label' => 'Calendars & Key Dates', 'btn1_url' => '/resources-and-information/calendars-key-dates/',
+		) ),
+		array( 'Staff directory', array(
+			'pinned' => 1,
+			'synonyms' => 'staff directory, staff list, teachers, find a teacher, who is who, whos who, team',
+			'answer' => 'Find teachers and staff on both campuses.',
+			'btn1_label' => 'Staff Directory', 'btn1_url' => '/staff-directory/',
+		) ),
+		array( 'Safeguarding', array(
+			'pinned' => 1,
+			'synonyms' => 'safeguarding, child protection, safety, report a concern, concern, dsl, designated safeguarding lead',
+			'answer' => 'How we keep children safe, and who to contact with a concern.',
+			'btn1_label' => 'Safeguarding Guidelines', 'btn1_url' => '/resources-and-information/safeguarding-guidelines/',
 		) ),
 		array( 'ECAs & clubs', array(
 			'synonyms' => 'eca, ecas, clubs, after school, activities, extracurricular, extra curricular',
@@ -239,7 +251,7 @@ function hs_search_seed_topics() {
 			'btn1_label' => 'Recruitment', 'btn1_url' => '/recruitment/',
 		) ),
 		array( 'Policies', array(
-			'synonyms' => 'policy, policies, safeguarding, child protection, complaints, privacy, pdpa',
+			'synonyms' => 'policy, policies, complaints, privacy, pdpa',
 			'btn1_label' => 'Key Policies', 'btn1_url' => '/key-policies/',
 		) ),
 		array( 'Alumni', array(

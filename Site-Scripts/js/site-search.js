@@ -252,17 +252,19 @@
       var campus = opts.campus || p.campus;
       var words = p.free.filter(function (w) { return w.length; });
       var res = [], relaxed = false;
-      var topic = null;
+      var topic = null, topics = [];
 
       // Quick answers by phrase (before stopwords are removed)
       ctx.topics.forEach(function (tp) {
         var it = ctx.items[tp.idx];
         var s = topicScore(ctx, it, p.norm);
-        if (s >= 45 && (!topic || s > topic.score)) { topic = { it: it, score: s }; }
+        if (s >= 45) { topics.push({ it: it, score: s }); }
       });
+      topics.sort(function (a, b) { return b.score - a.score; });
+      topic = topics[0] || null;
 
       if (!words.length && !p.optional.length && !campus && !p.range && !p.week) {
-        return { parsed: p, results: [], topic: topic, relaxed: false, words: [] };
+        return { parsed: p, results: [], topic: topic, topics: topics, relaxed: false, words: [] };
       }
 
       var run = function (mode) {
@@ -324,15 +326,15 @@
       if (!res.length && words.length > 1) { res = run('or'); relaxed = res.length > 0; }
       res.sort(function (a, b) { return b.score - a.score || (b.it.d || '').localeCompare(a.it.d || '') || a.it.ti.localeCompare(b.it.ti); });
       if (opts.limit) { res = res.slice(0, opts.limit); }
-      return { parsed: p, results: res, topic: topic, relaxed: relaxed, words: words.concat(p.optional) };
+      return { parsed: p, results: res, topic: topic, topics: topics, relaxed: relaxed, words: words.concat(p.optional) };
     }
 
-    var ORDER = ['person', 'page', 'topic', 'issue', 'event', 'doc'];
+    var ORDER = ['person', 'page', 'topic', 'issue', 'article', 'event', 'doc'];
     /** Group results by display group; groups ordered by their best score. */
     function group(results) {
       var g = {};
       results.forEach(function (r) {
-        var key = r.it.t === 'article' ? 'issue' : r.it.t;
+        var key = r.it.t;
         (g[key] || (g[key] = { key: key, items: [], best: r.score })).items.push(r);
       });
       return Object.keys(g).map(function (k) { return g[k]; }).sort(function (a, b) { return b.best - a.best || ORDER.indexOf(a.key) - ORDER.indexOf(b.key); });
@@ -370,13 +372,14 @@
   var INDEX_URL = '/wp-content/uploads/hs-search/index.json';
   var AJAX_URL = '/wp-admin/admin-ajax.php';
   var DEBUG = /[?&]hs_search_debug=1/.test(root.location.search);
-  var GROUP_LABEL = { person: 'People', page: 'Pages', topic: 'Quick answers', issue: 'Weekly updates', event: 'Events', doc: 'Documents' };
+  var GROUP_LABEL = { person: 'People', page: 'Pages', topic: 'Quick answers', issue: 'Weekly updates', article: 'Articles', event: 'Events', doc: 'Documents' };
   var MONTH = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   var ICON = {
     search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
     page: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg>',
     issue: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8z"/></svg>',
     doc: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9.5 14.5 12 17l2.5-2.5"/></svg>',
+    topic: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg>',
     person: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="4"/><path d="M4 22c0-4.4 3.6-8 8-8s8 3.6 8 8z"/></svg>',
     phone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>',
     pin: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>'
@@ -534,7 +537,7 @@
     var bar = state.wrap.closest('.hs-utility-bar') || state.wrap.closest('.et_pb_section') || state.wrap;
     var row = state.wrap.closest('.et_pb_row') || bar;
     var br = bar.getBoundingClientRect(), rr = row.getBoundingClientRect(), wr = state.wrap.getBoundingClientRect();
-    var left = Math.max(8, rr.left), width = Math.min(rr.width, vw - left - 8);
+    var left = Math.max(8, rr.left), width = Math.min(1140, rr.width, vw - left - 8);
     panel.classList.toggle('is-cols', vw >= 1100);
     panel.style.width = width + 'px';
     panel.style.left = (left - wr.left) + 'px';
@@ -567,7 +570,12 @@
       case 'article':
         lead = '<span class="hs-sp-lead hs-sp-lead--issue">' + ICON.issue + '</span>';
         sub = '<span class="hs-sp-snip">' + hl(HSSearchEngine.snippet(it.sn || '', words, 150), words) + '</span>';
-        meta = '<span>' + hl([it.p || (it.k && it.k[0]) || 'Weekly update article', it.sec, fmtDate(it.d, true)].filter(Boolean).join(' · '), words) + '</span>' + campusTag(it.c);
+        meta = '<span>' + hl([it.p ? 'From ' + it.p : (it.k && it.k[0]) || 'Article', it.sec, fmtDate(it.d, true)].filter(Boolean).join(' · '), words) + '</span>' + campusTag(it.c);
+        tagAfterTitle = false;
+        break;
+      case 'topic':
+        lead = '<span class="hs-sp-lead hs-sp-lead--topic">' + ICON.topic + '</span>';
+        sub = '<span>' + hl(it.a || (it.b && it.b[0] ? it.b[0][0] : ''), words) + '</span>';
         tagAfterTitle = false;
         break;
       default:
@@ -579,7 +587,8 @@
         }
         sub = '<span class="hs-sp-snip">' + (it.bc ? esc(it.bc) + ' › ' : '') + hl(desc, words) + '</span>';
     }
-    return '<a class="hs-sp-row" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="' + it.t + '" data-pos="' + idx + '" href="' + esc(it.u) + '"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>' +
+    var url = it.t === 'topic' ? ((it.b && it.b[0] && it.b[0][1]) || '#') : it.u;
+    return '<a class="hs-sp-row" role="option" id="hs-sp-opt-' + idx + '" data-i="' + idx + '" data-type="' + it.t + '" data-pos="' + idx + '" href="' + esc(url) + '"' + (ext ? ' target="_blank" rel="noopener"' : '') + '>' +
       lead + '<span class="hs-sp-tx"><span class="hs-sp-ti"><span>' + title + '</span>' + (tagAfterTitle ? campusTag(it.c) : '') + '</span>' +
       '<span class="hs-sp-su' + (it.t === 'person' ? ' hs-sp-fl' : '') + '">' + sub + '</span>' + (meta ? '<span class="hs-sp-mt">' + meta + '</span>' : '') +
       '</span><span class="hs-sp-go">' + go + '</span></a>';
@@ -608,14 +617,14 @@
     if (recent.length) {
       html += '<div class="hs-sp-h">Recent searches</div><div class="hs-sp-try">' + recent.map(function (q) { return '<button type="button" data-q="' + esc(q) + '">' + esc(q) + '</button>'; }).join('') + '</div>';
     }
-    var pins = ctx ? ctx.items.filter(function (it) { return it.t === 'topic' && it.pin; }) : [];
+    var pins = ctx ? ctx.items.filter(function (it) { return it.t === 'topic' && it.pin; }).slice(0, 6) : [];
     if (pins.length) {
       html += '<div class="hs-sp-h">Quick answers</div><div class="hs-sp-qa">' + pins.map(function (it) {
-        return '<button type="button" data-q="' + esc(it.ti.toLowerCase()) + '"><b>' + esc(it.ti) + '</b>' + (it.a ? '<span>' + esc(it.a) + '</span>' : '') + '</button>';
+        var line = it.a || (it.card === 'contact' ? 'Phone numbers, emails, addresses and maps for both campuses.' : '');
+        return '<button type="button" data-q="' + esc(it.ti.toLowerCase()) + '"><b>' + esc(it.ti) + '</b>' + (line ? '<span>' + esc(line) + '</span>' : '') + '</button>';
       }).join('') + '</div>';
     }
-    html += '<div class="hs-sp-h">Try</div><div class="hs-sp-try">' + ['fees', 'year 3', 'science teacher', 'weekly update', 'parent handbook', 'contact'].map(function (q) { return '<button type="button" data-q="' + q + '">' + q + '</button>'; }).join('') + '</div></div>';
-    return html;
+    return html + '</div>';
   }
 
   function render() {
@@ -656,15 +665,19 @@
     }
     if (r.relaxed) { html += '<div class="hs-sp-relaxed">No exact matches, showing close results.</div>'; }
     if (card) { html += cardHTML(card); }
+    var otherTopics = (r.topics || []).slice(1).map(function (t) { return { it: t.it, score: t.score }; });
     var groups = HSSearchEngine.group(results);
+    if (otherTopics.length) { groups.push({ key: 'topic', items: otherTopics, best: otherTopics[0].score }); }
     var wide = panel.classList.contains('is-cols') && !state.sheet;
     if (!wide) {
+      groups.sort(function (a, b) { return b.best - a.best; });
       groups.forEach(function (g) {
         var open = state.expanded[g.key], shown = open ? g.items : g.items.slice(0, 3);
         html += '<div class="hs-sp-grp"><div class="hs-sp-h">' + GROUP_LABEL[g.key] + '<em>' + g.items.length + '</em>' +
           (g.items.length > 3 ? '<a href="#" data-ex="' + g.key + '">' + (open ? 'Show less' : 'See all ' + g.items.length) + '</a>' : '') + '</div>' + R(shown) + '</div>';
       });
     } else {
+      // Desktop: the same three columns and documents row for every search
       var by = {}; groups.forEach(function (g) { by[g.key] = g.items; });
       var col = function (key, n) {
         var arr = by[key] || []; if (!arr.length) { return ''; }
@@ -672,10 +685,12 @@
         return '<div class="hs-sp-grp"><div class="hs-sp-h">' + GROUP_LABEL[key] + '<em>' + arr.length + '</em></div>' + R(shown) +
           (arr.length > n ? '<a href="#" class="hs-sp-more" data-ex="' + key + '">' + (open ? 'Show less' : '+ ' + (arr.length - n) + ' more') + '</a>' : '') + '</div>';
       };
-      var cols = [col('person', 5), col('page', 4), col('issue', 4) + col('event', 3)].filter(Boolean);
-      html += '<div class="hs-sp-cols" style="grid-template-columns:repeat(' + Math.max(1, cols.length) + ',minmax(0,1fr))">' + cols.map(function (c) { return '<div class="hs-sp-col">' + c + '</div>'; }).join('') + '</div>';
-      var docs = col('doc', 4);
-      if (docs) { html += '<div class="hs-sp-docs">' + docs + '</div>'; }
+      var none = function (label) { return '<div class="hs-sp-grp"><div class="hs-sp-h">' + label + '</div><div class="hs-sp-nomatch">No ' + label.toLowerCase() + ' match</div></div>'; };
+      var c1 = col('person', 5) || none('People');
+      var c2 = (col('page', 4) + col('topic', 3)) || none('Pages');
+      var c3 = (col('issue', 2) + col('article', 4) + col('event', 3)) || none('Weekly updates');
+      html += '<div class="hs-sp-cols"><div class="hs-sp-col">' + c1 + '</div><div class="hs-sp-col">' + c2 + '</div><div class="hs-sp-col">' + c3 + '</div></div>';
+      html += '<div class="hs-sp-docs">' + (col('doc', 4) || none('Documents')) + '</div>';
     }
     els.body.innerHTML = html;
     state.active = Math.min(state.active, Math.max(0, state.flat.length - 1));

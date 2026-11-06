@@ -812,11 +812,16 @@ function hs_search_docs_apply( $docs, $settings ) {
 		$rec['last'] = $d['last'] ?: $today;
 		$store[ $h ] = $rec;
 		$only_updates = ! isset( $d['srcs']['page'] );
-		$audit[ $h ] = array( 'url' => $d['url'], 'ti' => $d['ti'], 'rule' => $d['rule'], 'ft' => $d['ft'], 'on' => $d['on'], 'n' => $d['n'], 'markup' => $d['markup'], 'upd' => $only_updates ? 1 : 0, 'c' => $d['c'] );
+		// Legacy photo galleries: Drive folders shared in weekly updates/posts (the school no longer uses them).
+		$legacy = ( 'folder' === $d['ft'] && $only_updates );
+		$audit[ $h ] = array( 'url' => $d['url'], 'ti' => $d['ti'], 'rule' => $d['rule'], 'ft' => $d['ft'], 'on' => $d['on'], 'n' => $d['n'], 'markup' => $d['markup'], 'upd' => $only_updates ? 1 : 0, 'c' => $d['c'], 'legacy' => $legacy ? 1 : 0 );
 		if ( 'out' === $rec['state'] ) {
 			continue;
 		}
 		$pinned = 'pin' === $rec['state'];
+		if ( $legacy && ! $pinned ) {
+			continue;
+		}
 		if ( ! $pinned ) {
 			$skip = false;
 			foreach ( $pats as $pat ) {
@@ -1082,7 +1087,7 @@ function hs_search_render_docs_page() {
 		$rec   = $store[ $h ] ?? array( 'state' => 'in', 'title' => '', 'first' => '', 'last' => '' );
 		$src   = $d['upd'] ? 'updates' : 'pages';
 		$title = $rec['title'] ?: $d['ti'];
-		if ( ( $f['src'] && $f['src'] !== $src ) || ( $f['ft'] && $f['ft'] !== $d['ft'] ) || ( $f['state'] && $f['state'] !== $rec['state'] ) ) {
+		if ( ( $f['src'] && $f['src'] !== $src ) || ( $f['ft'] && $f['ft'] !== $d['ft'] ) || ( $f['state'] && 'legacy' !== $f['state'] && $f['state'] !== $rec['state'] ) || ( 'legacy' === $f['state'] && empty( $d['legacy'] ) ) ) {
 			continue;
 		}
 		if ( $f['c'] && ! in_array( $f['c'], (array) $d['c'], true ) && ! ( 'both' === $f['c'] && empty( $d['c'] ) ) ) {
@@ -1125,7 +1130,7 @@ function hs_search_render_docs_page() {
 	$sel( 'src', array( '' => 'All sources', 'pages' => 'Found on pages', 'updates' => 'Only in weekly updates / posts' ), $f['src'] );
 	$sel( 'ft', array( '' => 'All types', 'gdoc' => 'Google Doc', 'gsheet' => 'Google Sheet', 'gslides' => 'Google Slides', 'gform' => 'Google Form', 'folder' => 'Drive folder', 'file' => 'Drive file', 'pdf' => 'PDF', 'word' => 'Word', 'excel' => 'Spreadsheet', 'ppt' => 'Slides', 'zip' => 'Zip' ), $f['ft'] );
 	$sel( 'c', array( '' => 'All campuses', 'chaofah' => 'Chaofah', 'cherngtalay' => 'Cherngtalay', 'both' => 'Both' ), $f['c'] );
-	$sel( 'state', array( '' => 'All states' ) + $states, $f['state'] );
+	$sel( 'state', array( '' => 'All states' ) + $states + array( 'legacy' => 'Legacy galleries (left out)' ), $f['state'] );
 	echo 'Last seen <input type="date" name="from" value="' . esc_attr( $f['from'] ) . '"> to <input type="date" name="to" value="' . esc_attr( $f['to'] ) . '"> ';
 	echo '<label><input type="checkbox" name="weak" value="1" ' . checked( $f['weak'], true, false ) . '> Weak titles only</label> ';
 	echo '<input type="search" name="q" value="' . esc_attr( $f['q'] ) . '" placeholder="Search titles"> <button class="button">Filter</button></form>';
@@ -1144,7 +1149,7 @@ function hs_search_render_docs_page() {
 		echo '<td>' . esc_html( hs_search_doc_label( $d['ft'] ) ) . '</td>';
 		echo '<td><a href="' . esc_url( home_url( $d['on']['u'] ) ) . '" target="_blank">' . esc_html( html_entity_decode( $d['on']['ti'], ENT_QUOTES, 'UTF-8' ) ) . '</a>' . ( $d['on']['sec'] ? ' › ' . esc_html( $d['on']['sec'] ) : '' ) . ( $d['n'] > 1 ? ' <span style="color:#646970">(+' . ( (int) $d['n'] - 1 ) . ' more)</span>' : '' ) . '</td>';
 		echo '<td style="white-space:nowrap">' . esc_html( $rec['first'] ?? '' ) . '<br>' . esc_html( $rec['last'] ?? '' ) . '</td>';
-		echo '<td><select name="state[' . esc_attr( $h ) . ']">';
+		echo '<td>' . ( ! empty( $d['legacy'] ) && 'pin' !== $rec['state'] ? '<div style="font-size:11px;color:#b32d2e;margin-bottom:3px">Legacy gallery, left out (Pin to include)</div>' : '' ) . '<select name="state[' . esc_attr( $h ) . ']">';
 		foreach ( $states as $k => $l ) {
 			echo '<option value="' . esc_attr( $k ) . '" ' . selected( $rec['state'], $k, false ) . '>' . esc_html( $l ) . '</option>';
 		}
