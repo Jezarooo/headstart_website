@@ -141,7 +141,8 @@ function hs_search_register_topic_fields() {
 		$fields[] = array( 'key' => 'field_hs_search_' . $c . '_address', 'label' => 'Address', 'name' => 'hs_topic_' . $c . '_address', 'type' => 'textarea', 'rows' => 2, 'conditional_logic' => $is_contact );
 		$fields[] = $text( $c . '_phone1', 'Phone 1', array( 'conditional_logic' => $is_contact, 'wrapper' => array( 'width' => '50' ) ) );
 		$fields[] = $text( $c . '_phone2', 'Phone 2', array( 'conditional_logic' => $is_contact, 'wrapper' => array( 'width' => '50' ) ) );
-		$fields[] = $text( $c . '_email', 'Email', array( 'conditional_logic' => $is_contact, 'wrapper' => array( 'width' => '50' ) ) );
+		$fields[] = $text( $c . '_email', 'Email (enquiries)', array( 'conditional_logic' => $is_contact, 'wrapper' => array( 'width' => '50' ) ) );
+		$fields[] = $text( $c . '_email2', 'Email (current families)', array( 'conditional_logic' => $is_contact, 'wrapper' => array( 'width' => '50' ) ) );
 		$fields[] = $text( $c . '_map', 'Google Maps link', array( 'conditional_logic' => $is_contact, 'wrapper' => array( 'width' => '50' ) ) );
 	}
 	$fields[] = array( 'key' => 'field_hs_search_hours_tab', 'label' => 'Times', 'name' => '', 'type' => 'tab', 'conditional_logic' => $is_contact );
@@ -198,9 +199,9 @@ function hs_search_seed_topics() {
 			'synonyms' => 'contact, contact us, phone, telephone, call, email, address, office, reception, location, map, directions, find us, where',
 			'btn1_label' => 'Contact page', 'btn1_url' => '/contact-us/',
 			'c1_name' => 'Chaofah City Campus', 'c1_address' => '39/99 Moo 4, Vichitsongkram Rd., Soi Na Seau 1, T.Vichit, A.Muang, Phuket 83000',
-			'c1_phone1' => '+66-76-612875', 'c1_phone2' => '+66-88-765-5878', 'c1_email' => 'info.city@headstartphuket.com', 'c1_map' => 'https://maps.app.goo.gl/h1Bf1KAVkkpF7KuL6',
+			'c1_phone1' => '+66-76-612875', 'c1_phone2' => '+66-88-765-5878', 'c1_email' => 'info.city@headstartphuket.com', 'c1_email2' => 'office.city@headstartphuket.com', 'c1_map' => 'https://maps.app.goo.gl/h1Bf1KAVkkpF7KuL6',
 			'c2_name' => 'Cherngtalay Campus', 'c2_address' => '9/2 Srisoonthorn Road, T.Cherngtalay, A.Thalang, Phuket 83110',
-			'c2_phone1' => '+66-76-510623', 'c2_phone2' => '+66-81-678-6466', 'c2_email' => 'info.north@headstartphuket.com', 'c2_map' => 'https://maps.app.goo.gl/JdCREJnwAFNRrVDq6',
+			'c2_phone1' => '+66-76-510623', 'c2_phone2' => '+66-81-678-6466', 'c2_email' => 'info.north@headstartphuket.com', 'c2_email2' => 'office.north@headstartphuket.com', 'c2_map' => 'https://maps.app.goo.gl/JdCREJnwAFNRrVDq6',
 			'hours_label' => 'School visits & tours', 'hours' => 'Mon – Fri · 9:00 – 15:00, or Saturday mornings by appointment',
 		) ),
 		array( 'School fees', array(
@@ -215,12 +216,13 @@ function hs_search_seed_topics() {
 			'synonyms' => 'admissions, admission, enrol, enroll, enrolment, enrollment, apply, application, join, registration, register, places, waiting list, visa',
 			'answer' => 'Start with enrolment and visa support, or book a school tour with the admissions team.',
 			'btn1_label' => 'Enrolment & Visa Support', 'btn1_url' => '/resources-and-information/enrolment-and-visa-support/',
-			'btn2_label' => 'Book a school tour', 'btn2_url' => '/booking/',
+			'btn2_label' => 'Book a school tour', 'btn2_url' => '/contact-us/#school-tours',
 		) ),
 		array( 'Book a tour', array(
 			'synonyms' => 'tour, school tour, visit, open day, open morning, look around, book a visit',
 			'answer' => 'Visits run Monday to Friday, 9:00 to 15:00, or on Saturday mornings by appointment.',
-			'btn1_label' => 'Book a school tour', 'btn1_url' => '/booking/',
+			'note' => 'Book by email: info.city@headstartphuket.com (Chaofah) · info.north@headstartphuket.com (Cherngtalay)',
+			'btn1_label' => 'School tours', 'btn1_url' => '/contact-us/#school-tours',
 		) ),
 		array( 'Calendar', array(
 			'pinned' => 1,
@@ -243,12 +245,26 @@ function hs_search_seed_topics() {
 		array( 'ECAs & clubs', array(
 			'synonyms' => 'eca, ecas, clubs, after school, activities, extracurricular, extra curricular',
 			'answer' => 'Extra-curricular activities run after school on both campuses.',
+			'note' => 'ECA team: eca.city@headstartphuket.com (Chaofah) · eca.north@headstartphuket.com (Cherngtalay)',
 			'btn1_label' => 'Extra-curricular activities', 'btn1_url' => '/en/extra-curricular-activities-ecas/',
 		) ),
 		array( 'Careers', array(
 			'synonyms' => 'jobs, careers, vacancies, work here, recruitment, teaching jobs',
 			'answer' => 'Current vacancies and how to apply.',
+			'note' => 'Questions about working at HeadStart? recruiting@headstartphuket.com',
 			'btn1_label' => 'Recruitment', 'btn1_url' => '/recruitment/',
+		) ),
+		array( 'Parent Portal help', array(
+			'synonyms' => 'parent portal, portal, engage, login, log in, password, reset password, student portal, reports online',
+			'answer' => 'Reports, timetables and school information are on the Engage parent portal.',
+			'note' => 'Can’t log in? portalsupport@headstartphuket.com',
+			'btn1_label' => 'Open the Parent Portal', 'btn1_url' => 'https://headstart.engagehosted.com/Login.aspx',
+		) ),
+		array( 'Language support', array(
+			'synonyms' => 'translator, translators, translation, interpreter, thai speaking, russian speaking, mandarin speaking, chinese speaking, language support',
+			'answer' => 'Our coordinators can help in Thai, Russian and Mandarin. Tell us when you call, or email them.',
+			'note' => 'Thai: thaiadmin.city@headstartphuket.com · thaiadmin.north@headstartphuket.com — Russian: russianadmin.city@headstartphuket.com · russianadmin.north@headstartphuket.com — Mandarin: mandarinadmin.city@headstartphuket.com · mandarinadmin.north@headstartphuket.com',
+			'btn1_label' => 'Contact page', 'btn1_url' => '/contact-us/',
 		) ),
 		array( 'Policies', array(
 			'synonyms' => 'policy, policies, complaints, privacy, pdpa',

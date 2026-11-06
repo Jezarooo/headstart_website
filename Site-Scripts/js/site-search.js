@@ -829,7 +829,8 @@
           return '<div class="hs-sp-cp"><div class="hs-sp-cp-n">' + esc(c.n) + '</div>' + (c.ad ? '<p class="hs-sp-cp-ad">' + esc(c.ad) + '</p>' : '') +
             '<div class="hs-sp-cp-bt">' + (c.ph || []).map(function (n) { return '<a class="hs-sp-btn" data-type="topic" href="' + esc(tel(n)) + '">' + ICON.phone + esc(n) + '</a>'; }).join('') +
             (c.map ? '<a class="hs-sp-btn hs-sp-btn--o" data-type="topic" href="' + esc(c.map) + '" target="_blank" rel="noopener">' + ICON.pin + 'Google Maps</a>' : '') + '</div>' +
-            (c.em ? '<a class="hs-sp-cp-em" data-type="topic" href="mailto:' + esc(c.em) + '">' + esc(c.em) + '</a>' : '') + '</div>';
+            (c.em ? '<div class="hs-sp-cp-ml"><span>Enquiries</span><a class="hs-sp-cp-em" data-type="topic" href="mailto:' + esc(c.em) + '">' + esc(c.em) + '</a></div>' : '') +
+            (c.em2 ? '<div class="hs-sp-cp-ml"><span>Current families</span><a class="hs-sp-cp-em" data-type="topic" href="mailto:' + esc(c.em2) + '">' + esc(c.em2) + '</a></div>' : '') + '</div>';
         }).join('') + '</div>' +
         '<div class="hs-sp-ct-foot"><div class="hs-sp-ct-h">' + (it.hl ? '<b>' + esc(it.hl) + '</b>' : '') + esc(it.h || '') + '</div>' + btns + '</div></div>';
     }

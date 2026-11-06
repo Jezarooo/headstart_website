@@ -738,3 +738,11 @@ body.admin-bar .hs-search-panel.is-sheet { top: 32px !important; }
 /* Search terms: promoted results and synonym note */
 .hs-sp-tag.hs-sp-tag--rec { flex: none; border-color: var(--hs-s-gold); color: var(--hs-s-gold); }
 .hs-sp-also { margin-left: 6px; color: var(--hs-s-muted); font-size: 12px; font-style: italic; }
+.hs-sp-cp-ml { margin: 0 0 6px; font-size: 12.5px; }
+.hs-sp-cp-ml span { display: block; font: 600 10.5px var(--hs-s-head); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.75; }
+.hs-sp-cp-ml .hs-sp-cp-em { margin: 0; }
+
+/* Desktop columns: every heading the same height (the Pages EN | TH switch must not push its cards down) */
+.hs-sp-cols .hs-sp-h { height: 22px; }
+.hs-sp-lang { padding: 1px; }
+.hs-sp-lang button { padding: 1px 7px; line-height: 16px; }
