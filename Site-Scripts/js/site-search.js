@@ -774,7 +774,8 @@
     document.addEventListener('click', function (e) {
       var t = e.target.closest && e.target.closest('.hs-search-trigger');
       if (t) { e.preventDefault(); open(document.querySelector('.hs-search .hs-search-field'), true); return; }
-      if (isOpen() && !state.sheet && !e.target.closest('.hs-search')) { close(); }
+      // A click on a button that re-rendered the panel (recent search, See all) has a detached target: not an outside click.
+      if (isOpen() && !state.sheet && e.target.isConnected && !e.target.closest('.hs-search')) { close(); }
     });
     document.addEventListener('keydown', function (e) {
       var tag = (document.activeElement && document.activeElement.tagName) || '';
