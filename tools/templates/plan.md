@@ -2,8 +2,12 @@
 
 - Task: `{{TYPE}}/{{SLUG}}` · opened {{DATE}}
 - Live baseline (Gate 1): `{{BASELINE}}`
+- Roadmap: TODO: the roadmap item id, or why there isn't one
 
 > Approval locks this file. Any edit after approval blocks code commits until the user approves again.
+
+## In plain English
+TODO: 2–4 sentences for a non-developer: what this does, what you will notice, and what could go wrong.
 
 ## Problem / goal
 TODO: what is wrong or wanted, in 2–5 sentences. Link the brief if there is one.
