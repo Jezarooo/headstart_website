@@ -82,7 +82,7 @@ Already checked on 9 Nov: no Page or Post uses `wa` or `fb` as a slug, none of t
   - `/wa/does-not-exist`, `/chaofah/2025-26/does-not-exist`, `/chaofah/2025-99/{slug}` and a draft's link → 404;
   - a WhatsApp user agent and a HEAD request → 302, count unchanged;
   - regression: `/cherngtalay/2026-27/weekly-update-7` → 302 with `utm_source=whatsapp`, `/cherngtalay/26-27/weekly-update-7` → 302 with `utm_source=facebook`, and the weekly update's saved count goes up as before;
-  - still 200: the week 7 permalink, `/cherngtalay/`, a Page, a Post.
+  - still 200: the week 7 permalink, a Page, a Post. `/cherngtalay/` keeps its current 301 to the homepage (seen 9 Nov, before any of this work).
 
 ### UAT checklist for the user (Gate 5)
 - [ ] Edit a published Page: the Share links box shows the WhatsApp and Facebook links, and the copy buttons work.
