@@ -32,7 +32,7 @@ Assumed, to be confirmed at approval:
    - A row is added on an item's first click, using `INSERT … ON DUPLICATE KEY UPDATE` in a single query, so clicks at the same moment can't overwrite each other.
    - No personal data is stored. Weekly update counts stay in their existing post meta.
 2. **New redirects.** A separate `parse_request` handler runs after the weekly update handler, which isn't edited. No rewrite rules, so no permalink flush.
-   - **Posts:** matches `^/(chaofah|cherngtalay)/(\d{4}|\d{2})-(\d{2})/([^/]+)/?$` with a valid school year. The 4-digit form means WhatsApp and the 2-digit form means Facebook.
+   - **Posts:** matches `^/([a-z0-9-]+)/(\d{4}|\d{2})-(\d{2})/([^/]+)/?$` with a valid school year. The 4-digit form means WhatsApp and the 2-digit form means Facebook. The first part isn't limited to `chaofah` and `cherngtalay`, because `posts-routing-engine` can also give a Post `both-campuses`, `phuket` or a custom location. Share links use the same first part as the Post's permalink.
      - Looks up the published Post by its exact slug. Post slugs are unique across all 730, so the lookup can't land on the wrong one.
      - If the slug isn't found, it tries WordPress's own old-slug record (`_wp_old_slug`), so links survive a rename.
      - Campus and year aren't enforced at click time, so links already shared keep working if a Post's campus or date is edited later.
@@ -52,14 +52,14 @@ No GTM changes: GA4 picks up the UTM tags without any new tags.
 ### Build step 0 (before any code)
 With Local running, check that the Share links box displays on Page and Post edit screens that use Divi 5, and that `/en/…` and `/th/…` Pages resolve by full path. If either result changes this plan, it is updated and re-approved.
 
-Already checked on 9 Nov: no Page or Post uses `wa` or `fb` as a slug, none of the 51 Pages or 730 Posts has a school year as the second part of its URL, and post slugs are all unique.
+Already checked on 9 Nov, on the local database (newest Post 26 June 2026, so live has more): no Page or Post uses `wa` or `fb` as a slug, none of the 51 Pages or 730 Posts has a school year as the second part of its URL, and post slugs are all unique. `/en/…` and `/th/…` Pages resolve by full path, even though their `en` and `th` parent pages are drafts, so only the linked item's own status is checked.
 
 ## Risks & rollback
 - **Weekly update links breaking:** the weekly handler isn't edited and runs first. The automated checks below re-test those links.
-- **The Post pattern is broad:** it matches any `/{campus}/{school-year}/{anything}`. Current campus URLs don't have this shape, and if no Post is found the request carries on to WordPress as normal, so a future page at such a URL would still load unless a Post has the same slug.
+- **The Post pattern is broad:** it matches any `/{word}/{school-year}/{anything}`. No current URL has this shape, and if no Post is found the request carries on to WordPress as normal, so a future page at such a URL would still load unless a Post has the same slug.
 - **`/wa` and `/fb` become reserved:** a future top-level page called `wa` or `fb` would never load. Nothing uses them today, and live is covered by the smoke checks.
 - **Links are long:** nested pages and long post slugs (median 55 characters, longest 101) make long links. This was accepted in favour of links that stay readable and can't clash. WhatsApp and Facebook both show the preview card, so length matters little in practice.
-- **Homepage redirect:** tested 9 Nov: the homepage sends visitors on to `/en/our-school/` and drops the UTM tags. So `/wa` and `/fb` go straight to that destination with the tags on. This is covered by the checks below.
+- **Homepage redirect:** `/wa` and `/fb` redirect to `/` with the UTM tags, so live's own homepage routing (Apache, not WordPress) still decides where the visitor lands. Locally, a local-only mu-plugin (`headstart-local-redirect.php`) sends `/` to `/en/our-school/` and drops the tags, which says nothing about live. Whether Apache keeps the tags can only be checked after deploy. If it doesn't, clicks still count in WordPress, but GA4 won't credit those homepage visits to the channel.
 - **Language redirect drops UTM tags:** a visitor whose saved language preference differs from the Page's language is redirected to the translated Page by `language-switcher-engine` (`get_permalink`, no query string). The click is still counted in WordPress, but GA4 sees that visit without its UTM tags. Accepted for now: this affects only visitors who have switched language and Pages with a translation, and it leaves that snippet untouched. Posts aren't affected.
 - **Caching:** 302 + `no-store`, as weekly updates do, so every click should reach WordPress. To be confirmed through Cloudflare after deploy.
 - **Counts are close, not exact:** bot filtering is best-effort, repeat clicks count each time, and forwarded links keep their original channel.
@@ -76,8 +76,9 @@ Already checked on 9 Nov: no Page or Post uses `wa` or `fb` as a slug, none of t
   - `/wa/resources-and-information/tuition-fees` → 302 to the permalink with `utm_source=whatsapp&utm_medium=social&utm_campaign=page-share`;
   - `/fb/th/foundation` and `/wa/en/foundation` → 302 to the matching language's page;
   - `/wa/chaofah/campus-hub` and `/wa/cherngtalay/campus-hub` → 302 to the matching campus's page;
-  - `/wa` and `/fb` → end up on the homepage's destination with the UTM tags intact;
+  - `/wa` and `/fb` → 302 to `/` with the UTM tags (locally the next redirect drops them, as expected);
   - a real Post's `/{campus}/{yyyy-yy}/{slug}` → 302 with `utm_source=whatsapp` and `utm_campaign=post-share`; the `/{campus}/{yy-yy}/{slug}` form → 302 with `utm_source=facebook`;
+  - a temporary Post with two campuses → its links start `/both-campuses/…` and return 302;
   - a renamed Post's and Page's old link → 302 to the new permalink;
   - `/wa/does-not-exist`, `/chaofah/2025-26/does-not-exist`, `/chaofah/2025-99/{slug}` and a draft's link → 404;
   - a WhatsApp user agent and a HEAD request → 302, count unchanged;
@@ -99,4 +100,4 @@ Already checked on 9 Nov: no Page or Post uses `wa` or `fb` as a slug, none of t
 - **Load any wp-admin page once** after saving, which creates the table.
 - **No permalinks flush needed** (no rewrite rules).
 - **Purge WP Super Cache and Cloudflare APO.**
-- Smoke: open a Page and a Post in wp-admin and copy their links. Each should return 302 with `cache-control: no-store` through Cloudflare. An existing weekly update link should also still return 302.
+- Smoke: open a Page and a Post in wp-admin and copy their links. Each should return 302 with `cache-control: no-store` through Cloudflare. An existing weekly update link should also still return 302. Follow `/wa` all the way through and report whether the final URL still has its UTM tags.
