@@ -313,8 +313,33 @@ function hs_a2p_find_post( $issue_id, $key ) {
 	return $found ? (int) $found[0] : 0;
 }
 
+/** Adds a Thematic Tag or Yellow Badge, or returns the existing term of that name. Same permission as the Post screen. */
+function hs_a2p_add_term( $taxonomy, $name ) {
+	$name = sanitize_text_field( $name );
+	if ( ! in_array( $taxonomy, array( 'post_tag', 'hs_thematic_chip' ), true ) || '' === $name ) {
+		return new WP_Error( 'hs_a2p_bad_term', 'Enter a name to add.' );
+	}
+	$existing = term_exists( $name, $taxonomy );
+	if ( ! $existing ) {
+		if ( ! current_user_can( get_taxonomy( $taxonomy )->cap->manage_terms ) ) {
+			return new WP_Error( 'hs_a2p_term_permission', 'You do not have permission to add to this list.' );
+		}
+		$existing = wp_insert_term( $name, $taxonomy );
+		if ( is_wp_error( $existing ) ) {
+			return $existing;
+		}
+	}
+	$term = get_term( (int) $existing['term_id'], $taxonomy );
+	return array( 'id' => (int) $term->term_id, 'slug' => $term->slug, 'name' => html_entity_decode( $term->name, ENT_QUOTES, 'UTF-8' ) );
+}
+
 /** Makes one Post. It is always saved as a draft first, so the gatekeeper checks the finished Post on publish. */
 function hs_a2p_create_post( $issue_id, $article, $row ) {
+	foreach ( $row['tags'] as $tag ) {
+		if ( ! term_exists( $tag, 'post_tag' ) && ! current_user_can( get_taxonomy( 'post_tag' )->cap->manage_terms ) ) {
+			return new WP_Error( 'hs_a2p_term_permission', 'You do not have permission to create the tag "' . $tag . '"' );
+		}
+	}
 	$section_id = (int) $row['section'];
 	if ( 'custom' === $row['section'] ) {
 		$existing = term_exists( $row['customSection'], 'hs_department' );
@@ -519,6 +544,8 @@ function hs_a2p_panel_data( $issue_id ) {
 		'tags'       => $tags,
 		'canPublish' => current_user_can( 'publish_posts' ),
 		'canSection' => current_user_can( 'manage_categories' ),
+		'canTag'     => current_user_can( get_taxonomy( 'post_tag' )->cap->manage_terms ),
+		'canBadge'   => current_user_can( get_taxonomy( 'hs_thematic_chip' )->cap->manage_terms ),
 	);
 }
 
@@ -555,6 +582,15 @@ add_action( 'wp_ajax_hs_a2p_create', function () {
 	}
 	$result = hs_a2p_create_posts( $issue_id, hs_a2p_ajax_rows() );
 	wp_send_json_success( array( 'result' => $result, 'panel' => hs_a2p_panel_data( $issue_id ) ) );
+} );
+
+add_action( 'wp_ajax_hs_a2p_add_term', function () {
+	hs_a2p_ajax_issue();
+	$term = hs_a2p_add_term( sanitize_key( $_POST['taxonomy'] ?? '' ), wp_unslash( (string) ( $_POST['name'] ?? '' ) ) );
+	if ( is_wp_error( $term ) ) {
+		wp_send_json_error( array( 'message' => $term->get_error_message() ) );
+	}
+	wp_send_json_success( $term );
 } );
 
 add_action( 'wp_ajax_hs_a2p_recopy', function () {
@@ -639,8 +675,14 @@ function hs_a2p_print_assets() {
 #hs-a2p .hs-a2p-f input[type="text"], #hs-a2p .hs-a2p-f input[type="datetime-local"], #hs-a2p .hs-a2p-f select { width: 100%; max-width: 100%; }
 #hs-a2p .hs-a2p-hint { color: #646970; font-size: 12px; margin: 4px 0 0; }
 #hs-a2p .hs-a2p-warn { grid-column: 1 / -1; background: #fcf0d1; color: #6e4b00; padding: 8px 10px; border-radius: 2px; margin: 8px 0 0; }
-#hs-a2p .hs-a2p-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-#hs-a2p .hs-a2p-chip { background: #2271b1; color: #fff; border: 0; border-radius: 10px; padding: 2px 8px; font-size: 12px; cursor: pointer; }
+#hs-a2p .hs-a2p-f.hs-a2p-wide { grid-column: 1 / -1; }
+#hs-a2p .hs-a2p-taglist { max-height: 220px; overflow-y: auto; columns: 3 220px; column-gap: 16px; background: #fff; border: 1px solid #dcdcde; border-radius: 2px; padding: 8px 10px; }
+#hs-a2p .hs-a2p-taggroup { break-inside: avoid; margin-bottom: 8px; }
+#hs-a2p .hs-a2p-taggroup strong { display: block; font-size: 11px; color: #50575e; margin-bottom: 2px; }
+#hs-a2p .hs-a2p-taglist label { display: block; line-height: 1.7; }
+#hs-a2p .hs-a2p-add { display: flex; gap: 6px; margin-top: 6px; }
+#hs-a2p .hs-a2p-add input[type="text"] { flex: 1 1 auto; min-width: 0; }
+#hs-a2p .hs-a2p-add-error { color: #b32d2e; font-size: 12px; margin: 4px 0 0; }
 #hs-a2p .hs-a2p-thumb { display: block; width: 100%; max-height: 140px; object-fit: cover; border-radius: 2px; margin-bottom: 6px; }
 #hs-a2p .hs-a2p-choices { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 #hs-a2p .hs-a2p-choices button { padding: 0; border: 2px solid transparent; background: none; cursor: pointer; line-height: 0; border-radius: 2px; }
@@ -752,34 +794,64 @@ function hs_a2p_print_assets() {
 		return box;
 	}
 
-	function tagsField(row) {
-		var chips = el('div', { 'class': 'hs-a2p-chips' });
-		var listId = 'hs-a2p-tags-list';
-		function draw() {
-			chips.textContent = '';
-			row.fields.tags.forEach(function (tag) {
-				chips.appendChild(el('button', { type: 'button', 'class': 'hs-a2p-chip', title: 'Remove', text: tag + ' ×', on: { click: function () {
-					row.fields.tags = row.fields.tags.filter(function (t) { return t !== tag; });
-					draw();
-					changed(row);
-				} } }));
+	// A box that creates a Thematic Tag or Yellow Badge straight away, as the Post screen does.
+	function addBox(taxonomy, placeholder, onAdded) {
+		var error = el('p', { 'class': 'hs-a2p-add-error' });
+		error.style.display = 'none';
+		function add() {
+			var name = input.value.trim();
+			if (!name) { return; }
+			button.disabled = true;
+			post('hs_a2p_add_term', { taxonomy: taxonomy, name: name }).then(function (res) {
+				if (res.success) {
+					onAdded(res.data);
+					render();
+					queueSave();
+				} else {
+					button.disabled = false;
+					error.textContent = (res.data && res.data.message) || 'Could not add that.';
+					error.style.display = '';
+				}
+			}).catch(function () {
+				button.disabled = false;
+				error.textContent = 'Could not add that: check your connection.';
+				error.style.display = '';
 			});
 		}
-		function add(input) {
-			var value = input.value.replace(/,\s*$/, '').trim();
-			if (value && row.fields.tags.indexOf(value) === -1) {
-				row.fields.tags.push(value);
-				draw();
-				changed(row);
-			}
-			input.value = '';
-		}
-		var input = el('input', { type: 'text', list: listId, placeholder: 'Type a tag, then press Enter', on: {
-			keydown: function (e) { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(input); } },
-			change: function () { if (panel.tags.indexOf(input.value) !== -1) { add(input); } }
-		} });
-		draw();
-		return field(row, 'Thematic Tags *', 'tags', [input, chips]);
+		var input = el('input', { type: 'text', placeholder: placeholder, on: { keydown: function (e) { if (e.key === 'Enter') { e.preventDefault(); add(); } } } });
+		var button = el('button', { type: 'button', 'class': 'button', text: 'Add', on: { click: add } });
+		return el('div', {}, [el('div', { 'class': 'hs-a2p-add' }, [input, button]), error]);
+	}
+
+	function tagsField(row) {
+		// Grouped by prefix, as in "SPORT: Football". A saved tag no longer in the list still shows.
+		var names = panel.tags.concat(row.fields.tags.filter(function (t) { return panel.tags.indexOf(t) === -1; }));
+		var groups = {};
+		names.forEach(function (name) {
+			var i = name.indexOf(':');
+			var group = i > 0 ? name.slice(0, i).trim() : 'OTHER';
+			(groups[group] = groups[group] || []).push(name);
+		});
+		var list = el('div', { 'class': 'hs-a2p-taglist' }, Object.keys(groups).sort().map(function (group) {
+			return el('div', { 'class': 'hs-a2p-taggroup' }, [el('strong', { text: group })].concat(groups[group].map(function (name) {
+				var i = name.indexOf(':');
+				return el('label', {}, [
+					el('input', { type: 'checkbox', value: name, checked: row.fields.tags.indexOf(name) !== -1, on: { change: function (e) {
+						row.fields.tags = row.fields.tags.filter(function (t) { return t !== name; });
+						if (e.target.checked) { row.fields.tags.push(name); }
+						changed(row);
+					} } }),
+					document.createTextNode(' ' + (i > 0 ? name.slice(i + 1).trim() : name))
+				]);
+			})));
+		}));
+		var add = panel.canTag ? addBox('post_tag', 'New tag, e.g. SPORT: Sailing', function (term) {
+			if (panel.tags.indexOf(term.name) === -1) { panel.tags.push(term.name); }
+			if (row.fields.tags.indexOf(term.name) === -1) { row.fields.tags.push(term.name); }
+		}) : null;
+		var box = field(row, 'Thematic Tags *', 'tags', [list, add], 'Aim for 3–4 per Post.');
+		box.classList.add('hs-a2p-wide');
+		return box;
 	}
 
 	function imageField(row, label, name, urlKey, hint) {
@@ -864,13 +936,16 @@ function hs_a2p_print_assets() {
 			field(row, 'Title *', 'title', [el('input', { type: 'text', value: f.title, on: { input: function (e) { f.title = e.target.value; changed(row); } } })]),
 			field(row, 'Website Section *', 'section', [section, custom]),
 			field(row, 'Campus *', 'campus', campusBoxes.concat([row.dom.bothHint])),
-			tagsField(row),
-			field(row, 'Yellow Badge *', 'badge', [badge], 'Shows in place of the Section name on the Post and slider.'),
+			field(row, 'Yellow Badge *', 'badge', [badge, panel.canBadge ? addBox('hs_thematic_chip', 'New badge', function (term) {
+				if (!panel.badges.some(function (b) { return b.id === term.id; })) { panel.badges.push(term); }
+				f.badge = term.id;
+			}) : null], 'Shows in place of the Section name on the Post and slider.'),
 			field(row, 'Display Location Override', null, [el('input', { type: 'text', value: f.location, placeholder: 'e.g. Bangkok Trip', on: { input: function (e) { f.location = e.target.value; changed(row); } } })], 'Optional. Replaces the campus chip and changes the Post’s URL.'),
 			field(row, 'Publish date *', 'date', [el('input', { type: 'datetime-local', value: f.date, on: { input: function (e) { f.date = e.target.value; changed(row); } } })]),
 			imageField(row, 'Featured image (required for Live)', 'image', 'imageUrl'),
 			imageField(row, 'Portrait image', 'portrait', 'portraitUrl', 'Optional. Used by the slider.'),
-			field(row, 'Status', null, [status], 'Live publishes it straight away. A future date schedules it.')
+			field(row, 'Status', null, [status], 'Live publishes it straight away. A future date schedules it.'),
+			tagsField(row)
 		]);
 		mark(row);
 		return body;
@@ -969,7 +1044,6 @@ function hs_a2p_print_assets() {
 			return;
 		}
 		root.appendChild(el('p', { 'class': 'hs-a2p-intro', text: 'Tick the articles that should also be Posts. Fields marked * are required only for ticked rows; nothing here affects saving the weekly update.' + (panel.skipped ? ' ' + panel.skipped + ' article(s) with no headline are not listed.' : '') }));
-		root.appendChild(el('datalist', { id: 'hs-a2p-tags-list' }, panel.tags.map(function (t) { return el('option', { value: t }); })));
 		panel.rows.forEach(function (row) { root.appendChild(rowNode(row)); });
 		createButton = el('button', { type: 'button', 'class': 'button button-primary', text: 'Create Posts', on: { click: create } });
 		summary = el('span', { 'class': 'hs-a2p-saved' });
