@@ -624,7 +624,7 @@ learn_hook() { # event + cooldown: at most one snippet per HS_LEARN_COOLDOWN_MIN
       for (j=1;j<=n;j++) if (k[j]==c && index(seen," " i[j] " ")==0) { print l[j]; exit }
       for (j=1;j<=n;j++) if (index(seen," " i[j] " ")==0) { print l[j]; exit }
     }' "$tsv"; }
-  seen=$(tr '\n' ' ' < "$dir/headstart-seen" 2>/dev/null || true)
+  seen=$(cat "$dir/headstart-seen" 2>/dev/null | tr '\n' ' ' || true)
   row=$(pick)
   if [ -z "$row" ]; then : > "$dir/headstart-seen"; seen=""; row=$(pick); fi   # everything seen: start again
   [ -n "$row" ] || return 0
