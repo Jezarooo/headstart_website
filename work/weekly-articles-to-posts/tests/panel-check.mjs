@@ -125,19 +125,39 @@ try {
   const filled = JSON.parse(await run(`${helpers}
     const r = document.querySelector('#hs-a2p .hs-a2p-body').closest('.hs-a2p-row');
     const sec = fieldOf(r,'Website').querySelector('select'); if (sec.value === '0') { sec.value = sec.options[1].value; fire(sec,'change'); }
-    const tagInput = fieldOf(r,'Thematic').querySelector('input');
-    tagInput.value = document.querySelector('#hs-a2p-tags-list option').value;
-    tagInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    fieldOf(r,'Thematic').querySelector('.hs-a2p-taglist input').click();
     const badge = fieldOf(r,'Yellow').querySelector('select'); badge.value = badge.options[1].value; fire(badge,'change');
     r.querySelector('.hs-a2p-choices button').click();
     await wait(1500);
-    return JSON.stringify({ tags: isOk(fieldOf(r,'Thematic')), chips: r.querySelectorAll('.hs-a2p-chip').length, badge: isOk(fieldOf(r,'Yellow')), image: isOk(fieldOf(r,'Featured')), thumb: !!fieldOf(r,'Featured').querySelector('.hs-a2p-thumb'),
+    return JSON.stringify({ tags: isOk(fieldOf(r,'Thematic')), chips: r.querySelectorAll('.hs-a2p-taglist input:checked').length, groups: r.querySelectorAll('.hs-a2p-taggroup').length, badge: isOk(fieldOf(r,'Yellow')), image: isOk(fieldOf(r,'Featured')), thumb: !!fieldOf(r,'Featured').querySelector('.hs-a2p-thumb'),
       disabled: document.querySelector('#hs-a2p .button-primary').disabled, saved: document.querySelectorAll('.hs-a2p-actions .hs-a2p-saved')[1].textContent,
       dirty: wp.data.select('core/editor').isEditedPostDirty() })`));
   t('filled fields turn green', filled.tags && filled.badge && filled.image && filled.thumb, JSON.stringify(filled));
   t('Create is enabled', filled.disabled === false);
   t('panel saves itself', filled.saved === 'Saved', filled.saved);
   t('weekly update shows no unsaved changes', filled.dirty === false);
+  t('tags are a tick-list grouped by prefix', filled.groups > 3 && filled.chips === 1, JSON.stringify(filled));
+
+  console.log('\nAdding a new tag and badge');
+  const added = JSON.parse(await run(`${helpers}
+    const typeAdd = async (label, name) => {
+      const r = document.querySelector('#hs-a2p .hs-a2p-body').closest('.hs-a2p-row');
+      const box = fieldOf(r, label).querySelector('.hs-a2p-add');
+      box.querySelector('input').value = name;
+      box.querySelector('button').click();
+      await wait(2000);
+    };
+    await typeAdd('Thematic', 'A2P UI Tag');
+    await typeAdd('Yellow', 'A2P UI Badge');
+    const r = document.querySelector('#hs-a2p .hs-a2p-body').closest('.hs-a2p-row');
+    const selected = fieldOf(r,'Yellow').querySelector('select').selectedOptions[0].textContent;
+    const checked = [...r.querySelectorAll('.hs-a2p-taglist input:checked')].map((i) => i.value);
+    await wait(1000);
+    return JSON.stringify({ selected, checked, badgeOk: isOk(fieldOf(r,'Yellow')), saved: document.querySelectorAll('.hs-a2p-actions .hs-a2p-saved')[1].textContent, dirty: wp.data.select('core/editor').isEditedPostDirty() })`));
+  t('new badge is selected on the row', added.selected === 'A2P UI Badge' && added.badgeOk, JSON.stringify(added));
+  t('new tag is ticked on the row', added.checked.includes('A2P UI Tag') && added.checked.length === 2, JSON.stringify(added.checked));
+  t('adding saves, with no unsaved changes on the update', added.saved === 'Saved' && added.dirty === false, JSON.stringify(added));
+  await shot('panel-2b-added.png');
 
   console.log('\nReload keeps the row');
   await send('Page.reload');
@@ -145,8 +165,8 @@ try {
   const kept = JSON.parse(await run(`${helpers}
     const r = document.querySelector('#hs-a2p .hs-a2p-body'); if (!r) return JSON.stringify({ body: false });
     const row = r.closest('.hs-a2p-row');
-    return JSON.stringify({ body: true, chips: row.querySelectorAll('.hs-a2p-chip').length, image: !!fieldOf(row,'Featured').querySelector('.hs-a2p-thumb'), badge: fieldOf(row,'Yellow').querySelector('select').value !== '0', dirty: wp.data.select('core/editor').isEditedPostDirty() })`));
-  t('tick and fields still there, no unsaved changes', kept.body && kept.chips === 1 && kept.image && kept.badge && kept.dirty === false, JSON.stringify(kept));
+    return JSON.stringify({ body: true, chips: row.querySelectorAll('.hs-a2p-taglist input:checked').length, image: !!fieldOf(row,'Featured').querySelector('.hs-a2p-thumb'), badge: fieldOf(row,'Yellow').querySelector('select').selectedOptions[0].textContent, dirty: wp.data.select('core/editor').isEditedPostDirty() })`));
+  t('tick and fields still there, including the new tag and badge; no unsaved changes', kept.body && kept.chips === 2 && kept.image && kept.badge === 'A2P UI Badge' && kept.dirty === false, JSON.stringify(kept));
 
   console.log('\nA second row as a Draft, then Create Posts');
   await run(`${helpers}
@@ -154,10 +174,9 @@ try {
     free[free.length - 1].querySelector('.hs-a2p-head input[type=checkbox]').click();
     await wait(100);
     const open = [...document.querySelectorAll('#hs-a2p .hs-a2p-body')].map((b) => b.closest('.hs-a2p-row'));
-    const r = open.find((x) => !x.querySelector('.hs-a2p-chip'));
+    const r = open.find((x) => !x.querySelector('.hs-a2p-taglist input:checked'));
     const sec = fieldOf(r,'Website').querySelector('select'); if (sec.value === '0') { sec.value = sec.options[1].value; fire(sec,'change'); }
-    const tagInput = fieldOf(r,'Thematic').querySelector('input'); tagInput.value = document.querySelector('#hs-a2p-tags-list option').value;
-    tagInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    fieldOf(r,'Thematic').querySelector('.hs-a2p-taglist input').click();
     const badge = fieldOf(r,'Yellow').querySelector('select'); badge.value = badge.options[1].value; fire(badge,'change');
     fieldOf(r,'Status').querySelectorAll('input')[1].click();
     await wait(200);
@@ -193,6 +212,7 @@ try {
   browser.kill();
   const left = evalFile(`foreach (get_posts(['post_type' => 'post', 'post_status' => 'any', 'numberposts' => -1, 'fields' => 'ids', 'meta_key' => '_hs_a2p_source', 'meta_compare' => 'LIKE', 'meta_value' => '${ISSUE}:']) as $id) { wp_delete_post($id, true); echo "deleted $id "; }
 delete_post_meta(${ISSUE}, '_hs_a2p_rows');
+foreach (['post_tag' => 'A2P UI Tag', 'hs_thematic_chip' => 'A2P UI Badge'] as $tax => $name) { $term = get_term_by('name', $name, $tax); if ($term) { wp_delete_term($term->term_id, $tax); } }
 $d = json_decode(file_get_contents(getenv('HS_SESSION')), true);
 WP_Session_Tokens::get_instance($d['uid'])->destroy($d['tok']);`);
   t('weekly update content, modified date and status unchanged', issueState() === stateBefore);

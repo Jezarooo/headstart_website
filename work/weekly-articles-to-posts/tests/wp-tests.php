@@ -240,6 +240,33 @@ try {
 	$t( 'without publish_posts a Live row stays a draft and is flagged', $cid && 'draft' === get_post_status( $cid ) && ! empty( $r['created'][0]['held'] ), wp_json_encode( $r ) );
 	wp_set_current_user( $admin->ID );
 
+	echo "\nAdding tags and badges\n";
+	$new_tag = hs_a2p_add_term( 'post_tag', 'A2P New Tag' );
+	$new_badge = hs_a2p_add_term( 'hs_thematic_chip', 'A2P New Badge' );
+	$t( 'admin can add a tag and a badge', ! is_wp_error( $new_tag ) && ! is_wp_error( $new_badge ) && 'A2P New Badge' === $new_badge['name'] );
+	$t( 'adding an existing name reuses it', $new_tag['id'] === hs_a2p_add_term( 'post_tag', 'a2p new tag' )['id'] );
+	$t( 'existing tag with & is reused', ! term_exists( 'x', 'post_tag' ) && (int) term_exists( 'ACADEMIC: Literacy & Phonics', 'post_tag' )['term_id'] === hs_a2p_add_term( 'post_tag', 'ACADEMIC: Literacy & Phonics' )['id'] );
+	$t( 'only tags and badges can be added this way', is_wp_error( hs_a2p_add_term( 'hs_department', 'A2P Nope' ) ) && is_wp_error( hs_a2p_add_term( 'category', 'A2P Nope' ) ) );
+	$t( 'an empty name is refused', is_wp_error( hs_a2p_add_term( 'post_tag', '   ' ) ) );
+	$admin_panel = hs_a2p_panel_data( $issue );
+	$t( 'new terms are offered in the panel', in_array( 'A2P New Tag', $admin_panel['tags'], true ) && in_array( $new_badge['id'], array_column( $admin_panel['badges'], 'id' ), true ) );
+	$t( 'admin sees the add boxes', true === $admin_panel['canTag'] && true === $admin_panel['canBadge'] );
+	$issue3 = wp_insert_post( wp_slash( array( 'post_type' => 'weekly_update', 'post_status' => 'publish', 'post_title' => 'A2P test issue 3', 'post_content' => $fixture() ) ) );
+	$made[] = $issue3;
+	$r = hs_a2p_create_posts( $issue3, array( 'sports-article' => $good_row( array( 'tags' => array( 'A2P New Tag' ), 'badge' => $new_badge['id'] ) ) ) );
+	$track( $issue3 );
+	$nid = $r['created'][0]['id'] ?? 0;
+	$t( 'a Post can use the new tag and badge, and the badge reaches the chip', has_term( 'A2P New Tag', 'post_tag', $nid ) && 'A2P New Badge' === get_post_meta( $nid, 'hs_final_section_chip', true ) );
+	wp_set_current_user( $author );
+	$t( 'Author can’t add a tag or badge', is_wp_error( hs_a2p_add_term( 'post_tag', 'A2P Forbidden Tag' ) ) && is_wp_error( hs_a2p_add_term( 'hs_thematic_chip', 'A2P Forbidden Badge' ) ) );
+	$t( 'Author can still choose an existing tag by name', ! is_wp_error( hs_a2p_add_term( 'post_tag', 'A2P New Tag' ) ) );
+	$author_panel = hs_a2p_panel_data( $issue3 );
+	$t( 'Author does not see the add boxes', false === $author_panel['canTag'] && false === $author_panel['canBadge'] );
+	$r = hs_a2p_create_posts( $issue3, array( 'first-article-headline' => $good_row( array( 'title' => 'A2P Sneaky', 'status' => 'draft', 'tags' => array( 'A2P Forbidden Tag' ) ) ) ) );
+	$track( $issue3 );
+	$t( 'Author can’t create a tag through a row', ! term_exists( 'A2P Forbidden Tag', 'post_tag' ) && 1 === count( $r['skipped'] ) && 0 === count( $r['created'] ), wp_json_encode( $r ) );
+	wp_set_current_user( $admin->ID );
+
 	echo "\nPosts gatekeeper\n";
 	$gate = wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'draft', 'post_title' => 'A2P gate check' ) );
 	$made[] = $gate;
@@ -249,7 +276,7 @@ try {
 	$t( 'test run finished', false, $e->getMessage() . ' at line ' . $e->getLine() );
 } finally {
 	wp_set_current_user( $admin->ID );
-	foreach ( array( $issue, $issue2 ?? 0 ) as $i ) {
+	foreach ( array( $issue, $issue2 ?? 0, $issue3 ?? 0 ) as $i ) {
 		if ( $i ) { $track( $i ); }
 	}
 	foreach ( array_unique( array_filter( $made ) ) as $id ) {
@@ -262,7 +289,11 @@ try {
 	foreach ( $terms as $term_id ) {
 		wp_delete_term( $term_id, 'hs_department' );
 	}
-	$tag = get_term_by( 'name', 'A2P test tag', 'post_tag' );
-	if ( $tag ) { wp_delete_term( $tag->term_id, 'post_tag' ); }
+	foreach ( array( 'post_tag' => array( 'A2P test tag', 'A2P New Tag' ), 'hs_thematic_chip' => array( 'A2P New Badge' ) ) as $taxonomy => $names ) {
+		foreach ( $names as $name ) {
+			$term = get_term_by( 'name', $name, $taxonomy );
+			if ( $term ) { wp_delete_term( $term->term_id, $taxonomy ); }
+		}
+	}
 }
 echo "\n$pass passed, $fail failed\n";
