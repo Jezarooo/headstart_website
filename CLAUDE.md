@@ -1,6 +1,6 @@
 # HeadStart Phuket website — how work is done here
 
-Read this first, every session. The rules below are enforced by git hooks (`tools/git-hooks/`) and, in Claude Code, by `.claude/settings.json` (source: `tools/claude-code/settings.json`). If a hook blocks you, fix the cause — never bypass it.
+Read this first, every session. The rules below are enforced by git hooks (`tools/git-hooks/`) and, in Claude Code, by `.claude/settings.json` (source: `tools/claude-code/settings.json`, installed by `tools/hs setup`; `tools/hs status` warns if it is missing or out of date, and Claude Code must restart to pick up changes). If a hook blocks you, fix the cause — never bypass it.
 
 ## What this repo is
 - `headstartphuket.com` — WordPress + Divi, edited on live through **Code Snippets** (PHP), **Custom CSS & JS** (JS) and `headstart-global.css`.
@@ -17,6 +17,8 @@ Read this first, every session. The rules below are enforced by git hooks (`tool
 | `work/<slug>/` | Per-task plan, approval, UAT and handover records. |
 | `DEPLOY-LOG.md` | What went live, when. Written by `tools/hs deployed` only. |
 | `tools/hs` | The workflow CLI. Every key action goes through it. |
+| `tools/learning/snippets.tsv` | The learning snippets the hook draws on. |
+| `tools/tests/hs-tests.sh` | Tests for `tools/hs`. Run them in a throwaway clone (the script does this) after changing the workflow. |
 | `_archive/` | Retired material (old Antigravity setup, raw drops). Not tracked; don't touch. |
 | `.hs-outbox/` | Git bundles waiting to be pushed from a cloud session. Not tracked. |
 
@@ -29,7 +31,12 @@ Read this first, every session. The rules below are enforced by git hooks (`tool
 - **Commits are race-proof inside `tools/hs`** (14 Oct 2026). Over the shared folder, git's index was found empty mid-commit three times. hs now commits with a private index outside the repo, with git's auto-maintenance off, and checks every commit: one that comes out empty or deletes more than 10 files is undone on the spot (files untouched) with a "Safety check" message. If you see it: `tools/hs status`, then retry; tell the user if it repeats. That's one more reason to commit only through `tools/hs`. `gc.auto` is off, so run `git gc` on the Mac now and then.
 
 ## Roadmap
-The backlog lives at https://claude.ai/artifact/VtLKZu5yuna4oAVV8GNXUb (items in its `items` collection; read and write it with the ArtifactData tool). Every task links to a roadmap item; move the item's status at each gate: Planning → Approved → Building → UAT → Ready for dev → Live (or Parked). Put the task branch in its `task` field.
+The backlog lives at https://claude.ai/artifact/P4EJxEfEyXTeYLGYaCjshZ (replaced 9 Nov 2026; items in its `items` collection; read and write it with the ArtifactData tool). Every task links to a roadmap item; move the item's status at each gate: Planning → Approved → Building → UAT → Ready for dev → Live (or Parked). Put the task branch in its `task` field. If the roadmap can't be opened, say so and carry on: it doesn't block the work.
+
+## Explain as you go
+Jeremy is learning git, devops, programming and architecture through this work. After each meaningful step, say what you did, why, and the concept behind it (commit, push, branch, merge, redirect, and so on) in plain language, using the real work as the example. Keep it short, and don't assume he already knows a term.
+
+Learning snippets are separate and automatic: the `tools/hs hook learn` hook fires on real events, at most once every `HS_LEARN_COOLDOWN_MIN` minutes (`tools/lib.sh`). When one arrives, include it in your next message. If he says `skip`, they stop until tomorrow. `tools/hs learned` shows his log.
 
 ## The gates
 
@@ -37,19 +44,19 @@ The backlog lives at https://claude.ai/artifact/VtLKZu5yuna4oAVV8GNXUb (items in
   - the Code Snippets export (zip) → `Latest-Drop/` (snapshot unzips it; put the PHP in `php/` if you tidy first);
   - the global stylesheet (`core.css`) → `Latest-Drop/css/`;
   - the Divi head code (Divi → Theme Options → Integration → head) saved as an `.html` file → `Latest-Drop/js/`; then the user runs `tools/hs fetch-js` in Terminal on the Mac, which downloads every `uploads/hs-head/*.js` it links to under its live name (Claude can't reach the live site).
-  Then on `main` run `tools/hs snapshot`. It unpacks to a dated read-only backup, commits it, and prints drift (DIFFERS / LIVE ONLY / LOCAL ONLY) against the working copies. Resolve drift on the task branch by copying from the backup into `Site-Scripts/php|js|css` (JS: rename to the clean name from MANIFEST.tsv). **Another developer, Nick (firedev), edits live directly**, so snapshot before every task and expect drift.
+  Then on `main` run `tools/hs snapshot`. It unpacks to a dated read-only backup, commits it, and prints drift (DIFFERS / LIVE ONLY / LOCAL ONLY) against the working copies. `drift` and `handover` read the snippets inside the JSON export without changing it. On an open task branch, run `tools/hs sync` to bring the new snapshot across (branches don't see what lands on `main` until it is merged in). Resolve drift on the task branch by copying from the backup into `Site-Scripts/php|js|css` (JS: rename to the clean name from MANIFEST.tsv; a snippet in the JSON export: `hs_backup_read` in `tools/lib.sh`). **Another developer, Nick (firedev), edits live directly**, so snapshot before every task and expect drift.
 
-**Gate 2 — Plan & approval.** `tools/hs start <feat|fix> <slug> "Title"` creates the branch and `work/<slug>/plan.md`. Fill every `TODO:` (problem, file-by-file changes, risks & rollback, automated tests, UAT checklist, deploy notes), commit it with `tools/hs save`, then show the user a short summary and ask for approval (in the cloud, use AskUserQuestion with an "APPROVED" option; in Claude Code the user types `APPROVED`, which the hook records automatically).
-- Only after the user explicitly approves, record it: `tools/hs approve --via "<quote the user's words>"`. **Never run `hs approve` or `hs uat` on your own judgement** — they record the user's decision.
+**Gate 2 — Plan & approval.** `tools/hs start <feat|fix> <slug> "Title"` creates the branch and `work/<slug>/plan.md`. Fill every `TODO:` (problem, file-by-file changes, risks & rollback, automated tests, UAT checklist, deploy notes), commit it with `tools/hs save`, then give the user the plan's link and a short summary and ask for approval (in the cloud, use AskUserQuestion with an "APPROVED" option; in Claude Code the user sends `approved` as the whole message, or starts a message with `APPROVED`, and the hook records it). A Stop hook blocks a reply without the link while a finished plan is waiting. `tools/hs plan` opens a plan; `tools/hs plan --diff` shows what changed since the last approval.
+- **Never run `hs approve` or `hs uat` on your own judgement** — they record the user's decision. In Claude Code the guard blocks you from running them at all. If an approval arrives while you are mid-task, it may not reach the hook: finish the turn and ask the user to send it again. Cloud sessions don't run these hooks: only after the user explicitly approves, record it with `tools/hs approve --via "<quote the user's words>"`.
 - Until approved, code commits are blocked. If `plan.md` changes after approval, code commits are blocked again until the user re-approves.
 
 **Gate 3 — Build.** Edit only working copies on the task branch. Commit after each meaningful step with `tools/hs save -m "<type>(<scope>): <message>"` (types: feat fix chore docs refactor test style perf plan handover snapshot deploy). Small, frequent commits. Never `git add`/`git commit` by hand on `main`.
 
 **Gate 4 — Automated checks.** `tools/hs lint` (PHP + JS on everything changed in the task); the pre-commit hook also lints every staged file. Then run the plan's endpoint checks against `http://headstart.local` and report status codes.
 
-**Gate 5 — UAT.** Give the user the UAT checklist from the plan. When they confirm it passed (or agree none is needed, and why), record it: `tools/hs uat --via "<their words>"`.
+**Gate 5 — UAT.** Give the user the UAT checklist from the plan. When they confirm it passed (or agree none is needed, and why), they send `UAT PASSED` and the hook records it; in a cloud session, record it with `tools/hs uat --via "<their words>"`.
 
-**Gate 6 — Handover.** `tools/hs handover` builds `Site-Scripts/handover/<slug>-<date>/` with `files/` (exactly what changed), `rollback/` (the matching live versions from the newest backup) and a `DEV-NOTES.md` scaffold. Complete every `TODO:` in DEV-NOTES (summary, exact snippets to replace/activate, smoke checks), run `tools/hs handover` again to zip and commit, then `tools/hs finish` to merge into `main` and tag it. Tell the user the zip path; they send it to the developer. JS files ship under their clean names; DEV-NOTES tells the dev which `uploads/hs-head/<hash>.js` each one replaces. A task that ships nothing to live (tooling, docs) uses `tools/hs handover --local-only "why"` instead and is tagged `local/…`.
+**Gate 6 — Handover.** `tools/hs handover` builds `Site-Scripts/handover/<slug>-<date>/` with `files/` (exactly what changed), `rollback/` (the matching live versions from the newest backup) and a `DEV-NOTES.md` scaffold. It stops if the task changes a file where live no longer matches `main`, or if the newest backup is over 7 days old: get a fresh export, `tools/hs snapshot` on `main`, `tools/hs sync` on the branch, and retry. If the difference is understood and intended, use `--accept-drift "why"`, which is recorded in DEV-NOTES. Local-only mu-plugins are left out automatically. Complete every `TODO:` in DEV-NOTES (summary, exact snippets to replace/activate, smoke checks), run `tools/hs handover` again to zip and commit, then `tools/hs finish` to merge into `main` and tag it. Tell the user the zip path; they send it to the developer. JS files ship under their clean names; DEV-NOTES tells the dev which `uploads/hs-head/<hash>.js` each one replaces. A task that ships nothing to live (tooling, docs) uses `tools/hs handover --local-only "why"` instead and is tagged `local/…`.
 
 **Gate 7 — Deployed.** When the user confirms the dev has put it live: `tools/hs deployed <slug> --note "..."` logs it in `DEPLOY-LOG.md` and tags it. Remind them of the post-deploy steps: permalinks flush if routing changed, purge WP Super Cache, purge Cloudflare APO, smoke checks.
 
