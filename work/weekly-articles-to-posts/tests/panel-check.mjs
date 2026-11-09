@@ -69,8 +69,11 @@ try {
   };
   const shot = async (name) => {
     if (!shots) return;
-    await run(`document.getElementById('hs-a2p').scrollIntoView(); `);
-    await sleep(800);
+    // Screenshots only: hide the content canvas so the meta box pane fills the window, then show the ticked row or the result.
+    await run(`document.querySelectorAll('.editor-visual-editor').forEach((n) => { n.style.display = 'none'; });
+      document.querySelectorAll('.edit-post-meta-boxes-main').forEach((n) => { n.style.height = '100%'; n.style.maxHeight = 'none'; n.style.flex = '1 1 100%'; });
+      (document.querySelector('#hs-a2p .hs-a2p-message') || document.querySelector('#hs-a2p .hs-a2p-body') || document.getElementById('hs-a2p')).scrollIntoView({ block: 'center' });`);
+    await sleep(1000);
     const p = await send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(join(shots, name), Buffer.from(p.data, 'base64'));
   };
@@ -151,7 +154,7 @@ try {
     free[free.length - 1].querySelector('.hs-a2p-head input[type=checkbox]').click();
     await wait(100);
     const open = [...document.querySelectorAll('#hs-a2p .hs-a2p-body')].map((b) => b.closest('.hs-a2p-row'));
-    const r = open[open.length - 1];
+    const r = open.find((x) => !x.querySelector('.hs-a2p-chip'));
     const sec = fieldOf(r,'Website').querySelector('select'); if (sec.value === '0') { sec.value = sec.options[1].value; fire(sec,'change'); }
     const tagInput = fieldOf(r,'Thematic').querySelector('input'); tagInput.value = document.querySelector('#hs-a2p-tags-list option').value;
     tagInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));

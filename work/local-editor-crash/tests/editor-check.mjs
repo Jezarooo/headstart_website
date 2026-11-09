@@ -13,7 +13,7 @@ const sock = join(homedir(), 'Library/Application Support/Local/run/l_0Fnw6Gq/my
 const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const port = 9334;
 const WEEKLY_ID = 991965;
-const POST_ID = Number(process.env.HS_POST_ID || 992360);
+const POST_ID = Number(process.env.HS_POST_ID || 18951);
 
 const screens = [
   { name: 'weekly update, edit', url: `/wp-admin/post.php?post=${WEEKLY_ID}&action=edit`, panel: true },

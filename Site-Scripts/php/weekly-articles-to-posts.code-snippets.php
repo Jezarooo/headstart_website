@@ -792,6 +792,7 @@ function hs_a2p_print_assets() {
 		}
 		function draw() {
 			preview.textContent = '';
+			remove.style.display = row[urlKey] ? '' : 'none';
 			if (row[urlKey]) {
 				preview.appendChild(el('img', { 'class': 'hs-a2p-thumb', src: row[urlKey], alt: '' }));
 			}
