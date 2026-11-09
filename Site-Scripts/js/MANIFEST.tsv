@@ -2,7 +2,7 @@
 # Rows are in LIVE LOAD ORDER (Divi > Theme Options > Integration > head). The local loader follows this order.
 # clean_name	live_file	purpose
 global-utilities.js	38655745c724b0c052e6a96d91db2ed6.js	Shared DOM helpers, debounce/throttle
-site-search.js	ad6b24c794936673b17bfc08ba2c4c99.js	Site search field, results panel, index loader, analytics (live name assigned at handover)
+site-search.js	f322bda34d95e412ea102b5a0fdaded6.js	Site search field, results panel, index loader, analytics
 attributes-sidebar.js	3516eede0d9321273e4e6c214655a6dd.js	"Who We Are" sticky sidebar
 form-toggle.js	d59a0e6c80aaec53669725ed175f82c8.js	Book a Tour vs Have a Question form switch
 mega-menu.js	c3bb0d608bd43260768c0fa3ed3368d8.js	Desktop mega menu v16.9
