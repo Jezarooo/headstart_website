@@ -25,10 +25,19 @@ This replaces the old "build step 0": real issues were inspected read-only befor
 - **No issue repeats a headline** across the 334 articles that have one. The other **21 have no `h3`**; those sampled are nearly all image-only promotions.
 - **Section headings are free text**: 44 spellings, including capitals and typos ("Langauges Department", "sCHOOL hOUSES"). Many are not Sections at all (Upcoming Events, Announcements, Promotions). Every Divi section's admin label is "Weekly Update", so that fallback is useless and is removed.
 - **`_et_builder_version` is empty** on weekly updates and Posts. The version lives in each block's `builderVersion`, so the meta is not set. `_et_pb_use_builder = on` and the `divi/placeholder` wrapper are confirmed.
-- **Only 2 Posts use Divi 5 blocks, both drafts; the published Posts sampled are plain HTML.** A published Divi 5 Post has not been seen on the Post template yet, so this is the first thing the build proves (see Build step 1).
+- **Only 2 Posts use Divi 5 blocks, both drafts; the published Posts are plain HTML imports.** The user confirmed the focus is new manual Posts, so older plain-HTML issues stay out of scope. The demo below tested a published Divi 5 Post.
 - **Parsing then re-saving the blocks is lossless** on all 18 issues: `serialize_blocks( parse_blocks() )` returned the same text.
 - **Site search already merges a Post with its article** when the headlines match (`hs_search_headline_key`), so an unchanged title won't show twice.
 - **The Yellow Badge is a fixed list** (a single-choice select), not free text. Thematic Tags do allow new terms. Section allows several on a Post; the panel sets one, and the editor can add more on the Post.
+
+## What the demo found (9 Nov)
+Four throwaway `DEMO` Posts were built on `headstart.local` from real articles, by a script outside the repo. The user asked to see this before approving.
+- **The Theme Builder templates already exist and work for Divi 5 Posts.** `HSC Posts STANDARD` (Chaofah) and `HSN Post STANDARD` (Cherngtalay) are assigned by `hs_post_campus` term. Hero, chips, content, slider and sidebar all render. No template needs creating for one-campus Posts.
+- **The wrapper must be plain.** Copying the weekly update's row gave a card inside a card, because `.single-post .hs-post-content-sandbox .hs-weekly-article` in `core.css` already draws the card on Posts.
+- **The article's first `h3` must be removed from the copy.** The template's hero already shows the Post title, and the imported Posts also have no headline in their content. Later `h3`s in the article stay (the Halloween article's sub-headings).
+- **Both Campuses Posts match both templates, and the demo got the Chaofah sidebar.** The chip correctly says "Both Campuses" and the URL uses `/both-campuses/`. There is no "both" template for new Posts, and Divi can't target "has both terms" without a helper term.
+- **The location override changes the URL as well as the chip** (`/bangkok-trip/school-life/...`, returned 200), so it belongs in the panel.
+- **Articles styled for a dark background break on the white Post card.** The Phuket Sunshine Village article uses inline white text, which is invisible on the Post. The tool copies content unchanged, so the editor fixes this in the draft; the panel warns when it sees inline white text.
 
 ## Proposed changes
 ### New file: `Site-Scripts/php/weekly-articles-to-posts.code-snippets.php` (new live snippet "Weekly-Update--Articles-To-Posts", admin only)
@@ -40,17 +49,18 @@ This replaces the old "build step 0": real issues were inspected read-only befor
    - **Campus** (`hs_post_campus`): Chaofah / Cherngtalay checkboxes, pre-ticked from the weekly update's campus (`hs_campus`, matched by slug, then name). Both can be ticked; the existing chip logic then shows "Both Campuses".
    - **Thematic Tags** (`post_tag`): type freely, with existing tags suggested.
    - **Yellow Badge Override** (`hs_thematic_chip`): optional, a dropdown of the existing badges, one choice, like the Post screen.
+   - **Display Location Override** (`hs_location_override`): optional text, for off-campus events such as "Bangkok Trip". Its hint says it replaces the campus chip and changes the Post's URL.
    - **Publish date:** a date and time picker, defaulting to the weekly update's date.
-   - A read-only note: "Featured image: set it on the Post."
+   - A read-only note: "Featured image and portrait: set them on the Post." A warning shows on an article with inline white text: "Styled for a dark background: check the text colours on the draft."
 
    **Alias list** (heading → Section): PE & Sports, Academy News, Sports & Academies → Sports Academies; ECA News → ECA; CAPA News → CAPA; Thai Department → Thai; Languages Department (and the "Langauges" typo) → World Languages; House Update → School Houses; Alumni Network → HeadStart Alumni. Everything else (Student Voice, Sustainability, Library News and so on) starts empty.
 
    Ticks and fields start empty, because many articles are events or notices that never become Posts. The panel saves on its own through `admin-ajax`, with a nonce check and `edit_post` capability on the weekly update. Its inputs have no `name` attribute, so the normal Update button can't submit them. It stores everything in post meta `_hs_a2p_rows` on the weekly update and never triggers a save of the weekly update. Saving a published weekly update with the normal Update button carries on as today and ignores the panel.
 4. **Create drafts** (a button in the panel; needs `edit_posts`, plus `manage_categories` for a Custom Section). For each ticked row that has no Post yet, it calls `wp_insert_post` with:
    - post type `post`, status `draft`, the title, and the chosen date with both `post_date` and `post_date_gmt` set, so WordPress keeps the date when the Post is published later instead of using the publish day;
-   - content: the article group inside the same section, row and column it sits in on the weekly update (their settings copied, so it looks the same), inside the `divi/placeholder` wrapper; the article's own blocks, images and gallery attributes copied unchanged. The content goes through `wp_slash()` first, because `wp_insert_post` strips backslashes and would otherwise break Divi's `<` encoding;
+   - content: the article group inside a plain Divi section, row and column (no settings copied from the weekly update), inside the `divi/placeholder` wrapper. The article's first `h3` is removed: the whole Text module if that is all it holds, otherwise just the heading. Everything else in the article, including its images and gallery attributes, is copied unchanged. The content goes through `wp_slash()` first, because `wp_insert_post` strips backslashes and would otherwise break Divi's `<` encoding;
    - `_et_pb_use_builder = on`, so the Post opens in Divi 5;
-   - the taxonomies set with `wp_set_object_terms` after the insert (`hs_department`, `hs_post_campus`, `post_tag`, `hs_thematic_chip`). The Post screen's ACF fields read those terms directly (`load_terms`), and the existing `set_object_terms` hook recomputes the chips, so the result matches a hand-made Post without depending on ACF's save flow;
+   - the taxonomies set with `wp_set_object_terms` after the insert (`hs_department`, `hs_post_campus`, `post_tag`, `hs_thematic_chip`). The Post screen's ACF fields read those terms directly (`load_terms`), and the existing `set_object_terms` hook recomputes the chips, so the result matches a hand-made Post without depending on ACF's save flow. The location override is written before the terms: the existing meta hook only fires when a value is updated, not when it is first added, so the terms are what trigger the chip;
    - source meta `_hs_a2p_source` = weekly update ID + article key, and the new Post's ID written back into that row.
 
    Afterwards the row shows **Draft created → Edit** (or **Published → View** once it is live) and can't be created twice. A **Re-copy** action overwrites that Post's content from the article, after an "overwrite?" confirmation; its fields stay as they are. Rows with errors (missing Section or Campus) are skipped and named; the other rows still go through.
@@ -61,12 +71,16 @@ Inline admin JS and CSS live in the same snippet: one file, no build step, nothi
 ### New file: `work/weekly-articles-to-posts/tests/wp-tests.php` (local only)
 Run with `wp eval-file` (see Testing).
 
-### Build step 1 (before the panel)
-Prove the riskiest part first, with a throwaway script: copy one real article with a gallery into a draft Post on `headstart.local`, publish it, and check the Post template in a browser (text, images, gallery lightbox, chips, hero). Also confirm it opens in the Divi builder. If a published Divi 5 Post doesn't display properly, stop: the plan is updated and re-approved before the panel is built.
+### Open decision: Both Campuses sidebar
+Default in this plan: keep the existing templates, so a Both Campuses Post has the correct chip and URL but the sidebar of whichever template Divi picks (Chaofah in the demo). The alternative, a third template with a helper term set automatically, is a separate task if the user wants it.
+
+### Demo Posts
+The `DEMO` Posts stay on `headstart.local` until the user has reviewed them, then go to the Trash. They carry the meta `_hs_demo_a2p`.
 
 ## Risks & rollback
-- **Content copied in a shape Divi 5 doesn't accept** (wrong wrapper, or backslashes stripped) means the Post opens empty or the builder complains. Mitigations: build step 1; a test that creates a Post and renders it; drafts only, so nothing broken goes public.
-- **Published Divi 5 Posts are new territory.** The published Posts sampled are plain HTML, so the Post template, slider and CSS may behave differently. Build step 1 checks this before anything else is built.
+- **Content copied in a shape Divi 5 doesn't accept** (wrong wrapper, or backslashes stripped) means the Post opens empty or the builder complains. Mitigations: the demo; a test that creates a Post and renders it; drafts only, so nothing broken goes public.
+- **Published Divi 5 Posts are new territory.** The demo looked right on desktop, but mobile, the gallery lightbox and opening a Post in the Divi builder still need checking by the user.
+- **The STANDARD templates are separate copies, not global.** A design change to Posts has to be made in `HSC Posts STANDARD` and `HSN Post STANDARD`, plus the archive templates if imported Posts should match. This task changes none of them.
 - **Section matching only helps part of the time.** Many headings have no matching Section, so the editor will often have to choose one by hand. That is deliberate: a wrong guess would put the Post at the wrong `/school-life/...` URL.
 - **The Posts gatekeeper** blocks the Divi builder on a draft until the featured image is set. This is expected and matches "you set the image", but the UAT checks the message is clear.
 - **Website Section drives Post routing** (`/school-life/...`), so a Custom Section changes URLs for Posts in it. Custom Sections need `manage_categories` (admins/editors only) and are named in the result message.
@@ -82,6 +96,7 @@ Prove the riskiest part first, with a throwaway script: copy one real article wi
   - article detection: count, headlines, sections, keys; groups with no `h3` left out and counted; a plain-HTML issue lists nothing and shows the message;
   - key stability: content edited (text changed, an article added above) still matches the right rows; a renamed headline → "not found"; a repeated headline gets its counter;
   - campus and section mapping, including Both, capitals, the alias list, and an unmatched heading staying empty (that row is skipped and named);
+  - first `h3` removed and later `h3`s kept; wrapper has no copied row settings; inline-white-text warning shown; location override and Yellow Badge both reach the chips, with and without each other;
   - Create drafts: status draft; title; date kept (`post_date_gmt` set); taxonomies and chips equal those of a hand-saved Post; `_et_pb_use_builder` on; content parses as valid blocks containing the article, with its `<` encoding intact; second run makes no duplicate; Re-copy replaces content only;
   - permissions: an Author-level user can't create a Custom Section; a bad nonce → 403.
 - Endpoints: `curl` admin-ajax without a nonce → 403 / `-1`; the front-end preview of a created draft (logged in) → 200 with the article headline in the HTML.
@@ -89,7 +104,7 @@ Prove the riskiest part first, with a throwaway script: copy one real article wi
 ### UAT checklist for the user (Gate 5)
 - [ ] Open a published weekly update in wp-admin: the "Articles → Posts" panel lists every article with the right headline and section.
 - [ ] Tick two articles (one from each of two sections) and check the pre-filled Title, Section, Campus and date.
-- [ ] Change one Section using **Custom…**, tick both campuses on the other, add tags and a badge override, and set a different publish date.
+- [ ] Change one Section using **Custom…**, tick both campuses on the other, add tags, a badge override and a location override, and set a different publish date.
 - [ ] Reload the page: the ticks and fields are still there, and the weekly update itself shows no "unsaved changes" and is unchanged on the front end.
 - [ ] Click **Create drafts**: two drafts appear in Posts with the right title, Section, Campus, tags, badge and date.
 - [ ] Open each draft: the content looks like the article (text, images, gallery lightbox in preview), and the gatekeeper asks for the featured image.
