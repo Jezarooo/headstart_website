@@ -50,7 +50,7 @@ Assumed, to be confirmed at approval:
 No GTM changes: GA4 picks up the UTM tags without any new tags.
 
 ### Build step 0 (before any code)
-With Local running, check that the Share links box displays on Page and Post edit screens that use Divi 5, and that `/en/…` and `/th/…` Pages resolve by full path. If either result changes this plan, it is updated and re-approved.
+With Local running, check that the Share links box displays in the Gutenberg sidebar on Page and Post edit screens, the same place as the weekly update box. Pages, Posts and weekly updates all use the block editor, and the Posts gatekeeper only hides its own taxonomy panels. If this changes the plan, it is updated and re-approved.
 
 Already checked on 9 Nov, on the local database (newest Post 26 June 2026, so live has more): no Page or Post uses `wa` or `fb` as a slug, none of the 51 Pages or 730 Posts has a school year as the second part of its URL, and post slugs are all unique. `/en/…` and `/th/…` Pages resolve by full path, even though their `en` and `th` parent pages are drafts, so only the linked item's own status is checked.
 
