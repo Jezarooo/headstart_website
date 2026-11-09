@@ -48,8 +48,8 @@ Four throwaway `DEMO` Posts were built on `headstart.local` from real articles, 
    - **Title:** pre-filled from the headline, editable.
    - **Website Section** (`hs_department`): a dropdown of existing Sections, pre-selected by matching the article's section heading, ignoring capitals (exact name, then the alias list below). If nothing matches it stays empty and the editor must choose; the tool never guesses. It ends with a **Custom…** option: type a new Section name, which is created as a new Section term when the drafts are made.
    - **Campus** (`hs_post_campus`): Chaofah / Cherngtalay checkboxes, pre-ticked from the weekly update's campus (`hs_campus`, matched by slug, then name). Both can be ticked; the existing chip logic then shows "Both Campuses", and a hint says the sidebar opens on one campus and readers can switch.
-   - **Thematic Tags** (`post_tag`): type freely, with existing tags suggested.
-   - **Yellow Badge Override** (`hs_thematic_chip`): optional, a dropdown of the existing badges, one choice, like the Post screen.
+   - **Thematic Tags** (`post_tag`): at least one; type freely, with existing tags suggested.
+   - **Yellow Badge** (`hs_thematic_chip`): required; a dropdown of the existing badges, one choice, like the Post screen. The existing chip logic shows the badge in place of the Section name, so every Post made with this tool shows its badge there.
    - **Display Location Override** (`hs_location_override`): optional text, for off-campus events such as "Bangkok Trip". Its hint says it replaces the campus chip and changes the Post's URL.
    - **Publish date:** a date and time picker, defaulting to the weekly update's date.
    - **Featured image:** opens the Media Library, and the article's own images are offered as one-click choices. Nothing is chosen automatically, because the first image is often wrong for a hero (the demo picked a house-points graphic).
@@ -57,7 +57,7 @@ Four throwaway `DEMO` Posts were built on `headstart.local` from real articles, 
    - **Status:** a **Live / Draft** switch, defaulting to Live. Without the `publish_posts` capability the row is fixed on Draft. A future date on a Live row schedules the Post, as WordPress normally does.
    - A row with inline white text starts on Draft with the warning "Styled for a dark background: check the text colours on the Post". The editor can still switch it to Live.
 
-   **Required fields, only when a row is ticked:** Title, Website Section, Campus and Publish date, plus Featured image when the row is Live. Section and Campus are required even though the Post screen's gatekeeper would accept a Yellow Badge or a location override instead, because Section sets the feeds and Campus selects the Theme Builder template.
+   **Required fields, only when a row is ticked:** Title, Website Section, Campus, Thematic Tags (at least one), Yellow Badge and Publish date, plus Featured image when the row is Live. Display Location Override and Portrait image are optional. Section and Campus are required even though the Post screen's gatekeeper would accept a Yellow Badge or a location override instead, because Section sets the feeds and Campus selects the Theme Builder template. These rules are stricter than a hand-made Post's and apply only in this panel; the Post screen doesn't change.
 
    **Green/red highlighting** uses the panel's own `hs-a2p-` classes, on ticked rows only. It does not reuse `hs-valid` / `hs-missing`, and it adds no rules to the weekly update's own fields. Unticked rows have no rules. The panel never blocks the weekly update's Update button, whether its rows are complete or not.
 
@@ -82,8 +82,8 @@ Inline admin JS and CSS live in the same snippet: one file, no build step. The s
 ### New file: `work/weekly-articles-to-posts/tests/wp-tests.php` (local only)
 Run with `wp eval-file` (see Testing).
 
-### Open decision: Both Campuses sidebar
-Default in this plan: keep the existing templates, so a Both Campuses Post has the correct chip and URL. Its sidebar and slider open on whichever template Divi picks (Chaofah in the demo), and readers can switch the calendar, noticeboard and Parent Fitness to the other campus. The panel shows a hint when both campuses are ticked. A proper "both" template with a helper term set automatically is a separate task if the user wants it.
+### Decision: Both Campuses (9 Nov)
+Keep the existing templates for now, so a Both Campuses Post has the correct chip and URL. Its sidebar and slider open on whichever template Divi picks (Chaofah in the demo), and readers can switch the calendar, noticeboard and Parent Fitness to the other campus. The panel shows a hint when both campuses are ticked. A Both Campuses article is always one Post, never one per campus. A proper "both" template, the same layout with only the sidebar elements differing, is a later task (roadmap item `both-campus-template`).
 
 ### Demo Posts
 The `DEMO` Posts stay on `headstart.local` until the user has reviewed them, then go to the Trash. They carry the meta `_hs_demo_a2p`.
@@ -108,7 +108,7 @@ The `DEMO` Posts stay on `headstart.local` until the user has reviewed them, the
   - article detection: count, headlines, sections, keys; groups with no `h3` left out and counted; a plain-HTML issue lists nothing and shows the message;
   - key stability: content edited (text changed, an article added above) still matches the right rows; a renamed headline → "not found"; a repeated headline gets its counter;
   - campus and section mapping, including Both, capitals, the alias list, and an unmatched heading staying empty (that row is skipped and named);
-  - first `h3` removed and later `h3`s kept; wrapper has no copied row settings; inline-white-text warning shown; location override and Yellow Badge both reach the chips, with and without each other;
+  - first `h3` removed and later `h3`s kept; wrapper has no copied row settings; inline-white-text warning shown; the Yellow Badge reaches the chip; the location override reaches the chip when set, and the campus shows when it isn't; a Post saves with no override or portrait;
   - Create Posts, Draft row: status draft; title; date kept (`post_date_gmt` set); taxonomies and chips equal those of a hand-saved Post; `_et_pb_use_builder` on; content parses as valid blocks containing the article, with its escaped angle brackets intact; second run makes no duplicate; Re-copy replaces content only;
   - Create Posts, Live row: status publish, keeping the chosen date and images; a future date gives `future`; no featured image means the row is skipped and named, and no Post is made; a dark-styled row defaults to Draft;
   - required fields: an unticked row has no rules; a ticked row missing each required field is skipped and named, while other rows go through; an incomplete panel doesn't affect saving the weekly update;
@@ -119,9 +119,9 @@ The `DEMO` Posts stay on `headstart.local` until the user has reviewed them, the
 ### UAT checklist for the user (Gate 5)
 - [ ] Open a published weekly update in wp-admin: the "Articles → Posts" panel lists every article with the right headline and section.
 - [ ] Tick two articles (one from each of two sections) and check the pre-filled Title, Section, Campus and date.
-- [ ] Change one Section using **Custom…**, tick both campuses on the other, add tags, a badge override and a location override, and set a different publish date.
+- [ ] Change one Section using **Custom…**, tick both campuses on the other, add a location override to one, and set a different publish date.
 - [ ] Reload the page: the ticks and fields are still there, and the weekly update itself shows no "unsaved changes" and is unchanged on the front end.
-- [ ] Tick a row and leave a required field empty: it shows red, and turns green once filled. Unticked rows show no colours.
+- [ ] Tick a row and leave Tags and Yellow Badge empty: they show red, and turn green once filled. Unticked rows show no colours, and Location Override and Portrait are never red.
 - [ ] Leave a required field empty on a ticked row, then click the weekly update's normal Update button: it saves as usual.
 - [ ] Choose a featured image from the article's images on one row and from the Media Library on another.
 - [ ] Set one row to Live and one to Draft, then click **Create Posts**: the confirmation gives the right counts.
