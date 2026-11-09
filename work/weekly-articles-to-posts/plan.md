@@ -15,7 +15,7 @@ Decisions agreed with the user (6 Nov, updated 9 Nov):
 - **Changed 9 Nov:** required fields and green/red highlighting apply only inside the tool, on ticked rows. Nobody is forced to fill anything in when editing a weekly update normally.
 - Each Post is a one-off copy. Editing the weekly update later never changes the Post.
 - The weekly update itself is never changed: no links are added and its content is never re-saved.
-- **Changed 9 Nov, needs the user's confirmation:** the panel gets image pickers, because a Live Post has no later step for adding an image. The tool never chooses an image by itself.
+- **Changed 9 Nov:** editors set the images in the panel, using an image picker, because a Live Post has no later step for adding one. The tool never chooses an image by itself.
 - No excerpt (Posts don't use one).
 - The fields live in a panel on the weekly update's edit screen, not inside the Divi builder (that would need a separate built Divi 5 extension, which is fragile across Divi updates).
 
