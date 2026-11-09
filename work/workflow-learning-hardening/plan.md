@@ -88,7 +88,7 @@ Local-only mu-plugins (`headstart-local-*`, `hs-local-*`) are left out of packag
 **Not changing:** any code in `Site-Scripts/`, past backups, existing deploy records, or the cloud push route.
 
 ## Risks & rollback
-- **New blocks could get in the way mid-handover:** a false "live has changed" would stop a package. Mitigated by ignoring formatting-only differences, naming the file, and the override. Item 8 only affects handovers, and tested on current data it would flag only the 2 snippets listed above if a task changed them.
+- **New blocks could get in the way mid-handover:** a false "live has changed" would stop a package. Mitigated by ignoring formatting-only differences, naming the file, and the override. Item 8 only affects handovers. Based on the one-off comparison, it should flag only the 2 snippets listed above, and only if a task changes them, unless a fresh export shows more.
 - **Hooks going live for the first time:** guards never run on this Mac may wrongly block normal commands, for example a commit message containing `rm -rf`. The tests run each guard, and any issue found is fixed or raised before you install them.
 - **The Stop hook could trap a reply:** it stands down on Claude Code's built-in repeat flag (`stop_hook_active`), so it can only ask once per reply.
 - **Hook speed:** the local site check runs at session start and in `status` only, with a 2-second limit. The learn hook makes no network calls and returns straight away when in cooldown.
@@ -103,7 +103,7 @@ Local-only mu-plugins (`headstart-local-*`, `hs-local-*`) are left out of packag
   - **Guards:** each block fires on a sample command, and normal commands pass, including `tools/hs save` with awkward commit messages.
   - **Approval:** `approved`, `Approved.` and `APPROVED` record; `not approved yet` and `approved, but change X` don't; already approved records nothing.
   - **Learn:** an event gives a snippet; a second event inside the cooldown gives nothing; after the cooldown the next unseen snippet appears; no repeats; `PAUSE` silences it; the repo stays clean.
-  - **Stop:** a plan awaiting approval blocks a reply without the link and passes one with it; it doesn't fire a second time for the same plan version, or while `TODO:` remains.
+  - **Stop:** a plan awaiting approval blocks a reply without the link and passes one with it; it doesn't fire a second time for the same plan version, or while the plan still has unfilled sections.
   - **Plan:** `plan` and `plan --diff` from the task branch, from `main`, and for a plan on another branch.
   - **Snippets:** extraction matches the real 5 Nov backup with 36 of 36 found and the 2 known differences reported; older per-file backups still work; backups aren't modified.
   - **Handover:** a modified snippet gets a `rollback/` copy; a changed live version stops it; a stale backup stops it; `--accept-drift` passes and is written into DEV-NOTES; local-only mu-plugins are left out.
