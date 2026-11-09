@@ -6,9 +6,12 @@ HS_BACKUP_RE='^Site-Scripts/live-site-backups-'
 HS_PROTECTED_RE='^(work/[^/]+/(APPROVAL|UAT)|DEPLOY-LOG\.md)$'
 HS_BRANCH_RE='^(feat|fix)/[a-z0-9][a-z0-9-]*$'
 HS_LOCAL_PHP_GLOB='/Applications/Local.app/Contents/Resources/extraResources/lightning-services/php-*/bin/darwin-arm64/bin/php'
-HS_STALE_DAYS=7
+HS_STALE_DAYS=${HS_STALE_DAYS:-7}
 HS_JS_MANIFEST='Site-Scripts/js/MANIFEST.tsv'
 HS_OUTBOX='.hs-outbox'
+HS_LOCAL_ONLY_RE='^app/public/wp-content/mu-plugins/(headstart-local-|hs-local-)'   # never packaged for live
+HS_LEARN_COOLDOWN_MIN=30   # learning snippets: minimum minutes between two snippets
+HS_LEARN_DIR="${HS_LEARN_DIR:-$HOME/.claude/learning}"   # state + log, outside the repo
 
 hs_die()  { printf '\n✖ %s\n\n' "$*" >&2; exit 1; }
 hs_ok()   { printf '✔ %s\n' "$*"; }
@@ -95,6 +98,52 @@ hs_live_location() { # repo path -> where it goes on live, for DEV-NOTES
     app/public/wp-content/mu-plugins/*) echo "wp-content/mu-plugins/$(basename "$1")" ;;
     *) echo "$1" ;;
   esac
+}
+
+# --- Reading live backups (a backup may hold one JSON export of all snippets, or separate files) ---
+hs_backup_age() { # backup dir -> age in days
+  local d; d=$(echo "${1##*live-site-backups-}" | cut -c1-10)
+  echo $(( ( $(date +%s) - $(date -j -f %Y-%m-%d "$d" +%s 2>/dev/null || date -d "$d" +%s) ) / 86400 ))
+}
+hs_backup_json() { find "$1" -maxdepth 2 -type f -name '*.code-snippets.json' 2>/dev/null | head -1; }
+HS_JQ_SLUG='def slug: ascii_downcase | gsub("[^a-z0-9]+"; "-") | gsub("^-+|-+$"; "");'
+hs_backup_snippet_slugs() { # backup dir -> slug of every snippet in its JSON export
+  local j; j=$(hs_backup_json "$1"); [ -n "$j" ] || return 0
+  jq -r "$HS_JQ_SLUG .snippets[].name | slug" "$j"
+}
+hs_backup_read() { # backup dir, repo path -> print that file's live content; non-zero if the backup has none
+  local b=$1 f=$2 base hit j slug
+  base=$(hs_live_name "$f")
+  hit=$(find "$b" -type f -name "$base" 2>/dev/null | head -1)
+  if [ -n "$hit" ]; then cat "$hit"; return 0; fi
+  case "$f" in
+    *.code-snippets.php)
+      j=$(hs_backup_json "$b"); [ -n "$j" ] || return 1
+      slug=$(basename "$f" .code-snippets.php)
+      jq -er --arg n "$slug" "$HS_JQ_SLUG first(.snippets[] | select((.name | slug) == \$n) | .code)" "$j" 2>/dev/null ;;
+    *) return 1 ;;
+  esac
+}
+hs_code_norm() { # repo path; stdin -> content with formatting-only differences removed
+  case "$1" in
+    *.php)
+      HS_N=$(basename "$1" .code-snippets.php) perl -0pe '
+        s/\r\n/\n/g; s/\A\s*<\?php\s*//;
+        if (/\A\/\*\*\n \* ([^\n]*)\n \*\/\n/) {   # our header comment, only when it names this file
+          my ($c, $n) = (lc $1, lc $ENV{HS_N});
+          s/[^a-z0-9]+/-/g, s/^-|-$//g for $c, $n;
+          s/\A\/\*\*\n \* [^\n]*\n \*\/\n// if $c eq $n;
+        }
+        s/[ \t]+$//mg; s/\s*\?>\s*\z//; s/\A\s+//; s/\s*\z/\n/;' ;;
+    *) cat ;;
+  esac
+}
+hs_live_differs() { # backup dir, repo path, git ref (empty = working copy) -> 0 if live differs; 2 if backup has none
+  local b=$1 f=$2 ref=${3:-} live ours
+  live=$(hs_backup_read "$b" "$f") || return 2
+  live=$(printf '%s\n' "$live" | hs_code_norm "$f")
+  if [ -n "$ref" ]; then ours=$(git show "$ref:$f" 2>/dev/null | hs_code_norm "$f"); else ours=$(hs_code_norm "$f" < "$f"); fi
+  [ "$live" != "$ours" ]
 }
 
 # --- Race-proof commits (roadmap git-index-race, 14 Oct 2026) -------------------------------

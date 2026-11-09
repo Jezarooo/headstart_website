@@ -1,0 +1,48 @@
+# event	category	id	snippet (ordered basic to deeper within each event)
+commit	git	commit-what	A commit is a saved snapshot of the whole project with a message saying why. It stays on this Mac until pushed, and you can always go back to it.
+commit	git	commit-small	Small commits are easier to review and easier to undo. If one change breaks something, you can reverse just that one instead of losing a day's work.
+commit	git	commit-staging	Git has a waiting area called the staging area or index. You choose what goes in, and the commit saves exactly that. tools/hs save puts everything in, then commits.
+commit	devops	commit-hooks	Git hooks are scripts git runs at set moments. Ours run before each commit and can refuse it, which is how an unapproved plan blocks code.
+commit	git	commit-hash	Every commit has an ID such as 1e545b90, calculated from its content. Change anything and the ID changes, so history can't be quietly altered.
+branch	git	branch-what	A branch is a separate line of work. You can experiment without touching main, and main only changes when finished work is merged in.
+branch	git	branch-cheap	A branch is only a label pointing at a commit, so creating one is instant. That is why one branch per task costs nothing.
+branch	architecture	branch-trunk	main is the single trusted version. Keeping every task on its own short-lived branch means main always holds finished, reviewed work.
+branch	git	branch-stale	The longer a branch lives, the further it drifts from main and the harder it is to merge. That is why tools/hs status shows each open task's age.
+merge	git	merge-what	A merge brings the commits from one branch into another. A merge commit has two parents, which records that two lines of work joined there.
+merge	git	merge-conflict	A conflict means two branches changed the same lines and git won't guess which is right. Nothing is lost; a person chooses the final text.
+merge	git	merge-sync	Merging main into a task branch brings across what happened on main since the branch began, so the task isn't working from old information.
+push	git	push-what	Push copies your commits to GitHub. Until then the work exists only on this Mac, so pushing is also your off-site backup.
+push	git	push-pull	Push sends commits to GitHub and pull fetches them back. Git is distributed: your Mac and GitHub each hold the full history.
+push	git	push-force	A force-push overwrites history on GitHub and can destroy other people's work. That is why it's blocked here; fixes go in as new commits instead.
+pull	git	pull-what	Pull is two steps: fetch downloads new commits, then merge combines them with your branch. Fetch alone is always safe, because it changes none of your files.
+tag	git	tag-what	A tag is a permanent name for one commit. Unlike a branch it never moves, so handover/site-search-2026-11-06 always means that exact version.
+drift	devops	drift-what	Drift is when what's running on live no longer matches what's in the repo. It happens here because Nick can edit live directly, so we compare before each task.
+drift	devops	drift-truth	A source of truth is the one place you trust when copies disagree. Ours is split: git for our changes, the live export for what's actually running.
+drift	devops	drift-backup	A backup you have never restored from is only a hope. rollback/ in each package holds the files from the real live export, so the route back is ready before you deploy.
+handover	devops	handover-what	A release package is a fixed bundle of exactly what changes, plus how to undo it. The person deploying doesn't have to work out what's needed.
+handover	devops	handover-rollback	Plan the undo before the deploy. A rollback written beforehand takes minutes; working it out during an outage is when mistakes happen.
+handover	devops	handover-env	Dev, staging and production are separate copies of a system. Our Local site is dev and live is production, so some files, like the loader, must never cross over.
+deploy	devops	deploy-what	Deploying means putting code where real users get it. It is separate from merging, which is why DEPLOY-LOG.md only records what was confirmed live.
+deploy	devops	deploy-cache	Caches keep copies of pages to serve them faster, so visitors can see old content after a deploy. That is why we purge WP Super Cache and Cloudflare.
+deploy	devops	deploy-smoke	A smoke test is a quick check straight after a deploy that the main things still work. It doesn't prove everything, but it catches the disasters early.
+lint	programming	lint-what	A linter reads code without running it and flags mistakes. php -l catches syntax errors that would otherwise take the whole site down.
+lint	programming	lint-limits	Passing lint only means the code can be read, not that it does the right thing. That is why lint is followed by tests and UAT.
+http	programming	http-status	HTTP status codes are a server's short answer: 200 is OK, 301 and 302 are redirects, 404 is not found, and 5xx means the server failed.
+http	programming	http-redirects	A 301 says moved permanently, so browsers may remember it. A 302 says temporary and asks each time, which is why share links use 302: every click reaches us.
+http	architecture	http-query	The part of a URL after ? is the query string. UTM tags live there, so any redirect that doesn't pass it along loses them.
+wp-cli	devops	wpcli-what	WP-CLI runs WordPress tasks from the command line. Commands are repeatable and can be scripted, unlike clicking through wp-admin.
+php	programming	php-hooks	WordPress hooks let code run at set moments without editing core files. add_action does something at a moment; add_filter changes a value passing through.
+php	programming	php-order	parse_request runs before WordPress fetches the page's content from the database. Share links use it so they can redirect without doing that work.
+php	programming	php-prepare	Never paste a visitor's input straight into SQL. $wpdb->prepare keeps data apart from commands, which is the standard defence against SQL injection.
+php	programming	php-escape	Escape data when you output it. esc_html and esc_attr turn special characters into harmless text, so stored data can't run as code in a browser.
+php	architecture	php-atomic	Reading a number, adding one and saving it can lose clicks if two arrive together. A single SQL UPDATE does all three as one step, which is called atomic.
+php	architecture	php-prefix	WordPress runs all plugin code in one shared space, so two functions with the same name crash the site. That's why ours all begin with hs_.
+js	programming	js-where	PHP runs on the server before the page is sent. JavaScript runs afterwards in the visitor's browser, so it can react to clicks but can't be trusted for security.
+js	programming	js-events	Event listeners run code when something happens, such as a click. Listening on a parent element also covers items added to the page later.
+css	programming	css-cascade	CSS applies by specificity and order: a more specific rule wins, and on a tie the later one does. Most surprises come from a rule you can't see winning.
+hooks	devops	hooks-claude	A hook is automation that can't forget. CLAUDE.md is advice that could be overlooked, while a hook always runs and can block an action.
+hooks	architecture	hooks-idempotent	An idempotent command gives the same result however many times it runs. tools/hs setup is built that way, so running it twice is safe.
+hooks	architecture	hooks-guard	Put checks where they can't be skipped. A rule enforced at the commit stage holds whichever tool made the change, not just the one you remembered to set up.
+plan	architecture	plan-why	A plan is the cheapest place to change your mind. Fixing a design takes minutes in a document and days once it's in code and on live.
+plan	architecture	plan-gates	A gate is a checkpoint that work must pass before moving on. Each one here checks something different: plan, code, behaviour, package, then live.
+plan	architecture	plan-tradeoff	Most design choices trade one good thing for another. Writing down what you gave up, and why, stops the same debate returning six months later.
