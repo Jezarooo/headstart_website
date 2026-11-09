@@ -11,3 +11,4 @@ One row per change confirmed live. Written by `tools/hs deployed` only.
 | 2026-11-09 | isqm-gold-announcement | handover/isqm-gold-announcement-2026-10-28 | 014d0da4 | Confirmed live by Jeremy 9 Nov 2026. Since superseded by isqm-css-every-render. Deployed by Nick. |
 | 2026-11-09 | isqm-gold-live-sync | handover/isqm-gold-live-sync-2026-10-29 | 3ee2d09d | Confirmed live by Jeremy 9 Nov 2026. Since superseded by isqm-css-every-render. Deployed by Nick. |
 | 2026-11-09 | isqm-css-every-render | handover/isqm-css-every-render-2026-10-29 | ea0ed189 | Confirmed live by Jeremy 9 Nov 2026; the 9 Nov live export agrees. Snippet matches. Deployed by Nick. |
+| 2026-11-09 | alumni-stories-live-import | handover/alumni-stories-live-import-2026-10-15 | 081677aa | Confirmed live by Jeremy 9 Nov 2026, covering alumni-stories too, which this package superseded. Alumni JS matches the 9 Nov export; core.css differs from the package. Deployed by Nick. |
