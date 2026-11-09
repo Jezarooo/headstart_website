@@ -29,7 +29,7 @@ This replaces the old "build step 0": real issues were inspected read-only befor
 - **Only 2 Posts use Divi 5 blocks, both drafts; the published Posts are plain HTML imports.** The user confirmed the focus is new manual Posts, so older plain-HTML issues stay out of scope. The demo below tested a published Divi 5 Post.
 - **Parsing then re-saving the blocks is lossless** on all 18 issues: `serialize_blocks( parse_blocks() )` returned the same text.
 - **Site search already merges a Post with its article** when the headlines match (`hs_search_headline_key`), so an unchanged title won't show twice.
-- **The Yellow Badge is a fixed list** (a single-choice select), not free text. Thematic Tags do allow new terms. Section allows several on a Post; the panel sets one, and the editor can add more on the Post.
+- **On the Post screen, Thematic Tags are a tick-list and the Yellow Badge a single-choice select, and both let you add a new term** (ACF `add_term`). There are 73 tags, grouped by prefix such as `SPORT:`. Section allows several on a Post; the panel sets one, and the editor can add more on the Post.
 
 ## What the demo found (9 Nov)
 Four throwaway `DEMO` Posts were built on `headstart.local` from real articles, by a script outside the repo. The user asked to see this before approving.
@@ -48,8 +48,8 @@ Four throwaway `DEMO` Posts were built on `headstart.local` from real articles, 
    - **Title:** pre-filled from the headline, editable.
    - **Website Section** (`hs_department`): a dropdown of existing Sections, pre-selected by matching the article's section heading, ignoring capitals (exact name, then the alias list below). If nothing matches it stays empty and the editor must choose; the tool never guesses. It ends with a **Custom…** option: type a new Section name, which is created as a new Section term when the drafts are made.
    - **Campus** (`hs_post_campus`): Chaofah / Cherngtalay checkboxes, pre-ticked from the weekly update's campus (`hs_campus`, matched by slug, then name). Both can be ticked; the existing chip logic then shows "Both Campuses", and a hint says the sidebar opens on one campus and readers can switch.
-   - **Thematic Tags** (`post_tag`): at least one; type freely, with existing tags suggested.
-   - **Yellow Badge** (`hs_thematic_chip`): required; a dropdown of the existing badges, one choice, like the Post screen. The existing chip logic shows the badge in place of the Section name, so every Post made with this tool shows its badge there.
+   - **Thematic Tags** (`post_tag`): at least one; a tick-list of the existing tags, grouped by prefix, with a box to add a new tag, like the Post screen.
+   - **Yellow Badge** (`hs_thematic_chip`): required; a dropdown of the existing badges, one choice, with a box to add a new badge, like the Post screen. A new tag or badge is created straight away, needs the taxonomy's `manage_terms` capability, and then appears on every row; an existing name is reused rather than duplicated. The existing chip logic shows the badge in place of the Section name, so every Post made with this tool shows its badge there.
    - **Display Location Override** (`hs_location_override`): optional text, for off-campus events such as "Bangkok Trip". Its hint says it replaces the campus chip and changes the Post's URL.
    - **Publish date:** a date and time picker, defaulting to the weekly update's date.
    - **Featured image:** opens the Media Library, and the article's own images are offered as one-click choices. Nothing is chosen automatically, because the first image is often wrong for a hero (the demo picked a house-points graphic).
@@ -96,6 +96,7 @@ The `DEMO` Posts stay on `headstart.local` until the user has reviewed them, the
 - **Section matching only helps part of the time.** Many headings have no matching Section, so the editor will often have to choose one by hand. That is deliberate: a wrong guess would put the Post at the wrong `/school-life/...` URL.
 - **The Posts gatekeeper** blocks the Divi builder on a draft until the featured image is set. A draft made without an image hits this as usual, and the UAT checks the message is clear.
 - **Website Section drives Post routing** (`/school-life/...`), so a Custom Section changes URLs for Posts in it. Custom Sections need `manage_categories` (admins/editors only) and are named in the result message.
+- **New tags and badges are site-wide.** One added here appears everywhere those lists are used, and it stays even if no Post is created, as on the Post screen. A typo needs fixing under Posts → Tags or Thematic Chips.
 - **Wrong article matched after heavy edits.** Mitigated by id/headline keys and the "not found" state; the tool never guesses.
 - **Duplicate content in search engines.** Article and Post are both public (agreed). Search indexing: drafts are not indexed. Once published, site search merges the Post with its article if the headline is unchanged; if the title was edited, both appear.
 - **Caching:** nothing public changes when drafts are made. Publishing runs the normal WordPress hooks, so it should behave like publishing by hand, but that can't be proven locally, where WP Super Cache is off and there is no Cloudflare. The live smoke check covers it.
@@ -112,7 +113,8 @@ The `DEMO` Posts stay on `headstart.local` until the user has reviewed them, the
   - Create Posts, Draft row: status draft; title; date kept (`post_date_gmt` set); taxonomies and chips equal those of a hand-saved Post; `_et_pb_use_builder` on; content parses as valid blocks containing the article, with its escaped angle brackets intact; second run makes no duplicate; Re-copy replaces content only;
   - Create Posts, Live row: status publish, keeping the chosen date and images; a future date gives `future`; no featured image means the row is skipped and named, and no Post is made; a dark-styled row defaults to Draft;
   - required fields: an unticked row has no rules; a ticked row missing each required field is skipped and named, while other rows go through; an incomplete panel doesn't affect saving the weekly update;
-  - permissions: an Author-level user can't create a Custom Section; a user without `publish_posts` can't make a Live Post; a bad nonce → 403.
+  - adding terms: a new tag or badge is created and returned; an existing name returns the existing term;
+  - permissions: an Author-level user can't create a Custom Section, tag or badge; a user without `publish_posts` can't make a Live Post; a bad nonce → 403.
 - Endpoints: `curl` admin-ajax without a nonce → 403 / `-1`; a Post created as Live → 200 logged out, with its title in the HTML; a Post created as Draft → not public logged out.
 - Browser check (`work/local-editor-crash/tests/editor-check.mjs` adapted): the weekly update editor still loads with the panel, with no errors.
 
@@ -123,6 +125,7 @@ The `DEMO` Posts stay on `headstart.local` until the user has reviewed them, the
 - [ ] Reload the page: the ticks and fields are still there, and the weekly update itself shows no "unsaved changes" and is unchanged on the front end.
 - [ ] Tick a row and leave Tags and Yellow Badge empty: they show red, and turn green once filled. Unticked rows show no colours, and Location Override and Portrait are never red.
 - [ ] Leave a required field empty on a ticked row, then click the weekly update's normal Update button: it saves as usual.
+- [ ] Tick existing tags from the list, then add a new tag and a new badge on one row: each is selected there and offered on the other rows.
 - [ ] Choose a featured image from the article's images on one row and from the Media Library on another.
 - [ ] Set one row to Live and one to Draft, then click **Create Posts**: the confirmation gives the right counts.
 - [ ] The Live Post is public with the right title, Section, Campus, tags, badge, date and hero, without opening Posts. The Draft is in Posts and isn't public.
