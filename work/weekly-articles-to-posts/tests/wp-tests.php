@@ -55,12 +55,11 @@ $made[] = $issue;
 wp_set_object_terms( $issue, 'chaofah', 'hs_campus' );
 
 $section_id = fn( $name ) => (int) get_term_by( 'name', $name, 'hs_department' )->term_id;
-$badge_id   = (int) get_term_by( 'name', 'Spotlight', 'hs_thematic_chip' )->term_id;
 $primary    = $section_id( 'Primary' );
-$good_row = function ( $over = array() ) use ( $primary, $badge_id, $image_id ) {
+$good_row = function ( $over = array() ) use ( $primary, $image_id ) {
 	return array_merge( array(
 		'tick' => true, 'title' => 'A2P Test Post', 'section' => $primary, 'customSection' => '', 'campus' => array( 'chaofah' ), 'tags' => array( 'A2P test tag' ),
-		'badge' => $badge_id, 'location' => '', 'date' => '2026-10-30T09:00', 'image' => $image_id, 'portrait' => 0, 'status' => 'live',
+		'badgeText' => '', 'location' => '', 'date' => '2026-10-30T09:00', 'image' => $image_id, 'portrait' => 0, 'status' => 'live',
 	), $over );
 };
 $track = function ( $issue_id ) use ( &$made ) {
@@ -117,16 +116,16 @@ try {
 	$t( 'campus comes from the weekly update', array( 'chaofah' ) === hs_a2p_campus_for_issue( $issue ) );
 	$by = array_column( hs_a2p_panel_data( $issue )['rows'], null, 'key' );
 	$d  = $by['first-article-headline']['fields'];
-	$t( 'row defaults: unticked, Live, headline, Section, date; tags, badge, image empty', false === $d['tick'] && 'live' === $d['status'] && 'First Article Headline' === $d['title'] && $d['section'] === $primary && '2026-10-30T09:00' === $d['date'] && array() === $d['tags'] && 0 === $d['badge'] && 0 === $d['image'] );
+	$t( 'row defaults: unticked, Live, headline, Section, date; tags, badge override, image empty', false === $d['tick'] && 'live' === $d['status'] && 'First Article Headline' === $d['title'] && $d['section'] === $primary && '2026-10-30T09:00' === $d['date'] && array() === $d['tags'] && '' === $d['badgeText'] && 0 === $d['image'] );
 	$t( 'dark article defaults to Draft', 'draft' === $by['dark-styled-article']['fields']['status'] );
 
 	echo "\nRequired fields\n";
 	$t( 'a complete Live row has nothing missing', array() === hs_a2p_missing_fields( hs_a2p_sanitize_row( $good_row() ) ) );
-	foreach ( array( 'Title' => array( 'title' => '' ), 'Website Section' => array( 'section' => 0 ), 'Campus' => array( 'campus' => array() ), 'Thematic Tags' => array( 'tags' => array() ), 'Yellow Badge' => array( 'badge' => 0 ), 'Publish date' => array( 'date' => '' ), 'Featured image' => array( 'image' => 0 ) ) as $name => $over ) {
+	foreach ( array( 'Title' => array( 'title' => '' ), 'Website Section' => array( 'section' => 0 ), 'Campus' => array( 'campus' => array() ), 'Thematic Tags' => array( 'tags' => array() ), 'Publish date' => array( 'date' => '' ), 'Featured image' => array( 'image' => 0 ) ) as $name => $over ) {
 		$t( "missing $name is reported", in_array( $name, hs_a2p_missing_fields( hs_a2p_sanitize_row( $good_row( $over ) ) ), true ) );
 	}
 	$t( 'Draft row needs no featured image', array() === hs_a2p_missing_fields( hs_a2p_sanitize_row( $good_row( array( 'status' => 'draft', 'image' => 0 ) ) ) ) );
-	$t( 'overrides and portrait are optional', array() === hs_a2p_missing_fields( hs_a2p_sanitize_row( $good_row( array( 'location' => '', 'portrait' => 0 ) ) ) ) );
+	$t( 'overrides and portrait are optional', array() === hs_a2p_missing_fields( hs_a2p_sanitize_row( $good_row( array( 'badgeText' => '', 'location' => '', 'portrait' => 0 ) ) ) ) );
 	$t( 'custom Section needs a name', in_array( 'Website Section', hs_a2p_missing_fields( hs_a2p_sanitize_row( $good_row( array( 'section' => 'custom' ) ) ) ), true ) );
 	$t( 'an unknown campus is dropped', array( 'chaofah' ) === hs_a2p_sanitize_row( $good_row( array( 'campus' => array( 'chaofah', 'evil' ) ) ) )['campus'] );
 
@@ -151,11 +150,11 @@ try {
 	$t( 'chosen date kept, with gmt', '2026-10-30 09:00:00' === $p->post_date && get_gmt_from_date( '2026-10-30 09:00:00' ) === $p->post_date_gmt, $p->post_date );
 	$t( 'featured image set', $image_id === (int) get_post_thumbnail_id( $live ) );
 	$t( 'builder on', 'on' === get_post_meta( $live, '_et_pb_use_builder', true ) );
-	$t( 'section, campus, badge terms', array( 'Primary' ) === wp_get_object_terms( $live, 'hs_department', array( 'fields' => 'names' ) ) && array( 'chaofah' ) === wp_get_object_terms( $live, 'hs_post_campus', array( 'fields' => 'slugs' ) ) && array( 'Spotlight' ) === wp_get_object_terms( $live, 'hs_thematic_chip', array( 'fields' => 'names' ) ) );
+	$t( 'section and campus terms; no badge term when the override is empty', array( 'Primary' ) === wp_get_object_terms( $live, 'hs_department', array( 'fields' => 'names' ) ) && array( 'chaofah' ) === wp_get_object_terms( $live, 'hs_post_campus', array( 'fields' => 'slugs' ) ) && array() === wp_get_object_terms( $live, 'hs_thematic_chip', array( 'fields' => 'names' ) ) );
 	$tag_names = array_map( fn( $n ) => html_entity_decode( $n, ENT_QUOTES, 'UTF-8' ), wp_get_object_terms( $live, 'post_tag', array( 'fields' => 'names' ) ) );
 	$t( 'tags set', 2 === count( $tag_names ) && in_array( 'A2P test tag', $tag_names, true ) && in_array( 'ACADEMIC: Literacy & Phonics', $tag_names, true ), implode( ' | ', $tag_names ) );
 	$t( 'existing tag with & is reused, not duplicated', 1 === count( get_terms( array( 'taxonomy' => 'post_tag', 'hide_empty' => false, 'search' => 'Literacy' ) ) ) );
-	$t( 'chips: badge replaces Section, campus shown', 'Spotlight' === get_post_meta( $live, 'hs_final_section_chip', true ) && 'Chaofah City Campus' === get_post_meta( $live, 'hs_final_location_chip', true ), get_post_meta( $live, 'hs_final_section_chip', true ) . ' / ' . get_post_meta( $live, 'hs_final_location_chip', true ) );
+	$t( 'chips: empty override shows the Section, campus shown', 'Primary' === get_post_meta( $live, 'hs_final_section_chip', true ) && 'Chaofah City Campus' === get_post_meta( $live, 'hs_final_location_chip', true ), get_post_meta( $live, 'hs_final_section_chip', true ) . ' / ' . get_post_meta( $live, 'hs_final_location_chip', true ) );
 	$c = $p->post_content;
 	$t( 'content has the article and is valid blocks', 'divi/placeholder' === parse_blocks( $c )[0]['blockName'] && false !== strpos( $c, 'hs-weekly-article' ) && false !== strpos( $c, 'First body text.' ) );
 	$t( 'escaped angle brackets survived the save', false !== strpos( $c, '\\u003cp\\u003e' ) && false === strpos( $c, 'u003cu003c' ) );
@@ -240,31 +239,56 @@ try {
 	$t( 'without publish_posts a Live row stays a draft and is flagged', $cid && 'draft' === get_post_status( $cid ) && ! empty( $r['created'][0]['held'] ), wp_json_encode( $r ) );
 	wp_set_current_user( $admin->ID );
 
-	echo "\nAdding tags and badges\n";
+	echo "\nAdding tags\n";
 	$new_tag = hs_a2p_add_term( 'post_tag', 'A2P New Tag' );
-	$new_badge = hs_a2p_add_term( 'hs_thematic_chip', 'A2P New Badge' );
-	$t( 'admin can add a tag and a badge', ! is_wp_error( $new_tag ) && ! is_wp_error( $new_badge ) && 'A2P New Badge' === $new_badge['name'] );
+	$t( 'admin can add a tag', ! is_wp_error( $new_tag ) && 'A2P New Tag' === $new_tag['name'] );
 	$t( 'adding an existing name reuses it', $new_tag['id'] === hs_a2p_add_term( 'post_tag', 'a2p new tag' )['id'] );
 	$t( 'existing tag with & is reused', ! term_exists( 'x', 'post_tag' ) && (int) term_exists( 'ACADEMIC: Literacy & Phonics', 'post_tag' )['term_id'] === hs_a2p_add_term( 'post_tag', 'ACADEMIC: Literacy & Phonics' )['id'] );
-	$t( 'only tags and badges can be added this way', is_wp_error( hs_a2p_add_term( 'hs_department', 'A2P Nope' ) ) && is_wp_error( hs_a2p_add_term( 'category', 'A2P Nope' ) ) );
+	$t( 'only tags can be added this way', is_wp_error( hs_a2p_add_term( 'hs_department', 'A2P Nope' ) ) && is_wp_error( hs_a2p_add_term( 'category', 'A2P Nope' ) ) && is_wp_error( hs_a2p_add_term( 'hs_thematic_chip', 'A2P Nope' ) ) );
 	$t( 'an empty name is refused', is_wp_error( hs_a2p_add_term( 'post_tag', '   ' ) ) );
 	$admin_panel = hs_a2p_panel_data( $issue );
-	$t( 'new terms are offered in the panel', in_array( 'A2P New Tag', $admin_panel['tags'], true ) && in_array( $new_badge['id'], array_column( $admin_panel['badges'], 'id' ), true ) );
-	$t( 'admin sees the add boxes', true === $admin_panel['canTag'] && true === $admin_panel['canBadge'] );
+	$t( 'new tags are offered in the panel', in_array( 'A2P New Tag', $admin_panel['tags'], true ) );
+	$t( 'admin sees the tag add box', true === $admin_panel['canTag'] );
+	$t( 'the panel holds no badge list', ! isset( $admin_panel['badges'] ) && ! isset( $admin_panel['canBadge'] ) );
+
+	echo "\nYellow Badge override\n";
+	$terms_before = (int) wp_count_terms( array( 'taxonomy' => 'hs_thematic_chip', 'hide_empty' => false ) );
 	$issue3 = wp_insert_post( wp_slash( array( 'post_type' => 'weekly_update', 'post_status' => 'publish', 'post_title' => 'A2P test issue 3', 'post_content' => $fixture() ) ) );
 	$made[] = $issue3;
-	$r = hs_a2p_create_posts( $issue3, array( 'sports-article' => $good_row( array( 'tags' => array( 'A2P New Tag' ), 'badge' => $new_badge['id'] ) ) ) );
+	hs_a2p_save_rows( $issue3, array( 'dark-styled-article' => $good_row( array( 'tick' => false, 'badgeText' => 'A2P Abandoned Badge' ) ) ) );
+	$t( 'text typed in a row creates nothing until a Post is made', ! term_exists( 'A2P Abandoned Badge', 'hs_thematic_chip' ) );
+	$r = hs_a2p_create_posts( $issue3, array( 'sports-article' => $good_row( array( 'title' => 'A2P Typed', 'tags' => array( 'A2P New Tag' ), 'badgeText' => 'A2P New Badge' ) ) ) );
 	$track( $issue3 );
 	$nid = $r['created'][0]['id'] ?? 0;
-	$t( 'a Post can use the new tag and badge, and the badge reaches the chip', has_term( 'A2P New Tag', 'post_tag', $nid ) && 'A2P New Badge' === get_post_meta( $nid, 'hs_final_section_chip', true ) );
+	$t( 'a typed badge is created and reaches the chip', has_term( 'A2P New Tag', 'post_tag', $nid ) && term_exists( 'A2P New Badge', 'hs_thematic_chip' ) && 'A2P New Badge' === get_post_meta( $nid, 'hs_final_section_chip', true ), wp_json_encode( $r ) );
+	$r = hs_a2p_create_posts( $issue3, array( 'repeat-headline' => $good_row( array( 'title' => 'A2P Reuse', 'badgeText' => 'a2p new BADGE' ) ) ) );
+	$track( $issue3 );
+	$rid = $r['created'][0]['id'] ?? 0;
+	$t( 'the same text in other capitals reuses it, with no duplicate', has_term( 'A2P New Badge', 'hs_thematic_chip', $rid ) && $terms_before + 1 === (int) wp_count_terms( array( 'taxonomy' => 'hs_thematic_chip', 'hide_empty' => false ) ) );
+	$sec = get_post_meta( $live, 'hs_final_section_chip', true );
+	$t( 'a Post with an empty override still shows its Section', 'Primary' === $sec, $sec );
+
+	echo "\nThe seeded badge list is gone\n";
+	$t( 'the seed function no longer exists', ! function_exists( 'hs_seed_default_thematic_chips' ) );
+	$t( 'nothing seeds badges on init', false === has_action( 'init', 'hs_seed_default_thematic_chips' ) );
+	foreach ( array( 'Spotlight', 'School Life', 'Community', 'Academics', 'Student Success', 'Campus News', 'Event', 'Co-Curricular', 'Creativity', 'Innovation', 'Well-being', 'Leadership', 'Perspectives', 'Competition', 'Test' ) as $name ) {
+		$t( "'$name' has stayed gone through a fresh page load", ! term_exists( $name, 'hs_thematic_chip' ) );
+	}
+
+	echo "\nAuthor permissions\n";
 	wp_set_current_user( $author );
-	$t( 'Author can’t add a tag or badge', is_wp_error( hs_a2p_add_term( 'post_tag', 'A2P Forbidden Tag' ) ) && is_wp_error( hs_a2p_add_term( 'hs_thematic_chip', 'A2P Forbidden Badge' ) ) );
+	$t( 'Author can’t add a tag', is_wp_error( hs_a2p_add_term( 'post_tag', 'A2P Forbidden Tag' ) ) );
 	$t( 'Author can still choose an existing tag by name', ! is_wp_error( hs_a2p_add_term( 'post_tag', 'A2P New Tag' ) ) );
-	$author_panel = hs_a2p_panel_data( $issue3 );
-	$t( 'Author does not see the add boxes', false === $author_panel['canTag'] && false === $author_panel['canBadge'] );
+	$t( 'Author does not see the tag add box', false === hs_a2p_panel_data( $issue3 )['canTag'] );
 	$r = hs_a2p_create_posts( $issue3, array( 'first-article-headline' => $good_row( array( 'title' => 'A2P Sneaky', 'status' => 'draft', 'tags' => array( 'A2P Forbidden Tag' ) ) ) ) );
 	$track( $issue3 );
 	$t( 'Author can’t create a tag through a row', ! term_exists( 'A2P Forbidden Tag', 'post_tag' ) && 1 === count( $r['skipped'] ) && 0 === count( $r['created'] ), wp_json_encode( $r ) );
+	$r = hs_a2p_create_posts( $issue3, array( 'first-article-headline' => $good_row( array( 'title' => 'A2P Sneaky Badge', 'status' => 'draft', 'badgeText' => 'A2P Forbidden Badge' ) ) ) );
+	$track( $issue3 );
+	$t( 'Author typing a new badge: row skipped and named, no term, no Post', ! term_exists( 'A2P Forbidden Badge', 'hs_thematic_chip' ) && 1 === count( $r['skipped'] ) && 0 === count( $r['created'] ), wp_json_encode( $r ) );
+	$r = hs_a2p_create_posts( $issue3, array( 'first-article-headline' => $good_row( array( 'title' => 'A2P Author Existing', 'status' => 'draft', 'badgeText' => 'A2P New Badge' ) ) ) );
+	$track( $issue3 );
+	$t( 'Author typing an existing badge is allowed', 1 === count( $r['created'] ) && has_term( 'A2P New Badge', 'hs_thematic_chip', $r['created'][0]['id'] ), wp_json_encode( $r ) );
 	wp_set_current_user( $admin->ID );
 
 	echo "\nPosts gatekeeper\n";

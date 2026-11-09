@@ -188,7 +188,7 @@ function hs_a2p_row_defaults( $article, $issue_id ) {
 		'customSection' => '',
 		'campus'        => hs_a2p_campus_for_issue( $issue_id ),
 		'tags'          => array(),
-		'badge'         => 0,
+		'badgeText'     => '',
 		'location'      => '',
 		'date'          => get_post_time( 'Y-m-d\TH:i', false, $issue_id ),
 		'image'         => 0,
@@ -213,7 +213,7 @@ function hs_a2p_sanitize_row( $raw ) {
 		'customSection' => sanitize_text_field( (string) ( $raw['customSection'] ?? '' ) ),
 		'campus'        => $campus,
 		'tags'          => array_values( array_filter( array_map( 'sanitize_text_field', (array) ( $raw['tags'] ?? array() ) ) ) ),
-		'badge'         => absint( $raw['badge'] ?? 0 ),
+		'badgeText'     => sanitize_text_field( (string) ( $raw['badgeText'] ?? '' ) ),
 		'location'      => sanitize_text_field( (string) ( $raw['location'] ?? '' ) ),
 		'date'          => preg_match( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $date ) ? $date : '',
 		'image'         => absint( $raw['image'] ?? 0 ),
@@ -236,9 +236,6 @@ function hs_a2p_missing_fields( $row ) {
 	}
 	if ( ! $row['tags'] ) {
 		$missing[] = 'Thematic Tags';
-	}
-	if ( ! term_exists( (int) $row['badge'], 'hs_thematic_chip' ) ) {
-		$missing[] = 'Yellow Badge';
 	}
 	if ( '' === $row['date'] ) {
 		$missing[] = 'Publish date';
@@ -313,10 +310,26 @@ function hs_a2p_find_post( $issue_id, $key ) {
 	return $found ? (int) $found[0] : 0;
 }
 
-/** Adds a Thematic Tag or Yellow Badge, or returns the existing term of that name. Same permission as the Post screen. */
+/**
+ * The term for a typed Yellow Badge override: an existing badge of that name, ignoring capitals, or a new one.
+ * Created only when a Post is made, so abandoned text leaves nothing behind. Same permission as the Post screen.
+ */
+function hs_a2p_badge_term_id( $text ) {
+	$existing = term_exists( $text, 'hs_thematic_chip' );
+	if ( $existing ) {
+		return (int) $existing['term_id'];
+	}
+	if ( ! current_user_can( get_taxonomy( 'hs_thematic_chip' )->cap->manage_terms ) ) {
+		return new WP_Error( 'hs_a2p_term_permission', 'You do not have permission to create the badge "' . $text . '"' );
+	}
+	$new = wp_insert_term( $text, 'hs_thematic_chip' );
+	return is_wp_error( $new ) ? $new : (int) $new['term_id'];
+}
+
+/** Adds a Thematic Tag, or returns the existing tag of that name. Same permission as the Post screen. */
 function hs_a2p_add_term( $taxonomy, $name ) {
 	$name = sanitize_text_field( $name );
-	if ( ! in_array( $taxonomy, array( 'post_tag', 'hs_thematic_chip' ), true ) || '' === $name ) {
+	if ( 'post_tag' !== $taxonomy || '' === $name ) {
 		return new WP_Error( 'hs_a2p_bad_term', 'Enter a name to add.' );
 	}
 	$existing = term_exists( $name, $taxonomy );
@@ -338,6 +351,13 @@ function hs_a2p_create_post( $issue_id, $article, $row ) {
 	foreach ( $row['tags'] as $tag ) {
 		if ( ! term_exists( $tag, 'post_tag' ) && ! current_user_can( get_taxonomy( 'post_tag' )->cap->manage_terms ) ) {
 			return new WP_Error( 'hs_a2p_term_permission', 'You do not have permission to create the tag "' . $tag . '"' );
+		}
+	}
+	$badge_id = 0;
+	if ( '' !== $row['badgeText'] ) {
+		$badge_id = hs_a2p_badge_term_id( $row['badgeText'] );
+		if ( is_wp_error( $badge_id ) ) {
+			return $badge_id;
 		}
 	}
 	$section_id = (int) $row['section'];
@@ -385,7 +405,9 @@ function hs_a2p_create_post( $issue_id, $article, $row ) {
 	}
 	wp_set_object_terms( $id, $row['tags'], 'post_tag' );
 	wp_set_object_terms( $id, array( $section_id ), 'hs_department' );
-	wp_set_object_terms( $id, (int) $row['badge'], 'hs_thematic_chip' );
+	if ( $badge_id ) { // With no override the existing chip logic shows the Website Section.
+		wp_set_object_terms( $id, $badge_id, 'hs_thematic_chip' );
+	}
 	wp_set_object_terms( $id, $row['campus'], 'hs_post_campus' );
 
 	if ( 'live' === $row['status'] && current_user_can( 'publish_posts' ) ) {
@@ -539,13 +561,11 @@ function hs_a2p_panel_data( $issue_id ) {
 		'skipped'    => $found['skipped'],
 		'rows'       => $rows,
 		'sections'   => hs_a2p_term_options( 'hs_department' ),
-		'badges'     => hs_a2p_term_options( 'hs_thematic_chip' ),
 		'campuses'   => hs_a2p_term_options( 'hs_post_campus' ),
 		'tags'       => $tags,
 		'canPublish' => current_user_can( 'publish_posts' ),
 		'canSection' => current_user_can( 'manage_categories' ),
 		'canTag'     => current_user_can( get_taxonomy( 'post_tag' )->cap->manage_terms ),
-		'canBadge'   => current_user_can( get_taxonomy( 'hs_thematic_chip' )->cap->manage_terms ),
 	);
 }
 
@@ -758,13 +778,12 @@ function hs_a2p_print_assets() {
 		if (f.section === 'custom' ? !String(f.customSection || '').trim() : !f.section) { m.push('section'); }
 		if (!f.campus || !f.campus.length) { m.push('campus'); }
 		if (!f.tags || !f.tags.length) { m.push('tags'); }
-		if (!f.badge) { m.push('badge'); }
 		if (!f.date) { m.push('date'); }
 		if (f.status === 'live' && !f.image) { m.push('image'); }
 		return m;
 	}
 
-	var NAMES = { title: 'Title', section: 'Website Section', campus: 'Campus', tags: 'Thematic Tags', badge: 'Yellow Badge', date: 'Publish date', image: 'Featured image' };
+	var NAMES = { title: 'Title', section: 'Website Section', campus: 'Campus', tags: 'Thematic Tags', date: 'Publish date', image: 'Featured image' };
 
 	function mark(row) {
 		if (!row.dom) { return; }
@@ -794,7 +813,7 @@ function hs_a2p_print_assets() {
 		return box;
 	}
 
-	// A box that creates a Thematic Tag or Yellow Badge straight away, as the Post screen does.
+	// A box that creates a Thematic Tag straight away, as the Post screen does.
 	function addBox(taxonomy, placeholder, onAdded) {
 		var error = el('p', { 'class': 'hs-a2p-add-error' });
 		error.style.display = 'none';
@@ -918,11 +937,6 @@ function hs_a2p_print_assets() {
 		});
 		row.dom.bothHint = el('p', { 'class': 'hs-a2p-hint', text: 'Both Campuses: one Post. Its sidebar opens on one campus, and readers can switch.' });
 
-		var badge = el('select', { on: { change: function (e) { f.badge = parseInt(e.target.value, 10); changed(row); } } },
-			[el('option', { value: '0', text: 'Choose a badge…' })].concat(panel.badges.map(function (b) {
-				return el('option', { value: String(b.id), text: b.name, selected: String(f.badge) === String(b.id) });
-			})));
-
 		var status = el('div', { 'class': 'hs-a2p-switch' }, ['live', 'draft'].map(function (value) {
 			return el('label', {}, [
 				el('input', { type: 'radio', name: 'hs-a2p-status-' + row.key, disabled: value === 'live' && !panel.canPublish, checked: f.status === value, on: { change: function () { f.status = value; changed(row); } } }),
@@ -936,10 +950,7 @@ function hs_a2p_print_assets() {
 			field(row, 'Title *', 'title', [el('input', { type: 'text', value: f.title, on: { input: function (e) { f.title = e.target.value; changed(row); } } })]),
 			field(row, 'Website Section *', 'section', [section, custom]),
 			field(row, 'Campus *', 'campus', campusBoxes.concat([row.dom.bothHint])),
-			field(row, 'Yellow Badge *', 'badge', [badge, panel.canBadge ? addBox('hs_thematic_chip', 'New badge', function (term) {
-				if (!panel.badges.some(function (b) { return b.id === term.id; })) { panel.badges.push(term); }
-				f.badge = term.id;
-			}) : null], 'Shows in place of the Section name on the Post and slider.'),
+			field(row, 'Yellow Badge Override', null, [el('input', { type: 'text', value: f.badgeText || '', on: { input: function (e) { f.badgeText = e.target.value; changed(row); } } })], 'Optional. Leave empty to show the Website Section. Type your own to replace it.'),
 			field(row, 'Display Location Override', null, [el('input', { type: 'text', value: f.location, placeholder: 'e.g. Bangkok Trip', on: { input: function (e) { f.location = e.target.value; changed(row); } } })], 'Optional. Replaces the campus chip and changes the Post’s URL.'),
 			field(row, 'Publish date *', 'date', [el('input', { type: 'datetime-local', value: f.date, on: { input: function (e) { f.date = e.target.value; changed(row); } } })]),
 			imageField(row, 'Featured image (required for Live)', 'image', 'imageUrl'),

@@ -128,32 +128,3 @@ function hs_seed_default_post_campuses() {
         }
     }
 }
-
-/**
- * 5. Seed Default Thematic Chips
- */
-add_action('init', 'hs_seed_default_thematic_chips', 22);
-
-function hs_seed_default_thematic_chips() {
-    $chips = array(
-        'Spotlight',
-        'School Life',
-        'Community',
-        'Academics',
-        'Student Success',
-        'Campus News',
-        'Event',
-        'Co-Curricular',
-        'Creativity',
-        'Innovation',
-        'Well-being',
-        'Leadership',
-        'Perspectives',
-        'Competition'
-    );
-    foreach ($chips as $chip) {
-        if (!term_exists($chip, 'hs_thematic_chip')) {
-            wp_insert_term($chip, 'hs_thematic_chip');
-        }
-    }
-}
