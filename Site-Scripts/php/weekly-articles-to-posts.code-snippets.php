@@ -477,22 +477,6 @@ function hs_a2p_create_posts( $issue_id, $incoming ) {
 	return $result;
 }
 
-/** Overwrites a Post's content from its article. Its fields stay as they are. */
-function hs_a2p_recopy( $post_id ) {
-	$source = (string) get_post_meta( $post_id, HS_A2P_SOURCE_META, true );
-	if ( ! preg_match( '/^(\d+):(.+)$/', $source, $m ) ) {
-		return new WP_Error( 'hs_a2p_no_source', 'This Post was not made from a weekly update article' );
-	}
-	$found = hs_a2p_articles( (int) $m[1] );
-	if ( empty( $found['articles'][ $m[2] ] ) ) {
-		return new WP_Error( 'hs_a2p_not_found', 'The article can no longer be found in the weekly update' );
-	}
-	return wp_update_post( wp_slash( array(
-		'ID'           => $post_id,
-		'post_content' => hs_a2p_build_content( $found['articles'][ $m[2] ]['block'] ),
-	) ), true );
-}
-
 /* ---------------------------------------------------------------------------
  * Saved rows and what the panel shows
  * ------------------------------------------------------------------------ */
@@ -636,19 +620,6 @@ add_action( 'wp_ajax_hs_a2p_add_term', function () {
 		wp_send_json_error( array( 'message' => $term->get_error_message() ) );
 	}
 	wp_send_json_success( $term );
-} );
-
-add_action( 'wp_ajax_hs_a2p_recopy', function () {
-	$issue_id = hs_a2p_ajax_issue();
-	$post_id  = absint( $_POST['post'] ?? 0 );
-	if ( ! $post_id || 0 !== strpos( (string) get_post_meta( $post_id, HS_A2P_SOURCE_META, true ), $issue_id . ':' ) || ! current_user_can( 'edit_post', $post_id ) ) {
-		wp_send_json_error( array( 'message' => 'You do not have permission to change this Post.' ), 403 );
-	}
-	$done = hs_a2p_recopy( $post_id );
-	if ( is_wp_error( $done ) ) {
-		wp_send_json_error( array( 'message' => $done->get_error_message() ) );
-	}
-	wp_send_json_success();
 } );
 
 /* ---------------------------------------------------------------------------
@@ -1119,16 +1090,6 @@ function hs_a2p_print_assets() {
 			head.push(el('span', { 'class': 'hs-a2p-state' + (row.post.live ? ' is-live' : ''), text: row.post.label }));
 			if (row.post.view) { head.push(el('a', { href: row.post.view, target: '_blank', rel: 'noopener', text: 'View' })); }
 			if (row.post.edit) { head.push(el('a', { href: row.post.edit, target: '_blank', rel: 'noopener', text: 'Edit' })); }
-			if (row.found) {
-				head.push(el('button', { type: 'button', 'class': 'button-link', text: 'Re-copy', on: { click: function () {
-					var warning = row.post.live ? 'This changes a public page. ' : '';
-					if (!window.confirm(warning + 'Overwrite this Post’s content with the article from this weekly update? Its other details stay as they are.')) { return; }
-					post('hs_a2p_recopy', { post: row.post.id }).then(function (res) {
-						message = res.success ? { text: 'Re-copied: ' + row.headline } : { error: true, text: (res.data && res.data.message) || 'Re-copy failed.' };
-						render();
-					});
-				} } }));
-			}
 		}
 		return el('div', { 'class': 'hs-a2p-row' }, [
 			el('div', { 'class': 'hs-a2p-head' }, head),

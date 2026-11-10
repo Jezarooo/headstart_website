@@ -179,14 +179,11 @@ try {
 	$http = wp_remote_get( get_permalink( $live ), array( 'timeout' => 30, 'redirection' => 3 ) );
 	$t( 'Live Post is public (logged out): 200 with its title', 200 === wp_remote_retrieve_response_code( $http ) && false !== stripos( wp_remote_retrieve_body( $http ), 'A2P Test Post' ), (string) wp_remote_retrieve_response_code( $http ) );
 
-	echo "\nRe-copy\n";
+	echo "\nOne-off copy (Re-copy removed)\n";
 	wp_update_post( wp_slash( array( 'ID' => $issue, 'post_content' => $fixture( '', 'Edited article body.' ) ) ) );
 	$t( 'editing the weekly update does not change the Post', false !== strpos( get_post_field( 'post_content', $live ), 'First body text.' ) );
-	$before_title = get_post_field( 'post_title', $live );
-	$done = hs_a2p_recopy( $live );
-	$t( 'Re-copy replaces the content', ! is_wp_error( $done ) && false !== strpos( get_post_field( 'post_content', $live ), 'Edited article body.' ) );
-	$t( 'Re-copy keeps title, status and date', $before_title === get_post_field( 'post_title', $live ) && 'publish' === get_post_status( $live ) && '2026-10-30 09:00:00' === get_post_field( 'post_date', $live ) );
-	$t( 'Re-copy keeps escaped angle brackets', false !== strpos( get_post_field( 'post_content', $live ), '\\u003cp\\u003e' ) );
+	$t( 'the copied content keeps escaped angle brackets', false !== strpos( get_post_field( 'post_content', $live ), '\\u003cp\\u003e' ) );
+	$t( 'Re-copy is gone: no function and no AJAX handler', ! function_exists( 'hs_a2p_recopy' ) && ! has_action( 'wp_ajax_hs_a2p_recopy' ) );
 
 	echo "\nCreate: Draft, future date, overrides, Both Campuses\n";
 	$r = hs_a2p_create_posts( $issue, array(

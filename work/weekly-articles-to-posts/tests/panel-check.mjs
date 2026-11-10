@@ -120,8 +120,10 @@ try {
       racks: r.querySelectorAll('.hs-a2p-rack').length, oldChoices: r.querySelectorAll('.hs-a2p-choices').length,
       active: (r.querySelector('.hs-a2p-slot.is-active') || {}).dataset?.slot, note: (r.querySelector('.hs-a2p-rack-note') || {}).textContent,
       rackImg: (() => { const i = r.querySelector('.hs-a2p-rack img'); return i ? { lazy: i.getAttribute('loading'), src: i.getAttribute('src') } : null; })(),
-      publish: fieldOf(r,'Publish').querySelector('input').value, eventStart: fieldOf(r,'Start').querySelector('input').value,
-      eventColour: isBad(fieldOf(r,'Start')) || isOk(fieldOf(r,'Start')) })`));
+      publish: fieldOf(r,'Publish').querySelector('input[type=datetime-local]').value, eventStart: fieldOf(r,'Start').querySelector('input').value,
+      eventColour: isBad(fieldOf(r,'Start')) || isOk(fieldOf(r,'Start')),
+      nowTicked: fieldOf(r,'Publish').querySelector('.hs-a2p-now input').checked, pickerHidden: fieldOf(r,'Publish').querySelector('input[type=datetime-local]').offsetParent === null,
+      align: (() => { const top = (lbl) => Math.round(fieldOf(r,lbl).getBoundingClientRect().top); return { sec: top('Website'), cam: top('Campus'), badge: top('Yellow'), loc: top('Location') }; })() })`));
   t('pre-filled fields are green', ticked.title && ticked.campusOk);
   t('tags and featured image are red', ticked.tags && ticked.image);
   t('badge is an optional override box with no list', ticked.badgeLabel === 'Yellow badge text' && !ticked.badgeSelect, JSON.stringify(ticked));
@@ -134,7 +136,9 @@ try {
   t('Featured is the slot being picked, and the note says so', ticked.active === 'image' && /Featured image/.test(ticked.note || ''), JSON.stringify({ a: ticked.active, n: ticked.note }));
   t('rack uses small lazy thumbnails', ticked.rackImg && ticked.rackImg.lazy === 'lazy' && /-150x150\./.test(ticked.rackImg.src), JSON.stringify(ticked.rackImg));
   const today = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
-  t('publish date defaults to today; event start is filled; event box has no colour', ticked.publish.slice(0, 10) === today && /^\d{4}-\d{2}-\d{2}$/.test(ticked.eventStart) && !ticked.eventColour, JSON.stringify({ p: ticked.publish, e: ticked.eventStart, today }));
+  t('Publish now is ticked and the date picker hidden', ticked.nowTicked && ticked.pickerHidden, JSON.stringify({ n: ticked.nowTicked, h: ticked.pickerHidden }));
+  t('Website Section lines up with Campus, and Yellow badge text with Location text', Math.abs(ticked.align.sec - ticked.align.cam) <= 2 && Math.abs(ticked.align.badge - ticked.align.loc) <= 2, JSON.stringify(ticked.align));
+  t('picker pre-set to today; event start is filled; event box has no colour', ticked.publish.slice(0, 10) === today && /^\d{4}-\d{2}-\d{2}$/.test(ticked.eventStart) && !ticked.eventColour, JSON.stringify({ p: ticked.publish, e: ticked.eventStart, today }));
   console.log(`        Section pre-filled: ${ticked.section}. ${ticked.summary}`);
   await shot('panel-2-ticked.png');
 
@@ -153,14 +157,22 @@ try {
     r.querySelector('.hs-a2p-slot[data-slot=image] .hs-a2p-slot-pick').click();
     await wait(100);
     const backToFeatured = r.querySelector('.hs-a2p-slot.is-active').dataset.slot === 'image' && /Featured image/.test(r.querySelector('.hs-a2p-rack-note').textContent);
+    const now = fieldOf(r,'Publish').querySelector('.hs-a2p-now input'); const picker = fieldOf(r,'Publish').querySelector('input[type=datetime-local]');
+    now.click(); await wait(50);
+    const shownWhenUnticked = picker.offsetParent !== null;
+    picker.value = ''; fire(picker,'input'); await wait(50);
+    const dateNeeded = isBad(fieldOf(r,'Publish'));
+    now.click(); await wait(50);
+    const okAgain = !isBad(fieldOf(r,'Publish')) && picker.offsetParent === null;
     const end = fieldOf(r,'End').querySelector('input'); end.value = '2000-01-01'; fire(end,'input');
     await wait(100);
     const eventBad = isBad(fieldOf(r,'Start')) && document.querySelector('#hs-a2p .button-primary').disabled;
     end.value = ''; fire(end,'input');
     await wait(1500);
-    return JSON.stringify({ afterFirst, afterSecond, backToFeatured, eventBad, eventCleared: !isBad(fieldOf(r,'Start')), tags: isOk(fieldOf(r,'Thematic')), chips: r.querySelectorAll('.hs-a2p-taglist input:checked').length, groups: r.querySelectorAll('.hs-a2p-taggroup').length, image: isOk(fieldOf(r,'Featured')), thumb: !!fieldOf(r,'Featured').querySelector('.hs-a2p-thumb'),
+    return JSON.stringify({ shownWhenUnticked, dateNeeded, okAgain, afterFirst, afterSecond, backToFeatured, eventBad, eventCleared: !isBad(fieldOf(r,'Start')), tags: isOk(fieldOf(r,'Thematic')), chips: r.querySelectorAll('.hs-a2p-taglist input:checked').length, groups: r.querySelectorAll('.hs-a2p-taggroup').length, image: isOk(fieldOf(r,'Featured')), thumb: !!fieldOf(r,'Featured').querySelector('.hs-a2p-thumb'),
       disabled: document.querySelector('#hs-a2p .button-primary').disabled, saved: document.querySelectorAll('.hs-a2p-actions .hs-a2p-saved')[1].textContent,
       dirty: wp.data.select('core/editor').isEditedPostDirty() })`));
+  t('unticking Publish now shows the picker and needs a date; ticking it again hides it and clears the red', filled.shownWhenUnticked && filled.dateNeeded && filled.okAgain, JSON.stringify({ s: filled.shownWhenUnticked, d: filled.dateNeeded, o: filled.okAgain }));
   t('clicking a rack image fills Featured, tags it F, and moves picking to Portrait', filled.afterFirst.active === 'portrait' && filled.afterFirst.f, JSON.stringify(filled.afterFirst));
   t('the next click fills Portrait and tags it P', filled.afterSecond.p && filled.afterSecond.portraitThumb, JSON.stringify(filled.afterSecond));
   t('clicking a slot makes it the one being picked', filled.backToFeatured);
@@ -215,10 +227,13 @@ try {
     const m = document.querySelector('#hs-a2p .hs-a2p-message');
     const states = [...document.querySelectorAll('#hs-a2p .hs-a2p-state')].map((s) => s.textContent);
     const view = [...document.querySelectorAll('#hs-a2p .hs-a2p-head a')].find((a) => a.textContent === 'View');
-    return JSON.stringify({ message: m ? m.textContent : '', error: m ? m.classList.contains('is-error') : null, states, view: view ? view.href : '', dirty: wp.data.select('core/editor').isEditedPostDirty() })`));
+    const recopy = [...document.querySelectorAll('#hs-a2p .hs-a2p-head button')].filter((b) => /re-?copy/i.test(b.textContent)).length;
+    const edits = [...document.querySelectorAll('#hs-a2p .hs-a2p-head a')].filter((a) => a.textContent === 'Edit').length;
+    return JSON.stringify({ recopy, edits, message: m ? m.textContent : '', error: m ? m.classList.contains('is-error') : null, states, view: view ? view.href : '', dirty: wp.data.select('core/editor').isEditedPostDirty() })`));
   t('confirmation gave the counts', dialogs.some((d) => /1 Post\(s\) will go live now and 1 will be draft/.test(d)), dialogs.join(' / '));
   t('both created, shown as Live and Draft', created.states.includes('Live') && created.states.includes('Draft') && created.error === false, JSON.stringify(created));
   t('editor still clean after creating', created.dirty === false);
+  t('rows with a Post show View/Edit and no Re-copy', created.recopy === 0 && created.edits >= 2, JSON.stringify({ r: created.recopy, e: created.edits }));
   console.log(`        ${created.message}`);
   await shot('panel-3-created.png');
 
