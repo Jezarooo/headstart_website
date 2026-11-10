@@ -117,7 +117,11 @@ try {
 	$by = array_column( hs_a2p_panel_data( $issue )['rows'], null, 'key' );
 	$d  = $by['first-article-headline']['fields'];
 	$t( 'row defaults: unticked, Live, headline, Section; tags, badge override, image empty', false === $d['tick'] && 'live' === $d['status'] && 'First Article Headline' === $d['title'] && $d['section'] === $primary && array() === $d['tags'] && '' === $d['badgeText'] && 0 === $d['image'] );
-	$t( 'publish date defaults to now', 0 === strpos( $d['date'], current_time( 'Y-m-d' ) ), $d['date'] );
+	$t( 'Publish now is ticked by default, with the picker pre-set to now', true === $d['publishNow'] && 0 === strpos( $d['date'], current_time( 'Y-m-d' ) ), $d['date'] );
+	update_post_meta( $issue, HS_A2P_ROWS_META, array( 'sports-article' => array( 'tick' => false, 'title' => 'Old saved row', 'date' => '2026-10-30T09:00' ) ) );
+	$old = array_column( hs_a2p_panel_data( $issue )['rows'], null, 'key' )['sports-article']['fields'];
+	$t( 'a row saved before Publish now existed keeps its date, unticked', false === $old['publishNow'] && '2026-10-30T09:00' === $old['date'], wp_json_encode( array( $old['publishNow'], $old['date'] ) ) );
+	delete_post_meta( $issue, HS_A2P_ROWS_META );
 	$t( 'event start defaults to the weekly update date, end empty', get_post_time( 'Y-m-d', false, $issue ) === $d['eventStart'] && '' === $d['eventEnd'], $d['eventStart'] . '|' . $d['eventEnd'] );
 	$t( 'dark article defaults to Draft', 'draft' === $by['dark-styled-article']['fields']['status'] );
 
@@ -348,6 +352,25 @@ try {
 	$t( 'panel: created Post has the range label', "12{$dash}14 November 2026" === get_post_meta( $rid, 'hs_final_date_label', true ), get_post_meta( $rid, 'hs_final_date_label', true ) );
 	$t( 'panel: event fields are tied to their ACF fields', 'field_hs_event_start' === get_post_meta( $rid, '_hs_event_start', true ) && 'field_hs_event_end' === get_post_meta( $rid, '_hs_event_end', true ) );
 	$t( 'panel: rack images carry a thumbnail', ( $d_img = hs_a2p_panel_data( $issue4 )['rows'][0]['images'][0] ?? null ) && '' !== $d_img['thumb'] && $d_img['thumb'] !== $d_img['url'] );
+
+	echo "\nPublish now\n";
+	$t( 'Publish now needs no date', array() === hs_a2p_missing_fields( hs_a2p_sanitize_row( $good_row( array( 'publishNow' => true, 'date' => '' ) ) ) ) );
+	$t( 'unticked with no date is reported', in_array( 'Publish date', hs_a2p_missing_fields( hs_a2p_sanitize_row( $good_row( array( 'publishNow' => false, 'date' => '' ) ) ) ), true ) );
+	$t( "the panel's JSON 'false' counts as unticked", false === hs_a2p_sanitize_row( $good_row( array( 'publishNow' => 'false' ) ) )['publishNow'] );
+	$r = hs_a2p_create_posts( $issue4, array(
+		'sports-article'  => $good_row( array( 'title' => 'A2P Now Live', 'publishNow' => true, 'date' => '2020-01-01T09:00' ) ),
+		'repeat-headline' => $good_row( array( 'title' => 'A2P Now Draft', 'publishNow' => true, 'date' => '2020-01-01T09:00', 'status' => 'draft' ) ),
+	) );
+	$track( $issue4 );
+	$by_title = array();
+	foreach ( $r['created'] as $c ) { $by_title[ get_the_title( $c['id'] ) ] = get_post( $c['id'] ); }
+	$nl = $by_title['A2P Now Live'] ?? null; $nd = $by_title['A2P Now Draft'] ?? null;
+	$t( 'Live + Publish now: published, dated within a minute of now (the picker date is ignored)', $nl && 'publish' === $nl->post_status && abs( strtotime( $nl->post_date_gmt . ' UTC' ) - time() ) < 60, $nl ? $nl->post_status . ' ' . $nl->post_date_gmt : wp_json_encode( $r ) );
+	$t( 'Draft + Publish now: no fixed date, so it dates itself when published', $nd && 'draft' === $nd->post_status && '0000-00-00 00:00:00' === $nd->post_date_gmt, $nd ? $nd->post_date_gmt : wp_json_encode( $r ) );
+	if ( $nd ) {
+		wp_update_post( array( 'ID' => $nd->ID, 'post_status' => 'publish' ) );
+		$t( '…and publishing that draft dates it now', abs( strtotime( get_post( $nd->ID )->post_date_gmt . ' UTC' ) - time() ) < 60 );
+	}
 
 	echo "\nOne-off date label fill\n";
 	global $wpdb;
