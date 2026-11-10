@@ -183,6 +183,52 @@ try {
   t('weekly update shows no unsaved changes', filled.dirty === false);
   t('tags are a tick-list grouped by prefix', filled.groups > 3 && filled.chips === 1, JSON.stringify(filled));
 
+  console.log('\nLabelled preview');
+  const setWidth = (w) => send('Emulation.setDeviceMetricsOverride', { width: w, height: 1200, deviceScaleFactor: 1, mobile: false });
+  await setWidth(1920);
+  await sleep(1500);
+  const wide = JSON.parse(await run(`${helpers}
+    const r = document.querySelector('#hs-a2p .hs-a2p-body').closest('.hs-a2p-row');
+    const pv = r.querySelector('.hs-a2p-preview'), form = r.querySelector('.hs-a2p-body');
+    const q = (sel) => (pv.querySelector(sel) || {}).textContent || '';
+    const before = { badge: q('.hs-badge-primary p'), place: q('.hs-badge-location p'), date: q('.hs-story-date p'), post: q('.hs-a2p-pv-chip p'), title: q('.hs-story-title p'), tags: [...pv.querySelectorAll('.hs-story-tags span')].map((x) => x.textContent), img: (pv.querySelector('.hs-story-image img') || {}).src || '' };
+    const set = (lbl, sel, v, ev) => { const i = fieldOf(r, lbl).querySelector(sel); i.value = v; fire(i, ev || 'input'); };
+    set('Title', 'input', 'Preview Title Check');
+    set('Yellow', 'input', 'Preview Badge');
+    set('Location', 'input', 'Bangkok Trip');
+    set('Start', 'input', '2026-11-12'); set('End', 'input', '2026-11-14');
+    await wait(400);
+    const after = { badge: q('.hs-badge-primary p'), place: q('.hs-badge-location p'), title: q('.hs-story-title p'), sec: q('.hs-a2p-pv-sec p'), post: q('.hs-a2p-pv-chip p'), chipPlace: pv.querySelectorAll('.hs-a2p-pv-chip p')[1].textContent };
+    set('Yellow', 'input', ''); set('Location', 'input', ''); set('Start', 'input', ''); set('End', 'input', '');
+    await wait(400);
+    const reset = { badge: q('.hs-badge-primary p'), sec: fieldOf(r,'Website').querySelector('select').selectedOptions[0].textContent };
+    const pr = pv.getBoundingClientRect(), fr = form.getBoundingClientRect();
+    const labels = [...pv.querySelectorAll('.hs-a2p-pv-label strong')].map((x) => x.textContent);
+    return JSON.stringify({ visible: pv.offsetParent !== null, beside: pr.left >= fr.right - 2 && Math.abs(pr.top - fr.top) < 60, toggle: (r.querySelector('.hs-a2p-pv-toggle') || {}).offsetParent !== null,
+      before, after, reset, labels, lines: pv.querySelectorAll('.hs-a2p-pv-lines polyline').length, featured: (fieldOf(r,'Portrait').querySelector('.hs-a2p-thumb') || {}).src || '',
+      font: getComputedStyle(pv.querySelector('.hs-story-title p')).fontFamily })`));
+  t('at 1920 the preview sits beside the form, with no toggle', wide.visible && wide.beside && !wide.toggle, JSON.stringify({ v: wide.visible, b: wide.beside, t: wide.toggle }));
+  t('card shows the section badge, campus, publish date, title and tags', wide.before.badge && wide.before.place && /\d{1,2}(st|nd|rd|th) [A-Z][a-z]+ \d{4}/.test(wide.before.date) && wide.before.title && wide.before.tags.length > 0, JSON.stringify(wide.before));
+  t('card photo is the Portrait', wide.before.img && wide.before.img === wide.featured, JSON.stringify({ img: wide.before.img, p: wide.featured }));
+  t('editing fields updates the card and the Post top', wide.after.badge === 'Preview Badge' && wide.after.sec === 'Preview Badge' && wide.after.place === 'Bangkok Trip' && wide.after.chipPlace === 'Bangkok Trip' && wide.after.title === 'Preview Title Check' && wide.after.post === '12–14 November 2026', JSON.stringify(wide.after));
+  t('clearing the badge text falls back to the Website Section', wide.reset.badge === wide.reset.sec, JSON.stringify(wide.reset));
+  t('nine labels with lines, naming the sources', wide.labels.length === 9 && wide.lines === 9 && wide.labels.includes('Yellow badge text') && wide.labels.includes('Event date') && wide.labels.includes('Portrait'), JSON.stringify(wide.labels));
+  t('preview uses the site heading font', /Montserrat/.test(wide.font), wide.font);
+  if (shots) { await run(`document.querySelector('#hs-a2p .hs-a2p-preview').closest('.hs-a2p-row').scrollIntoView({ block: 'start' });`); await sleep(1200); const p = await send('Page.captureScreenshot', { format: 'png' }); writeFileSync(join(shots, 'panel-4-preview-1920.png'), Buffer.from(p.data, 'base64')); }
+  await setWidth(1280);
+  await sleep(1200);
+  const narrow = JSON.parse(await run(`${helpers}
+    const r = document.querySelector('#hs-a2p .hs-a2p-body').closest('.hs-a2p-row');
+    const pv = r.querySelector('.hs-a2p-preview'), toggle = r.querySelector('.hs-a2p-pv-toggle');
+    const hidden = pv.offsetParent === null;
+    toggle.click(); await wait(300);
+    const shown = pv.offsetParent !== null && pv.getBoundingClientRect().top > r.querySelector('.hs-a2p-body').getBoundingClientRect().bottom - 2;
+    toggle.click(); await wait(100);
+    return JSON.stringify({ hidden, shown, toggle: toggle.offsetParent !== null })`));
+  t('at 1280 the preview is under the form behind Show preview', narrow.hidden && narrow.shown && narrow.toggle, JSON.stringify(narrow));
+  await send('Emulation.clearDeviceMetricsOverride');
+  await sleep(800);
+
   console.log('\nAdding a new tag');
   const added = JSON.parse(await run(`${helpers}
     const first = document.querySelector('#hs-a2p .hs-a2p-body').closest('.hs-a2p-row');

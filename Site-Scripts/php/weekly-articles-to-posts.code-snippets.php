@@ -575,6 +575,7 @@ function hs_a2p_panel_data( $issue_id ) {
 		'canPublish' => current_user_can( 'publish_posts' ),
 		'canSection' => current_user_can( 'manage_categories' ),
 		'canTag'     => current_user_can( get_taxonomy( 'post_tag' )->cap->manage_terms ),
+		'today'      => current_time( 'Y-m-d' ),
 	);
 }
 
@@ -637,6 +638,8 @@ add_action( 'admin_enqueue_scripts', function () {
 	$screen = get_current_screen();
 	if ( $screen && 'weekly_update' === $screen->post_type && 'post' === $screen->base ) {
 		wp_enqueue_media();
+		// The preview uses the site's own heading and body fonts (the same Google Fonts link the front end loads).
+		wp_enqueue_style( 'hs-a2p-fonts', 'https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;700&display=swap', array(), null );
 	}
 } );
 
@@ -674,7 +677,61 @@ add_action( 'add_meta_boxes_post', function ( $post ) {
 function hs_a2p_print_assets() {
 	?>
 <style id="hs-a2p-css">
-#hs-a2p { max-width: 1100px; }
+/* Layout: the preview sits beside the form when the meta box is wide (e.g. a 1920 screen), else under it behind a toggle. */
+#hs-a2p { container-type: inline-size; }
+#hs-a2p .hs-a2p-intro, #hs-a2p .hs-a2p-row, #hs-a2p .hs-a2p-actions, #hs-a2p .hs-a2p-message { max-width: 1100px; }
+#hs-a2p .hs-a2p-preview { display: none; padding: 10px 12px 12px; border-top: 1px solid #f0f0f1; }
+#hs-a2p .hs-a2p-preview.is-open { display: block; }
+#hs-a2p .hs-a2p-preview > h4 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #50575e; }
+#hs-a2p .hs-a2p-pv-toggle { margin: 0 12px 10px; }
+@container (min-width: 1400px) {
+	#hs-a2p .hs-a2p-row { max-width: 1720px; }
+	#hs-a2p .hs-a2p-rowgrid { display: grid; grid-template-columns: minmax(0, 1fr) 560px; align-items: start; }
+	#hs-a2p .hs-a2p-pv-toggle { display: none; }
+	#hs-a2p .hs-a2p-preview { display: block; grid-column: 2; grid-row: 1; border-top: 0; border-left: 1px solid #f0f0f1; position: sticky; top: 40px; }
+}
+#hs-a2p .hs-a2p-pv-stage { position: relative; display: grid; grid-template-columns: 280px minmax(0, 1fr); column-gap: 40px; }
+#hs-a2p .hs-a2p-pv-labels { position: relative; }
+#hs-a2p .hs-a2p-pv-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+#hs-a2p .hs-a2p-pv-lines polyline { fill: none; stroke: #2271b1; stroke-width: 1; }
+#hs-a2p .hs-a2p-pv-lines circle { fill: #2271b1; }
+#hs-a2p .hs-a2p-pv-label { position: absolute; left: 0; right: 0; padding: 2px 0 2px 7px; border-left: 2px solid #2271b1; background: #fff; font-size: 12px; line-height: 1.35; }
+#hs-a2p .hs-a2p-pv-label strong { display: block; color: #1d2327; }
+#hs-a2p .hs-a2p-pv-label span { display: block; color: #646970; font-size: 11px; }
+#hs-a2p .hs-a2p-pv-cap { margin: 0 0 6px; font-size: 11px; color: #646970; }
+#hs-a2p .hs-a2p-pv-cap + .hs-shortcode-slider-wrapper { padding-top: 18px; }
+#hs-a2p .hs-shortcode-slider-wrapper + .hs-a2p-pv-cap { margin-top: 20px; }
+
+/* Slider card: copied from core.css (.hs-story-*, .hs-shortcode-slider-wrapper) and the slider snippet's inline styles. */
+#hs-a2p .hs-a2p-preview { --hs-dark: #003057; --hs-gold: #f0b323; --hs-font-head: 'Montserrat', sans-serif; }
+#hs-a2p .hs-a2p-preview .hs-story-card { container-type: inline-size; box-sizing: border-box; position: relative; display: flex; flex-direction: column; justify-content: space-between; width: 270px; aspect-ratio: 9 / 16; padding: 15px 0 20px; background-color: var(--hs-dark); color: #fff; border-radius: 12px; overflow: visible; box-shadow: 0 10px 25px rgba(0, 0, 0, .15); }
+#hs-a2p .hs-a2p-preview .hs-story-card p { margin: 0; padding: 0; }
+#hs-a2p .hs-a2p-preview .hs-story-image { position: absolute; inset: 0; z-index: 1; border-radius: 12px; overflow: hidden; background: #1d4466; }
+#hs-a2p .hs-a2p-preview .hs-story-image::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0, 48, 87, .3) 0%, rgba(0, 48, 87, .8) 100%); z-index: 2; }
+#hs-a2p .hs-a2p-preview .hs-story-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+#hs-a2p .hs-a2p-preview .hs-badge-primary { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); z-index: 30; display: inline-flex; max-width: 90%; }
+#hs-a2p .hs-a2p-preview .hs-badge-primary-inner { display: inline-flex; align-items: center; justify-content: center; padding: 4px; border-radius: 50px; background: rgba(255, 255, 255, .15); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, .2); box-shadow: 0 4px 15px rgba(0, 0, 0, .15); }
+#hs-a2p .hs-a2p-preview .hs-badge-primary p { display: block; padding: 6px 16px; border-radius: 50px; background: var(--hs-gold); color: var(--hs-dark); font-family: var(--hs-font-head); font-weight: 800; font-size: clamp(.3rem, 4.5cqw, .8rem); line-height: 1.2; letter-spacing: .5px; text-transform: uppercase; white-space: nowrap; }
+#hs-a2p .hs-a2p-preview .hs-story-top-group { position: relative; z-index: 20; display: flex; flex-direction: column; align-items: center; width: 100%; padding-top: 5px; }
+#hs-a2p .hs-a2p-preview .hs-badge-location p { display: inline-flex; align-items: center; color: #fff; font-family: var(--hs-font-head); font-size: .75rem; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; text-shadow: 0 2px 4px rgba(0, 0, 0, .6); white-space: nowrap; }
+#hs-a2p .hs-a2p-preview .hs-badge-location p::before { content: ''; width: 9px; height: 12px; margin-right: 6px; background: var(--hs-gold); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath d='M172 501C27 291 0 269 0 192 0 86 86 0 192 0s192 86 192 192c0 77-27 99-172 309a24 24 0 0 1-40 0zm20-229a80 80 0 1 0 0-160 80 80 0 0 0 0 160z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath d='M172 501C27 291 0 269 0 192 0 86 86 0 192 0s192 86 192 192c0 77-27 99-172 309a24 24 0 0 1-40 0zm20-229a80 80 0 1 0 0-160 80 80 0 0 0 0 160z'/%3E%3C/svg%3E") center / contain no-repeat; }
+#hs-a2p .hs-a2p-preview .hs-story-date { display: flex; justify-content: center; width: 100%; margin-top: 4px; padding: 4px 0; background: rgba(255, 255, 255, .2); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+#hs-a2p .hs-a2p-preview .hs-story-date p { color: #fff; font-family: var(--hs-font-head); font-size: .65rem; font-weight: 700; line-height: 1; letter-spacing: .5px; text-transform: uppercase; text-shadow: 0 1px 4px rgba(0, 0, 0, .8); }
+#hs-a2p .hs-a2p-preview .hs-story-bottom-group { position: relative; z-index: 20; display: flex; flex-direction: column; align-items: center; width: 100%; }
+#hs-a2p .hs-a2p-preview .hs-story-title { box-sizing: border-box; display: flex; justify-content: center; width: 100%; margin: 0 0 12px; padding: 0 25px; text-align: center; }
+#hs-a2p .hs-a2p-preview .hs-story-title p { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; color: #fff; font-family: var(--hs-font-head); font-weight: 800; font-size: 1.3rem; line-height: 1.1; text-shadow: 0 2px 5px rgba(0, 0, 0, .4); }
+#hs-a2p .hs-a2p-preview .hs-story-tags { display: flex; justify-content: center; padding: 0 15px; }
+#hs-a2p .hs-a2p-preview .hs-story-tags p { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+#hs-a2p .hs-a2p-preview .hs-story-tags span { display: inline-flex; align-items: center; padding: 5px 8px; border-radius: 6px; background: rgba(240, 179, 35, .15); border: 1px solid rgba(240, 179, 35, .3); color: var(--hs-gold); font-family: var(--hs-font-head); font-size: .55rem; font-weight: 700; line-height: 1; text-transform: uppercase; }
+
+/* Top of the Post page: the Section, date and campus chips from the Post templates (measured on a live Post). */
+#hs-a2p .hs-a2p-pv-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 4px 0 16px; border-bottom: 1px solid #f0b323; font-family: 'Open Sans', sans-serif; }
+#hs-a2p .hs-a2p-pv-strip p { margin: 0; }
+#hs-a2p .hs-a2p-pv-sec { padding-right: 16px; border-right: 1px solid rgba(71, 85, 105, .2); }
+#hs-a2p .hs-a2p-pv-sec p { color: #003057; font-size: 26px; font-weight: 700; line-height: 1.05; text-transform: uppercase; }
+#hs-a2p .hs-a2p-pv-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+#hs-a2p .hs-a2p-pv-chip { padding: 2px 8px; border-radius: 5px; background: #003057; box-shadow: 0 2px 18px rgba(0, 0, 0, .3); }
+#hs-a2p .hs-a2p-pv-chip p { color: #fff; font-size: 11.2px; font-weight: 700; line-height: 27.2px; white-space: nowrap; }
 #hs-a2p .hs-a2p-intro { color: #50575e; margin: 0 0 12px; }
 #hs-a2p .hs-a2p-row { border: 1px solid #dcdcde; border-radius: 4px; margin-bottom: 8px; background: #fff; }
 #hs-a2p .hs-a2p-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; flex-wrap: wrap; }
@@ -823,6 +880,7 @@ function hs_a2p_print_assets() {
 
 	function changed(row) {
 		mark(row);
+		updatePreview(row);
 		updateActions();
 		queueSave();
 	}
@@ -1071,6 +1129,182 @@ function hs_a2p_print_assets() {
 		return body;
 	}
 
+	/* ---- Labelled preview: a slider card and the top of the Post page, built from the row's fields ---- */
+	var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+	function ymd(v) {
+		var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v || '');
+		if (!m) { return null; }
+		var y = +m[1], mo = +m[2], d = +m[3];
+		var check = new Date(Date.UTC(y, mo - 1, d));
+		return check.getUTCMonth() === mo - 1 && check.getUTCDate() === d ? { y: y, m: mo, d: d, key: m[1] + m[2] + m[3] } : null;
+	}
+	function ordinal(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+	function publishDay(f) { return ymd(f.publishNow ? panel.today : f.date); }
+	// Same rules as hs_date_label_for_post(): event start/end, else the publish date.
+	function postDateLabel(f) {
+		var s = ymd(f.eventStart), e = ymd(f.eventEnd), dash = '–', p = publishDay(f);
+		var full = function (x) { return x.d + ' ' + MONTHS[x.m - 1] + ' ' + x.y; };
+		if (!s) { return p ? full(p) : ''; }
+		if (!e || e.key <= s.key) { return full(s); }
+		if (s.y === e.y && s.m === e.m) { return s.d + dash + full(e); }
+		if (s.y === e.y) { return s.d + ' ' + MONTHS[s.m - 1] + ' ' + dash + ' ' + full(e); }
+		return full(s) + ' ' + dash + ' ' + full(e);
+	}
+	function previewValues(row) {
+		var f = row.fields;
+		var section = f.section === 'custom' ? String(f.customSection || '').trim() : ((panel.sections.filter(function (s) { return String(s.id) === String(f.section); })[0] || {}).name || '');
+		var names = panel.campuses.filter(function (c) { return f.campus.indexOf(c.slug) !== -1; }).map(function (c) { return c.name; });
+		var place = String(f.location || '').trim() || (names.length > 1 ? 'Both Campuses' : names[0] || '');
+		var p = publishDay(f);
+		return {
+			badge: String(f.badgeText || '').trim() || section || 'News',
+			place: place,
+			sliderDate: p ? ordinal(p.d) + ' ' + MONTHS[p.m - 1] + ' ' + p.y : '',
+			postDate: postDateLabel(f),
+			image: row.portraitUrl || row.imageUrl || '',
+			title: String(f.title || '').trim() || row.headline,
+			tags: (f.tags || []).map(function (t) { var i = t.indexOf(':'); return (i > -1 ? t.slice(i + 1) : t).trim(); }).filter(Boolean)
+		};
+	}
+
+	var CALLOUTS = [
+		['card', 'badge', 'Yellow badge text', 'else Website Section'],
+		['card', 'place', 'Location text', 'else Campus'],
+		['card', 'sliderDate', 'Publish date', 'slider cards don’t use the event date'],
+		['card', 'image', 'Portrait', 'else Featured image'],
+		['card', 'title', 'Title', ''],
+		['card', 'tags', 'Thematic Tags', 'prefix dropped, e.g. “SPORT: Swimming” → Swimming'],
+		['strip', 'section', 'Yellow badge text', 'else Website Section'],
+		['strip', 'postDate', 'Event date', 'else publish date'],
+		['strip', 'chipPlace', 'Location text', 'else Campus']
+	];
+
+	function previewNode(row) {
+		var t = {};
+		var card = el('div', { 'class': 'hs-shortcode-slider-wrapper' }, [
+			el('div', { 'class': 'hs-story-card' }, [
+				t.image = el('div', { 'class': 'hs-story-image' }),
+				t.badge = el('div', { 'class': 'hs-badge-primary' }, [el('div', { 'class': 'hs-badge-primary-inner' }, [el('p')])]),
+				el('div', { 'class': 'hs-story-top-group' }, [
+					t.place = el('div', { 'class': 'hs-badge-location' }, [el('p')]),
+					t.sliderDate = el('div', { 'class': 'hs-story-date' }, [el('p')])
+				]),
+				el('div', { 'class': 'hs-story-bottom-group' }, [
+					t.title = el('div', { 'class': 'hs-story-title' }, [el('p')]),
+					t.tags = el('div', { 'class': 'hs-story-tags' }, [el('p')])
+				])
+			])
+		]);
+		var strip = el('div', { 'class': 'hs-a2p-pv-strip' }, [
+			t.section = el('div', { 'class': 'hs-a2p-pv-sec' }, [el('p')]),
+			el('div', { 'class': 'hs-a2p-pv-chips' }, [
+				t.postDate = el('div', { 'class': 'hs-a2p-pv-chip' }, [el('p')]),
+				t.chipPlace = el('div', { 'class': 'hs-a2p-pv-chip' }, [el('p')])
+			])
+		]);
+		var lines = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+		lines.setAttribute('class', 'hs-a2p-pv-lines');
+		lines.setAttribute('aria-hidden', 'true');
+		var labels = el('div', { 'class': 'hs-a2p-pv-labels' });
+		var stage = el('div', { 'class': 'hs-a2p-pv-stage' }, [
+			el('div', { 'class': 'hs-a2p-pv-art' }, [
+				el('p', { 'class': 'hs-a2p-pv-cap', text: 'Slider card' }), card,
+				el('p', { 'class': 'hs-a2p-pv-cap', text: 'Top of the Post page' }), strip
+			]),
+			labels, lines
+		]);
+		var box = el('div', { 'class': 'hs-a2p-preview' }, [
+			el('h4', { text: 'Preview' }),
+			stage,
+			el('p', { 'class': 'hs-a2p-hint', text: 'Updates as you edit. A close copy of the real card and page; it saves nothing.' })
+		]);
+		row.dom.preview = { box: box, stage: stage, labels: labels, lines: lines, t: t };
+		updatePreview(row);
+		return box;
+	}
+
+	function updatePreview(row) {
+		var pv = row.dom && row.dom.preview;
+		if (!pv) { return; }
+		var v = previewValues(row), t = pv.t;
+		var setText = function (node, text) { node.querySelector('p').textContent = text; node.style.display = text ? '' : 'none'; };
+		setText(t.badge, v.badge);
+		setText(t.place, v.place);
+		setText(t.sliderDate, v.sliderDate);
+		setText(t.title, v.title);
+		setText(t.section, v.badge);
+		setText(t.postDate, v.postDate);
+		setText(t.chipPlace, v.place);
+		var tp = t.tags.querySelector('p');
+		tp.textContent = '';
+		v.tags.forEach(function (name) { tp.appendChild(el('span', { text: name })); });
+		t.tags.style.display = v.tags.length ? '' : 'none';
+		if (t.image.dataset.src !== v.image) {
+			t.image.dataset.src = v.image;
+			t.image.textContent = '';
+			if (v.image) {
+				var img = el('img', { src: v.image, alt: '' });
+				img.addEventListener('load', function () { drawCallouts(row); });
+				t.image.appendChild(img);
+			}
+		}
+		drawCallouts(row);
+	}
+
+	// Each label sits in the right-hand column, level with its target where it can, joined by a line.
+	function drawCallouts(row) {
+		var pv = row.dom && row.dom.preview;
+		if (!pv || !pv.stage.isConnected) { return; }
+		window.requestAnimationFrame(function () {
+			var base = pv.stage.getBoundingClientRect();
+			if (!base.width) { return; }
+			var labelsBox = pv.labels.getBoundingClientRect();
+			var lx = labelsBox.left - base.left;
+			pv.labels.textContent = '';
+			while (pv.lines.firstChild) { pv.lines.removeChild(pv.lines.firstChild); }
+			pv.lines.setAttribute('width', base.width);
+			pv.lines.setAttribute('height', base.height);
+			var next = 0;
+			CALLOUTS.forEach(function (c) {
+				var target = pv.t[c[1]];
+				if (!target || target.style.display === 'none') { return; }
+				var r = (c[1] === 'image' ? target : (target.querySelector('p') || target)).getBoundingClientRect();
+				if (!r.width) { return; }
+				var ty = c[1] === 'image' ? r.top - base.top + r.height * 0.42 : r.top - base.top + r.height / 2;
+				var tx = c[1] === 'image' ? r.right - base.left - 14 : r.right - base.left + 4;
+				var label = el('div', { 'class': 'hs-a2p-pv-label' }, [el('strong', { text: c[2] }), c[3] ? el('span', { text: c[3] }) : null]);
+				pv.labels.appendChild(label);
+				var h = label.offsetHeight;
+				var top = Math.max(ty - h / 2, next);
+				label.style.top = top + 'px';
+				next = top + h + 6;
+				var ly = top + Math.min(h / 2, 10);
+				var line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+				line.setAttribute('points', tx + ',' + ty + ' ' + (lx - 16) + ',' + ty + ' ' + (lx - 4) + ',' + ly);
+				pv.lines.appendChild(line);
+				var dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+				dot.setAttribute('cx', tx); dot.setAttribute('cy', ty); dot.setAttribute('r', 3);
+				pv.lines.appendChild(dot);
+			});
+			pv.stage.style.minHeight = next + 'px';
+		});
+	}
+
+	window.addEventListener('resize', function () {
+		panel.rows.forEach(function (row) { drawCallouts(row); });
+	});
+
+	function previewToggle(row, preview) {
+		var button = el('button', { type: 'button', 'class': 'button-link hs-a2p-pv-toggle', text: row.showPreview ? 'Hide preview' : 'Show preview', on: { click: function () {
+			row.showPreview = !row.showPreview;
+			button.textContent = row.showPreview ? 'Hide preview' : 'Show preview';
+			preview.classList.toggle('is-open', row.showPreview);
+			drawCallouts(row);
+		} } });
+		preview.classList.toggle('is-open', !!row.showPreview);
+		return button;
+	}
+
 	function rowNode(row) {
 		var head;
 		if (!row.found) {
@@ -1091,10 +1325,15 @@ function hs_a2p_print_assets() {
 			if (row.post.view) { head.push(el('a', { href: row.post.view, target: '_blank', rel: 'noopener', text: 'View' })); }
 			if (row.post.edit) { head.push(el('a', { href: row.post.edit, target: '_blank', rel: 'noopener', text: 'Edit' })); }
 		}
-		return el('div', { 'class': 'hs-a2p-row' }, [
+		var open = row.found && !row.post && row.fields.tick;
+		var body = open ? rowBody(row) : null;
+		var preview = open ? previewNode(row) : null;
+		var node = el('div', { 'class': 'hs-a2p-row' }, [
 			el('div', { 'class': 'hs-a2p-head' }, head),
-			row.found && !row.post && row.fields.tick ? rowBody(row) : null
+			open ? el('div', { 'class': 'hs-a2p-rowgrid' }, [body, previewToggle(row, preview), preview]) : null
 		]);
+		if (open) { setTimeout(function () { drawCallouts(row); }, 0); }
+		return node;
 	}
 
 	var createButton = null;
