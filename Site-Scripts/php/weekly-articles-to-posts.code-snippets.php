@@ -682,7 +682,12 @@ function hs_a2p_print_assets() {
 #hs-a2p .hs-a2p-intro, #hs-a2p .hs-a2p-row, #hs-a2p .hs-a2p-actions, #hs-a2p .hs-a2p-message { max-width: 1100px; }
 #hs-a2p .hs-a2p-preview { display: none; padding: 10px 12px 12px; border-top: 1px solid #f0f0f1; }
 #hs-a2p .hs-a2p-preview.is-open { display: block; }
-#hs-a2p .hs-a2p-hint.hs-a2p-hint-top { margin: 0 0 6px; }
+#hs-a2p .hs-a2p-quad { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+#hs-a2p .hs-a2p-quad > .hs-a2p-f { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 4px; align-content: start; }
+#hs-a2p .hs-a2p-quad > .hs-a2p-f > * { margin: 0; }
+#hs-a2p .hs-a2p-quad > .hs-a2p-f > :nth-child(2) { align-self: center; }
+#hs-a2p .hs-a2p-quad .hs-a2p-now, #hs-a2p .hs-a2p-quad .hs-a2p-switch { min-height: 0; }
+@media (max-width: 960px) { #hs-a2p .hs-a2p-quad { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 #hs-a2p .hs-a2p-pv-toggle { margin: 0 12px 10px; }
 @container (min-width: 1400px) {
 	#hs-a2p .hs-a2p-row { max-width: 1720px; }
@@ -1109,19 +1114,14 @@ function hs_a2p_print_assets() {
 			row.dark ? el('p', { 'class': 'hs-a2p-warn', text: 'Styled for a dark background: check the text colours on the Post.' }) : null,
 			group('Post', [
 				field(row, 'Title *', 'title', [text('title')]),
-				el('div', { 'class': 'hs-a2p-pair' }, [
-					field(row, 'Publish date *', 'date', [publishWhen]),
-					field(row, 'Status', null, [el('p', { 'class': 'hs-a2p-hint hs-a2p-hint-top', text: 'Live: public once created. Draft: saved for you to finish and publish later.' }), status])
-				]),
-				el('p', { 'class': 'hs-a2p-hint', text: 'Untick Publish now to choose a date: a future date schedules it. The publish date sets the URL.' })
-			]),
-			group('Event date (shown to readers)', [
-				el('div', { 'class': 'hs-a2p-pair' }, [
-					field(row, 'Start', 'event', [dateInput('eventStart', 'date')]),
-					field(row, 'End', null, [dateInput('eventEnd', 'date')])
-				]),
-				el('p', { 'class': 'hs-a2p-hint', text: 'Leave End empty for a single day. Leave both empty to show the publish date.' })
-			]),
+				// Four fields that share row lines: labels, controls and hints each line up.
+				el('div', { 'class': 'hs-a2p-quad' }, [
+					field(row, 'Publish date *', 'date', [publishWhen], 'Untick Publish now to choose a date: a future date schedules it. The publish date sets the URL.'),
+					field(row, 'Status', null, [status], 'Live: public once created. Draft: not public; finish and publish it from Posts (or Edit here).'),
+					field(row, 'Event start', 'event', [dateInput('eventStart', 'date')], 'Shown to readers instead of the publish date. Leave empty to use the publish date.'),
+					field(row, 'Event end', null, [dateInput('eventEnd', 'date')], 'Only for events over several days.')
+				])
+			], 'hs-a2p-g-wide'),
 			group('Website Section', [
 				field(row, 'Website Section *', 'section', [section, custom], 'Sets the feeds, the URL and the yellow badge.'),
 				field(row, 'Yellow badge text', null, [text('badgeText')], 'Optional. Leave empty to show the Website Section.')
@@ -1189,7 +1189,7 @@ function hs_a2p_print_assets() {
 	var CALLOUTS = [
 		['card', 'badge', 'Yellow badge', 'Shows the Yellow badge text if you fill it in, otherwise the Website Section.'],
 		['card', 'place', 'Campus line', 'Shows the Location text if you fill it in, otherwise the campus name (or \u201cBoth Campuses\u201d).'],
-		['card', 'sliderDate', 'Date', 'The event date if set (shortened for several days), otherwise the publish date.'],
+		['card', 'sliderDate', 'Date', 'The event date if set, otherwise the publish date.'],
 		['card', 'image', 'Photo', 'The Portrait image if chosen, otherwise the Featured image.'],
 		['card', 'title', 'Title', 'The Title field.'],
 		['card', 'tags', 'Tag chips', 'Thematic Tags without their prefix: \u201cSPORT: Swimming\u201d shows as \u201cSwimming\u201d.'],
@@ -1235,8 +1235,7 @@ function hs_a2p_print_assets() {
 			labels, lines
 		]);
 		var box = el('div', { 'class': 'hs-a2p-preview' }, [
-			stage,
-			el('p', { 'class': 'hs-a2p-hint', text: 'Updates as you edit. A close copy of the real card and page; it saves nothing.' })
+			stage
 		]);
 		row.dom.preview = { box: box, stage: stage, labels: labels, lines: lines, t: t, caps: { card: capCard, strip: capStrip } };
 		updatePreview(row);

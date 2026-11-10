@@ -120,8 +120,8 @@ try {
       racks: r.querySelectorAll('.hs-a2p-rack').length, oldChoices: r.querySelectorAll('.hs-a2p-choices').length,
       active: (r.querySelector('.hs-a2p-slot.is-active') || {}).dataset?.slot, note: (r.querySelector('.hs-a2p-rack-note') || {}).textContent,
       rackImg: (() => { const i = r.querySelector('.hs-a2p-rack img'); return i ? { lazy: i.getAttribute('loading'), src: i.getAttribute('src') } : null; })(),
-      publish: fieldOf(r,'Publish').querySelector('input[type=datetime-local]').value, eventStart: fieldOf(r,'Start').querySelector('input').value,
-      eventColour: isBad(fieldOf(r,'Start')) || isOk(fieldOf(r,'Start')),
+      publish: fieldOf(r,'Publish').querySelector('input[type=datetime-local]').value, eventStart: fieldOf(r,'Event start').querySelector('input').value,
+      eventColour: isBad(fieldOf(r,'Event start')) || isOk(fieldOf(r,'Event start')),
       nowTicked: fieldOf(r,'Publish').querySelector('.hs-a2p-now input').checked, pickerHidden: fieldOf(r,'Publish').querySelector('input[type=datetime-local]').offsetParent === null,
       align: (() => { const top = (lbl) => Math.round(fieldOf(r,lbl).getBoundingClientRect().top); return { sec: top('Website'), cam: top('Campus'), badge: top('Yellow'), loc: top('Location') }; })() })`));
   t('pre-filled fields are green', ticked.title && ticked.campusOk);
@@ -131,7 +131,7 @@ try {
   t('defaults to Live', ticked.live);
   t('Create stays disabled while required fields are missing', ticked.disabled === true);
   t('one rack of article images, no per-field choices', ticked.thumbs > 0 && ticked.racks === 1 && ticked.oldChoices === 0, JSON.stringify({ thumbs: ticked.thumbs, racks: ticked.racks, old: ticked.oldChoices }));
-  t('groups in order: Post, Event date, Website Section, Campus, Images', JSON.stringify(ticked.groups) === JSON.stringify(['Post', 'Event date (shown to readers)', 'Website Section', 'Campus', 'Images']), JSON.stringify(ticked.groups));
+  t('groups in order: Post, Website Section, Campus, Images', JSON.stringify(ticked.groups) === JSON.stringify(['Post', 'Website Section', 'Campus', 'Images']), JSON.stringify(ticked.groups));
   t('badge text sits under the Section, location text under Campus, publish date with the title', ticked.badgeUnderSection && ticked.locUnderCampus && ticked.dateWithTitle);
   t('Featured is the slot being picked, and the note says so', ticked.active === 'image' && /Featured image/.test(ticked.note || ''), JSON.stringify({ a: ticked.active, n: ticked.note }));
   t('rack uses small lazy thumbnails', ticked.rackImg && ticked.rackImg.lazy === 'lazy' && /-150x150\./.test(ticked.rackImg.src), JSON.stringify(ticked.rackImg));
@@ -164,12 +164,12 @@ try {
     const dateNeeded = isBad(fieldOf(r,'Publish'));
     now.click(); await wait(50);
     const okAgain = !isBad(fieldOf(r,'Publish')) && picker.offsetParent === null;
-    const end = fieldOf(r,'End').querySelector('input'); end.value = '2000-01-01'; fire(end,'input');
+    const end = fieldOf(r,'Event end').querySelector('input'); end.value = '2000-01-01'; fire(end,'input');
     await wait(100);
-    const eventBad = isBad(fieldOf(r,'Start')) && document.querySelector('#hs-a2p .button-primary').disabled;
+    const eventBad = isBad(fieldOf(r,'Event start')) && document.querySelector('#hs-a2p .button-primary').disabled;
     end.value = ''; fire(end,'input');
     await wait(1500);
-    return JSON.stringify({ shownWhenUnticked, dateNeeded, okAgain, afterFirst, afterSecond, backToFeatured, eventBad, eventCleared: !isBad(fieldOf(r,'Start')), tags: isOk(fieldOf(r,'Thematic')), chips: r.querySelectorAll('.hs-a2p-taglist input:checked').length, groups: r.querySelectorAll('.hs-a2p-taggroup').length, image: isOk(fieldOf(r,'Featured')), thumb: !!fieldOf(r,'Featured').querySelector('.hs-a2p-thumb'),
+    return JSON.stringify({ shownWhenUnticked, dateNeeded, okAgain, afterFirst, afterSecond, backToFeatured, eventBad, eventCleared: !isBad(fieldOf(r,'Event start')), tags: isOk(fieldOf(r,'Thematic')), chips: r.querySelectorAll('.hs-a2p-taglist input:checked').length, groups: r.querySelectorAll('.hs-a2p-taggroup').length, image: isOk(fieldOf(r,'Featured')), thumb: !!fieldOf(r,'Featured').querySelector('.hs-a2p-thumb'),
       disabled: document.querySelector('#hs-a2p .button-primary').disabled, saved: document.querySelectorAll('.hs-a2p-actions .hs-a2p-saved')[1].textContent,
       dirty: wp.data.select('core/editor').isEditedPostDirty() })`));
   t('unticking Publish now shows the picker and needs a date; ticking it again hides it and clears the red', filled.shownWhenUnticked && filled.dateNeeded && filled.okAgain, JSON.stringify({ s: filled.shownWhenUnticked, d: filled.dateNeeded, o: filled.okAgain }));
@@ -196,10 +196,10 @@ try {
     set('Title', 'input', 'Preview Title Check');
     set('Yellow', 'input', 'Preview Badge');
     set('Location', 'input', 'Bangkok Trip');
-    set('Start', 'input', '2026-11-12'); set('End', 'input', '2026-11-14');
+    set('Event start', 'input', '2026-11-12'); set('Event end', 'input', '2026-11-14');
     await wait(400);
     const after = { card: q('.hs-story-date p'), badge: q('.hs-badge-primary p'), place: q('.hs-badge-location p'), title: q('.hs-story-title p'), sec: q('.hs-a2p-pv-sec p'), post: q('.hs-a2p-pv-chip p'), chipPlace: pv.querySelectorAll('.hs-a2p-pv-chip p')[1].textContent };
-    set('Yellow', 'input', ''); set('Location', 'input', ''); set('Start', 'input', ''); set('End', 'input', '');
+    set('Yellow', 'input', ''); set('Location', 'input', ''); set('Event start', 'input', ''); set('Event end', 'input', '');
     await wait(400);
     const reset = { badge: q('.hs-badge-primary p'), sec: fieldOf(r,'Website').querySelector('select').selectedOptions[0].textContent };
     const pr = pv.getBoundingClientRect(), fr = form.getBoundingClientRect();
@@ -212,7 +212,13 @@ try {
       overlap: (() => { const ls = [...pv.querySelectorAll('.hs-a2p-pv-label, .hs-a2p-pv-cap')].map((x) => x.getBoundingClientRect()); for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) { const a = ls[i], b = ls[j]; if (a.left < b.right && b.left < a.right && a.top < b.bottom - 1 && b.top < a.bottom - 1) return true; } return false; })(),
       gaps: (() => { const st = pv.querySelector('.hs-a2p-pv-stage'); const caps = st.querySelectorAll('.hs-a2p-pv-cap'); const cb = st.querySelector('.hs-a2p-pv-cardbox').getBoundingClientRect(), sb = st.querySelector('.hs-a2p-pv-stripbox').getBoundingClientRect(); return { card: Math.round(cb.top - caps[0].getBoundingClientRect().bottom), strip: Math.round(sb.top - caps[1].getBoundingClientRect().bottom) }; })(),
       position: getComputedStyle(pv).position,
-      statusHint: (fieldOf(r,'Status').querySelector('.hs-a2p-hint-top') || {}).textContent || '', statusTip: fieldOf(r,'Status').querySelector('label').title })`));
+      footnote: /Updates as you edit/.test(pv.textContent),
+      statusHint: (fieldOf(r,'Status').querySelector('.hs-a2p-hint') || {}).textContent || '',
+      quad: (() => { const fs = ['Publish', 'Status', 'Event start', 'Event end'].map((l) => fieldOf(r, l)); const top = (f, i) => Math.round(f.children[i].getBoundingClientRect().top); const same = (i) => { const ts = fs.map((f) => top(f, i)); return Math.max(...ts) - Math.min(...ts); };
+        const t = fieldOf(r,'Title').getBoundingClientRect(), q = r.querySelector('.hs-a2p-quad').getBoundingClientRect();
+        const mid = (el) => { const b = el.getBoundingClientRect(); return Math.round(b.top + b.height / 2); };
+        const mids = [fs[0].querySelector('.hs-a2p-now input'), fs[1].querySelector('input[type=radio]'), fs[2].querySelector('input'), fs[3].querySelector('input')].map(mid);
+        return { level: Math.max(...mids) - Math.min(...mids), kids: fs.map((f) => f.children.length), labels: same(0), controls: same(1), hints: same(2), titleSpans: Math.abs(t.width - q.width) < 2, titleAbove: t.bottom <= q.top + 1 }; })(), statusTip: fieldOf(r,'Status').querySelector('label').title })`));
   t('at 1920 the preview sits beside the form, with no toggle', wide.visible && wide.beside && !wide.toggle, JSON.stringify({ v: wide.visible, b: wide.beside, t: wide.toggle }));
   t('card shows the section badge, campus, publish date, title and tags', wide.before.badge && wide.before.place && /\d{1,2}(st|nd|rd|th) [A-Z][a-z]+ \d{4}/.test(wide.before.date) && wide.before.title && wide.before.tags.length > 0, JSON.stringify(wide.before));
   t('card photo is the Portrait', wide.before.img && wide.before.img === wide.featured, JSON.stringify({ img: wide.before.img, p: wide.featured }));
@@ -225,7 +231,10 @@ try {
   t('labels and chips do not overlap', wide.overlap === false);
   t('preview scrolls with the page (not sticky)', wide.position !== 'sticky' && wide.position !== 'fixed', wide.position);
   t('card and strip sit just under their chips', wide.gaps.card <= 16 && wide.gaps.strip <= 16, JSON.stringify(wide.gaps));
-  t('Status has a line explaining Live and Draft, and tooltips', /Live: public once created/.test(wide.statusHint) && /Public as soon as/.test(wide.statusTip), JSON.stringify({ h: wide.statusHint, t: wide.statusTip }));
+  t('Title spans the Post group above the four date and status fields', wide.quad.titleSpans && wide.quad.titleAbove, JSON.stringify(wide.quad));
+  t('Publish date, Status, Event start and Event end: labels, controls and hints line up', wide.quad.kids.every((k) => k === 3) && wide.quad.labels <= 2 && wide.quad.hints <= 2 && wide.quad.level <= 3, JSON.stringify(wide.quad));
+  t('no preview footnote', wide.footnote === false);
+  t('Status hint mentions Posts, and tooltips', /Live: public once created/.test(wide.statusHint) && /from Posts/.test(wide.statusHint) && /Public as soon as/.test(wide.statusTip), JSON.stringify({ h: wide.statusHint, t: wide.statusTip }));
   t('preview uses the site heading font', /Montserrat/.test(wide.font), wide.font);
   if (shots) { await run(`document.querySelector('#hs-a2p .hs-a2p-preview').closest('.hs-a2p-row').scrollIntoView({ block: 'start' });`); await sleep(1200); const p = await send('Page.captureScreenshot', { format: 'png' }); writeFileSync(join(shots, 'panel-4-preview-1920.png'), Buffer.from(p.data, 'base64')); }
   await setWidth(1280);
@@ -276,8 +285,8 @@ try {
     const sec = fieldOf(r,'Website').querySelector('select'); if (sec.value === '0') { sec.value = sec.options[1].value; fire(sec,'change'); }
     fieldOf(r,'Thematic').querySelector('.hs-a2p-taglist input').click();
     const badge = fieldOf(r,'Yellow').querySelector('input'); badge.value = 'A2P UI Badge'; fire(badge,'input');
-    const es = fieldOf(r,'Start').querySelector('input'); es.value = '2026-11-12'; fire(es,'input');
-    const ee = fieldOf(r,'End').querySelector('input'); ee.value = '2026-11-14'; fire(ee,'input');
+    const es = fieldOf(r,'Event start').querySelector('input'); es.value = '2026-11-12'; fire(es,'input');
+    const ee = fieldOf(r,'Event end').querySelector('input'); ee.value = '2026-11-14'; fire(ee,'input');
     fieldOf(r,'Status').querySelectorAll('input')[1].click();
     await wait(200);
     document.querySelector('#hs-a2p .button-primary').click();`);
