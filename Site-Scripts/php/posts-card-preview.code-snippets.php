@@ -208,12 +208,8 @@ function hs_card_preview_print_assets() {
 #wpbody .hs-cip-tag.is-f { background: #2271b1; }
 #wpbody .hs-cip-tag.is-p { background: #8a2be2; left: auto; right: 2px; }
 #wpbody .hs-cip-thumbwrap { position: relative; display: block; line-height: 0; }
-#wpbody .hs-cip-shape { position: absolute; left: 3px; bottom: 3px; display: inline-flex; align-items: center; gap: 3px; padding: 0 4px; line-height: 14px; font-size: 9px; font-weight: 600; letter-spacing: .02em; color: #fff; background: rgba(0, 0, 0, .66); border-radius: 2px; pointer-events: auto; white-space: nowrap; }
+#wpbody .hs-cip-shape { position: absolute; left: 3px; bottom: 3px; box-sizing: border-box; max-width: calc(100% - 6px); overflow: hidden; text-overflow: ellipsis; padding: 0 3px; line-height: 13px; font-size: 8px; font-weight: 600; color: #fff; background: rgba(0, 0, 0, .66); border-radius: 2px; white-space: nowrap; }
 #wpbody .hs-cip-thumbwrap .hs-cip-shape { bottom: 7px; }
-#wpbody .hs-cip-shape-icon { display: block; box-sizing: border-box; border: 1.5px solid currentColor; border-radius: 1px; }
-#wpbody .hs-cip-shape.is-portrait .hs-cip-shape-icon { width: 6px; height: 9px; }
-#wpbody .hs-cip-shape.is-landscape .hs-cip-shape-icon { width: 10px; height: 7px; }
-#wpbody .hs-cip-shape.is-square .hs-cip-shape-icon { width: 8px; height: 8px; }
 #wpbody .hs-cip-rack-note { margin-top: 4px; }
 #wpbody .hs-cip-rack-label { display: block; font-weight: 600; margin-bottom: 4px; }
 /* Hero preview: a to-scale screen per device (measured on the Post template), with the hero where it really sits. */
@@ -491,9 +487,7 @@ function hs_card_preview_print_assets() {
 		var s = SHAPES[id];
 		if (!s || !SHAPE_NAMES[s.shape]) { return null; }
 		var name = SHAPE_NAMES[s.shape];
-		return el('span', { 'class': 'hs-cip-shape is-' + s.shape, title: name + (s.w ? ' \u00b7 ' + s.w + ' \u00d7 ' + s.h + ' px' : '') }, [
-			el('i', { 'class': 'hs-cip-shape-icon', 'aria-hidden': 'true' }), el('span', { text: name })
-		]);
+		return el('span', { 'class': 'hs-cip-shape is-' + s.shape, title: name + (s.w ? ' \u00b7 ' + s.w + ' \u00d7 ' + s.h + ' px' : ''), text: name });
 	}
 
 	function imagePicker(o) {
