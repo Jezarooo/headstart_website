@@ -451,6 +451,15 @@ try {
 	$t( 'old-site photos are counted, not listed', 2 === hs_card_preview_unlisted_image_count( $legacy ) && array( $others[0] ) === array_column( hs_card_preview_content_images( $legacy ), 'id' ) );
 	$t( 'no photos: empty list, zero count', array() === hs_card_preview_content_images( '<p>none</p>' ) && 0 === hs_card_preview_unlisted_image_count( '<p>none</p>' ) );
 
+	echo "\nImage rack: Portrait / Landscape / Square chip\n";
+	foreach ( array( array( 1080, 1440, 'portrait' ), array( 1920, 1080, 'landscape' ), array( 1000, 1000, 'square' ), array( 1000, 1040, 'square' ), array( 1000, 1060, 'portrait' ), array( 0, 900, '' ), array( 900, 0, '' ) ) as $c ) {
+		$t( "{$c[0]}×{$c[1]} is '{$c[2]}'", $c[2] === hs_card_preview_shape_of( $c[0], $c[1] ) );
+	}
+	$meta = wp_get_attachment_metadata( $image_id );
+	$want = hs_card_preview_shape_of( (int) ( $meta['width'] ?? 0 ), (int) ( $meta['height'] ?? 0 ) );
+	$t( 'listed photos carry their real shape and size', '' !== $want && $want === $divi[0]['shape'] && (int) $meta['width'] === $divi[0]['w'] && (int) $meta['height'] === $divi[0]['h'] && $want === hs_card_preview_image_shape( $image_id ), wp_json_encode( $divi[0] ) );
+	$t( 'no recorded size: no shape', '' === hs_card_preview_image_shape( 0 ) );
+
 	echo "\nHero focal point (desktop)\n";
 	foreach ( array( '50 30' => '50 30', ' 0 100 ' => '0 100', '7 07' => '7 7', '120 10' => '', '-5 10' => '', '50' => '', 'x y' => '', '' => '', '50 30 10' => '' ) as $in => $want ) {
 		$t( "focus '$in' → '$want'", $want === hs_hero_focus_sanitize( $in ) && $want === hs_a2p_hero_focus( $in ) );

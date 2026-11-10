@@ -576,7 +576,9 @@ function hs_a2p_panel_data( $issue_id ) {
 		foreach ( hs_a2p_article_image_ids( $article['block'] ) as $image_id ) {
 			$url = hs_a2p_image_url( $image_id );
 			if ( $url ) {
-				$images[] = array( 'id' => $image_id, 'url' => $url, 'thumb' => (string) wp_get_attachment_image_url( $image_id, 'thumbnail' ) );
+				$image = array( 'id' => $image_id, 'url' => $url, 'thumb' => (string) wp_get_attachment_image_url( $image_id, 'thumbnail' ) );
+				// Real shape for the rack's Portrait / Landscape chip (Posts--Card-Preview); skipped if that snippet is off.
+				$images[] = function_exists( 'hs_card_preview_image_size' ) ? array_merge( $image, hs_card_preview_image_size( $image_id ) ) : $image;
 			}
 		}
 		$rows[] = array(

@@ -154,6 +154,12 @@ try {
     (items()[1] || items()[0]).click();
     await wait(100);
     const afterSecond = { p: !!(items()[1] || items()[0]).querySelector('.hs-cip-tag.is-p'), portraitThumb: !!r.querySelector('.hs-cip-slot[data-slot=portrait] .hs-cip-thumb') };
+    const chipInfo = (root) => { const its = [...root.querySelectorAll('.hs-cip-rack-item')].filter((x) => !x.closest('.hs-chf-mobile')); const chip = (b) => b.querySelector('.hs-cip-shape'); return { n: its.length, withChip: its.filter((b) => b.querySelectorAll('.hs-cip-shape').length === 1).length,
+      match: its.every((b) => { const c = chip(b); if (!c) { return true; } const m = /(\\d+) × (\\d+)/.exec(c.title); if (!m) { return false; } const w = +m[1], h = +m[2]; const want = Math.abs(w - h) <= 0.05 * Math.max(w, h) ? 'square' : h > w ? 'portrait' : 'landscape'; return c.classList.contains('is-' + want) && c.textContent === { portrait: 'Portrait', landscape: 'Landscape', square: 'Square' }[want]; }),
+      corner: its.every((b) => { const c = chip(b); if (!c) { return true; } const a = c.getBoundingClientRect(), z = b.getBoundingClientRect(); return a.left - z.left < 8 && z.bottom - a.bottom < 8 && a.right <= z.right; }),
+      apart: its.every((b) => [...b.querySelectorAll('.hs-cip-tag')].every((tg) => { const c = chip(b); if (!c) { return true; } const a = c.getBoundingClientRect(), z = tg.getBoundingClientRect(); return a.top >= z.bottom || a.right <= z.left || a.left >= z.right; })),
+      slots: [...root.querySelectorAll('.hs-cip-slot .hs-cip-thumbwrap')].filter((w) => !w.closest('.hs-chf-mobile')).map((w) => !!w.querySelector('.hs-cip-shape')) }; };
+    const chips = chipInfo(r);
     r.querySelector('.hs-cip-slot[data-slot=image] .hs-cip-slot-pick').click();
     await wait(100);
     const backToFeatured = r.querySelector('.hs-cip-slot.is-active').dataset.slot === 'image' && /Featured image/.test(r.querySelector('.hs-cip-rack-note').textContent);
@@ -169,9 +175,10 @@ try {
     const eventBad = isBad(fieldOf(r,'Event start')) && document.querySelector('#hs-a2p .button-primary').disabled;
     end.value = ''; fire(end,'input');
     await wait(1500);
-    return JSON.stringify({ shownWhenUnticked, dateNeeded, okAgain, afterFirst, afterSecond, backToFeatured, eventBad, eventCleared: !isBad(fieldOf(r,'Event start')), tags: isOk(fieldOf(r,'Thematic')), chips: r.querySelectorAll('.hs-a2p-taglist input:checked').length, groups: r.querySelectorAll('.hs-a2p-taggroup').length, image: isOk(fieldOf(r,'Featured')), thumb: !!fieldOf(r,'Featured').querySelector('.hs-cip-thumb'),
+    return JSON.stringify({ chips, shownWhenUnticked, dateNeeded, okAgain, afterFirst, afterSecond, backToFeatured, eventBad, eventCleared: !isBad(fieldOf(r,'Event start')), tags: isOk(fieldOf(r,'Thematic')), chips: r.querySelectorAll('.hs-a2p-taglist input:checked').length, groups: r.querySelectorAll('.hs-a2p-taggroup').length, image: isOk(fieldOf(r,'Featured')), thumb: !!fieldOf(r,'Featured').querySelector('.hs-cip-thumb'),
       disabled: document.querySelector('#hs-a2p .button-primary').disabled, saved: document.querySelectorAll('.hs-a2p-actions .hs-a2p-saved')[1].textContent,
       dirty: wp.data.select('core/editor').isEditedPostDirty() })`));
+  t('every rack photo has one Portrait / Landscape / Square chip, bottom-left, matching its real size and clear of the F/P tags; chosen photos show it too', filled.chips.n > 0 && filled.chips.withChip === filled.chips.n && filled.chips.match && filled.chips.corner && filled.chips.apart && filled.chips.slots.length === 2 && filled.chips.slots.every(Boolean), JSON.stringify(filled.chips));
   t('unticking Publish now shows the picker and needs a date; ticking it again hides it and clears the red', filled.shownWhenUnticked && filled.dateNeeded && filled.okAgain, JSON.stringify({ s: filled.shownWhenUnticked, d: filled.dateNeeded, o: filled.okAgain }));
   t('clicking a rack image fills Featured, tags it F, and moves picking to Portrait', filled.afterFirst.active === 'portrait' && filled.afterFirst.f, JSON.stringify(filled.afterFirst));
   t('the next click fills Portrait and tags it P', filled.afterSecond.p && filled.afterSecond.portraitThumb, JSON.stringify(filled.afterSecond));
