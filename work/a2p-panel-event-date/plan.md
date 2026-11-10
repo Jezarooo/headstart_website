@@ -68,6 +68,12 @@ Two new ACF fields in the existing **Post Classification** group, after Display 
 4. **Defaults:** Event start defaults to the weekly update's date; Event end empty; **Publish now ticked** (new row field `publishNow`, boolean), with the hidden date picker pre-set to now in case it's unticked. A new Post therefore publishes today and its URL uses this month unless a date is chosen. Rows saved before this change have no `publishNow` and keep their stored date (treated as unticked). The date is only required when Publish now is unticked; on create, Publish now uses the current time at that moment (Live) or leaves the date floating (Draft).
 5. **Re-copy is removed** *(user, 10 Nov)*: the row's Re-copy button, the AJAX action `hs_a2p_recopy` and the function `hs_a2p_recopy()`. Each Post stays a one-off copy; to change a Post's content after it's made, edit the Post itself. A row with a Post keeps its Live/Draft state and its View and Edit links, and still can't be created twice.
 
+6. **Labelled live preview** *(user, 10 Nov)*. Each ticked row gets a preview column to the right of its form when the meta box is wide enough (about 1500px and up, e.g. a 1920 screen). On narrower screens it sits under the form, collapsed behind a **Show preview** toggle. It updates as you type or click, and saves nothing.
+   - **Slider card**, built with the same markup and classes as `hs_get_post_slider_card_html()`. The card's styles (from core.css and the slider snippet's inline styles) are copied into the panel's CSS, scoped to `#hs-a2p .hs-a2p-preview`, so wp-admin's look isn't affected and core.css isn't loaded in admin. Fonts: Montserrat is loaded in the admin only on weekly update edit screens.
+   - **Post page top**: the strip under the hero with the Section, date and campus chips, the way the Post templates show them, so the event date can be seen.
+   - **Labels with lines**: each part of both previews has a callout with a connector line naming its source, e.g. "Yellow badge text, else Website Section", "Location text, else Campus", "Slider date: publish date", "Post page date: event date, else publish date", "Portrait, else Featured image", "Thematic Tags (prefix dropped)". Labels are plain text in the panel, not an image.
+   - The preview follows the same rules as the live code (badge override, Both Campuses, tag prefixes, date label formats), but it's a preview. If the card's CSS changes on live later, the preview can drift until it's updated.
+
 ### Theme Builder templates (database, done by the user, not code)
 Five templates show the date with a Text module labelled **Date**, using dynamic content **Post Publish Date**: `HSN Post STANDARD`, `HSC Posts STANDARD`, `HSN Post Archive`, `HSC Posts Archive`, `Both Campus Posts Archive`. Each is switched to the custom field `hs_final_date_label`, the same kind of dynamic content the Section chip uses for `hs_final_section_chip`. Steps (local first, then live after the snippets are in and the fill has run):
 1. Divi → Theme Builder → open the template's Body layout.
@@ -82,6 +88,7 @@ Not changed: URLs, slider cards and order, search results, RSS, Yoast dates (the
 `work/weekly-articles-to-posts/tests/wp-tests.php` and `panel-check.mjs` are extended (below).
 
 ## Risks & rollback
+- **Preview drift:** the preview copies the card's styles. If someone changes the card on live, the preview may look slightly different until updated. It never affects the real Post.
 - **Template switched before the code** → empty date chip. The order is in the deploy notes; the fill must finish first (check: the option `hs_date_label_fill_v1` exists, or any imported Post shows its date after the switch).
 - **Label goes stale** if a Post's date or event fields change without a save hook (e.g. a direct DB edit or import). Any normal save, quick edit, scheduled publish, or ACF field change recalculates it. Same behaviour as the existing chips.
 - **Preview** shows a blank date chip after editing a published Post, the same autosave quirk the Section and Campus chips already have.
@@ -106,6 +113,7 @@ Not changed: URLs, slider cards and order, search results, RSS, Yoast dates (the
 - `panel-check.mjs` (headless Chrome), adding:
   - group headings and order as above; one rack per row, no per-field choices;
   - a row whose Post exists shows its state with View and Edit, and no Re-copy button;
+  - preview: on a 1920px-wide window it sits to the right of the form; at 1280px it's under the form behind the toggle; changing the title, Section, badge text, campus, location text, tags, Portrait/Featured and event dates updates the card and Post-top strip to the expected text and image; each callout and its line are present; typing in the preview saves nothing new;
   - Publish now ticked by default with the date picker hidden; unticking shows it; Create is allowed with Publish now and no date;
   - Website Section and Campus fields start on the same line, and Yellow badge text and Location text start on the same line (within 2px);
   - Featured active first; clicking a rack image fills Featured, then Portrait becomes active; F/P tags; clicking a slot changes the active slot; Media Library and Remove still work;
@@ -126,6 +134,7 @@ Not changed: URLs, slider cards and order, search results, RSS, Yoast dates (the
 - [ ] An imported Post still shows its original date (also after switching an Archive template).
 - [ ] On a normal Post edit screen, Event start / Event end are under the location override; end before start is refused.
 - [ ] Rows that already have a Post show Live/Draft with View and Edit, and no Re-copy.
+- [ ] On your 1920 screen, a ticked row shows the labelled slider card and Post-top strip to the right; they change as you edit fields, and each label names the right field. They match a real slider card closely.
 - [ ] Weekly updates, sliders and search look as before.
 
 ## Deployment notes for the dev (Gate 7)
