@@ -312,7 +312,20 @@ function hs_issue_item_name( $i ) {
 }
 
 /** The names to show: the ticked articles' short names, or headings. Empty for issues without articles. */
+/**
+ * Tags first (10 Nov 2026): an issue that already has In This Issue tags keeps using them
+ * (Campus Hub, admin list, edit screen). Only issues without tags use the article list.
+ */
+function hs_issue_uses_tags( $post_id ) {
+    $terms = get_the_terms( $post_id, 'in_this_issue' );
+    return ! empty( $terms ) && ! is_wp_error( $terms );
+}
+
+/** The ticked articles' names. Empty for tagged issues, so callers fall back to the tags. */
 function hs_issue_contents_names( $post_id ) {
+    if ( hs_issue_uses_tags( $post_id ) ) {
+        return array();
+    }
     $shown = array_filter( hs_issue_contents( $post_id ), function ( $i ) {
         return ! isset( $i['show'] ) || $i['show'];
     } );
@@ -377,11 +390,11 @@ function hs_wu_hide_archive_field( $field ) {
     return empty( $field['value'] ) ? false : $field;
 }
 
-/** Issues that have articles hide the old tags field: the list replaces it. Older issues keep it. */
+/** The tags field shows only on issues that already have tags; untagged issues use the article list instead. */
 add_filter( 'acf/prepare_field/key=field_weekly_update_tags', 'hs_issue_hide_tags_field' );
 function hs_issue_hide_tags_field( $field ) {
     $post_id = (int) ( $GLOBALS['post']->ID ?? 0 );
-    if ( $post_id && 'weekly_update' === get_post_type( $post_id ) && hs_issue_headings( get_post_field( 'post_content', $post_id ) )['items'] ) {
+    if ( $post_id && 'weekly_update' === get_post_type( $post_id ) && ! hs_issue_uses_tags( $post_id ) ) {
         return false;
     }
     return $field;
@@ -389,11 +402,11 @@ function hs_issue_hide_tags_field( $field ) {
 
 /* The edit box: inside Weekly Update Details, in the In this issue slot ----- */
 
-/** The list shows only on issues that have articles (the tags field shows on the others). */
+/** The list shows only on untagged issues that have articles (tagged issues show the tags field). */
 add_filter( 'acf/prepare_field/key=field_weekly_update_contents', 'hs_issue_contents_prepare_field' );
 function hs_issue_contents_prepare_field( $field ) {
     $post_id = (int) ( $GLOBALS['post']->ID ?? 0 );
-    if ( ! $post_id || 'weekly_update' !== get_post_type( $post_id ) || ! hs_issue_headings( get_post_field( 'post_content', $post_id ) )['items'] ) {
+    if ( ! $post_id || 'weekly_update' !== get_post_type( $post_id ) || hs_issue_uses_tags( $post_id ) || ! hs_issue_headings( get_post_field( 'post_content', $post_id ) )['items'] ) {
         return false;
     }
     return $field;

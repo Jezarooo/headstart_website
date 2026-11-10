@@ -152,12 +152,12 @@ function hs_weekly_update_column_content($column_name, $post_id) {
         $names = function_exists('hs_issue_contents_names') ? hs_issue_contents_names($post_id) : array();
         if ($names) {
             echo '<div class="hs-tags-wrapper hs-issue-names">';
-            echo '<div class="hs-tags-display" style="margin-bottom:6px;">';
+            echo '<div class="hs-tags-display hs-wu-chips">';
             foreach ($names as $name) {
-                echo '<span style="background: #f0f6fc; border: 1px solid #c5d9ed; color: #1d2327; font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 500; display:inline-block; margin-bottom:2px; margin-right:2px;">' . esc_html($name) . '</span> ';
+                echo '<span class="hs-wu-chip is-name">' . esc_html($name) . '</span>';
             }
+            echo '<a href="' . esc_url(get_edit_post_link($post_id) . '#hs-issue-contents-list') . '" class="button button-small hs-wu-chips-edit" title="Short names and ticks are set in the update\'s In this issue box">Edit</a>';
             echo '</div>';
-            echo '<a href="' . esc_url(get_edit_post_link($post_id) . '#hs-issue-contents-list') . '" class="button button-small" title="Short names are set in the update\'s In this issue box">Edit</a>';
             echo '</div>';
             return;
         }
@@ -166,11 +166,11 @@ function hs_weekly_update_column_content($column_name, $post_id) {
         
         echo '<div class="hs-tags-wrapper" style="position:relative;">';
         
-        echo '<div class="hs-tags-display" style="margin-bottom:6px;">';
+        echo '<div class="hs-tags-display hs-wu-chips">';
         if ($tags && !is_wp_error($tags)) {
             foreach ($tags as $t) {
                 $current_tag_ids[] = $t->term_id;
-                echo '<span style="background: #f0f0f1; border: 1px solid #dcc; color: #3c434a; font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 500; display:inline-block; margin-bottom:2px; margin-right:2px;">' . esc_html($t->name) . '</span> ';
+                echo '<span class="hs-wu-chip is-tag">' . esc_html($t->name) . '</span>';
             }
         } else {
             echo '<span style="color:#999; font-size:11px;">None</span>';
@@ -235,6 +235,22 @@ function hs_inject_weekly_update_tax_js() {
     if ($post_type !== 'weekly_update') return;
     ?>
     <style>
+    /* Column widths: In This Issue widest, Blurb next, Campus and Week Number narrow (above WordPress's 782px stacking). */
+    @media (min-width: 783px) {
+        .post-type-weekly_update .wp-list-table .column-title { width: 15%; }
+        .post-type-weekly_update .wp-list-table .column-hs_blurb_col { width: 22%; }
+        .post-type-weekly_update .wp-list-table .column-hs_campus_col { width: 140px; }
+        .post-type-weekly_update .wp-list-table .column-hs_week_col { width: 70px; }
+        .post-type-weekly_update .wp-list-table .column-hs_tags_col { width: 33%; }
+        .post-type-weekly_update .wp-list-table .column-date { width: 104px; }
+        .post-type-weekly_update .wp-list-table .column-hs_sl_clicks { width: 84px; }
+    }
+    .post-type-weekly_update .column-hs_campus_col .hs-campus-display span { white-space: nowrap; }
+    /* Compact In This Issue chips, with Edit right after them. */
+    .post-type-weekly_update .hs-wu-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; margin-bottom: 6px; }
+    .post-type-weekly_update .hs-wu-chip { display: inline-block; padding: 1px 5px; border: 1px solid #dcdcde; border-radius: 3px; background: #f6f7f7; color: #3c434a; font-size: 10.5px; font-weight: 500; line-height: 15px; }
+    .post-type-weekly_update .hs-wu-chip.is-name { border-color: #c5d9ed; background: #f0f6fc; color: #1d2327; }
+    .post-type-weekly_update .hs-wu-chips .hs-wu-chips-edit { margin-left: 2px; min-height: 19px; line-height: 17px; padding: 0 6px; font-size: 11px; }
     .hs-custom-tooltip .hs-tooltip-text { display: none !important; }
     .hs-global-tooltip {
         position: absolute; background: #1e1e1e; color: #fff; padding: 6px 10px;
