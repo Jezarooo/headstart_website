@@ -198,7 +198,7 @@ try {
     set('Location', 'input', 'Bangkok Trip');
     set('Start', 'input', '2026-11-12'); set('End', 'input', '2026-11-14');
     await wait(400);
-    const after = { badge: q('.hs-badge-primary p'), place: q('.hs-badge-location p'), title: q('.hs-story-title p'), sec: q('.hs-a2p-pv-sec p'), post: q('.hs-a2p-pv-chip p'), chipPlace: pv.querySelectorAll('.hs-a2p-pv-chip p')[1].textContent };
+    const after = { card: q('.hs-story-date p'), badge: q('.hs-badge-primary p'), place: q('.hs-badge-location p'), title: q('.hs-story-title p'), sec: q('.hs-a2p-pv-sec p'), post: q('.hs-a2p-pv-chip p'), chipPlace: pv.querySelectorAll('.hs-a2p-pv-chip p')[1].textContent };
     set('Yellow', 'input', ''); set('Location', 'input', ''); set('Start', 'input', ''); set('End', 'input', '');
     await wait(400);
     const reset = { badge: q('.hs-badge-primary p'), sec: fieldOf(r,'Website').querySelector('select').selectedOptions[0].textContent };
@@ -211,6 +211,7 @@ try {
   t('card shows the section badge, campus, publish date, title and tags', wide.before.badge && wide.before.place && /\d{1,2}(st|nd|rd|th) [A-Z][a-z]+ \d{4}/.test(wide.before.date) && wide.before.title && wide.before.tags.length > 0, JSON.stringify(wide.before));
   t('card photo is the Portrait', wide.before.img && wide.before.img === wide.featured, JSON.stringify({ img: wide.before.img, p: wide.featured }));
   t('editing fields updates the card and the Post top', wide.after.badge === 'Preview Badge' && wide.after.sec === 'Preview Badge' && wide.after.place === 'Bangkok Trip' && wide.after.chipPlace === 'Bangkok Trip' && wide.after.title === 'Preview Title Check' && wide.after.post === '12–14 November 2026', JSON.stringify(wide.after));
+  t('the preview card shows the short range', wide.after.card === '12\u201314 Nov 2026', wide.after.card);
   t('clearing the badge text falls back to the Website Section', wide.reset.badge === wide.reset.sec, JSON.stringify(wide.reset));
   t('nine labels with lines, naming the sources', wide.labels.length === 9 && wide.lines === 9 && wide.labels.includes('Yellow badge text') && wide.labels.includes('Event date') && wide.labels.includes('Portrait'), JSON.stringify(wide.labels));
   t('preview uses the site heading font', /Montserrat/.test(wide.font), wide.font);

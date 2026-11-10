@@ -319,6 +319,23 @@ try {
 		$got = $label( $case[0], $case[1] );
 		$t( "label: $name", $case[2] === $got, $got );
 	}
+	foreach ( array(
+		'card: no event fields → publish date as before' => array( '', '', get_the_date( 'jS F Y', $ev ) ),
+		'card: one day'                                  => array( '20261112', '', '12th November 2026' ),
+		'card: end equal to start'                       => array( '20261112', '20261112', '12th November 2026' ),
+		'card: same month'                               => array( '20261112', '20261114', "12{$dash}14 Nov 2026" ),
+		'card: across months'                            => array( '20261030', '20261102', "30 Oct {$dash} 2 Nov 2026" ),
+		'card: across years'                             => array( '20261230', '20270102', "30 Dec 2026 {$dash} 2 Jan 2027" ),
+	) as $name => $case ) {
+		$label( $case[0], $case[1] );
+		$got = hs_card_date_label( $ev );
+		$t( $name, $case[2] === $got, $got );
+	}
+	$t( 'card: the longest range fits in 24 characters', mb_strlen( "30 Dec 2026 {$dash} 2 Jan 2027" ) <= 24 );
+	$label( '20261112', '20261114' );
+	$t( 'the slider card HTML shows the short range', false !== strpos( hs_get_post_slider_card_html( get_post( $ev ) ), "12{$dash}14 Nov 2026" ) );
+	$label( '', '' );
+	$t( 'the slider card HTML for a Post without event dates is unchanged', false !== strpos( hs_get_post_slider_card_html( get_post( $ev ) ), get_the_date( 'jS F Y', $ev ) ) );
 	$label( '20261112', '20261114' );
 	delete_post_meta( $ev, 'hs_event_end' );
 	$t( 'clearing the end recalculates (deleted meta)', '12 November 2026' === get_post_meta( $ev, 'hs_final_date_label', true ) );
