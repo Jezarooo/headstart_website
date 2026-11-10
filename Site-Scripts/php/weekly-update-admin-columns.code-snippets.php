@@ -51,7 +51,7 @@ function hs_weekly_update_column_content($column_name, $post_id) {
         
         echo '<div class="hs-blurb-wrapper" style="position:relative; width: 100%; min-width: 150px;">';
         
-        echo '<div class="hs-blurb-display" style="margin-bottom:6px; font-size:12px; color:#555; max-height:4.5em; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;">';
+        echo '<div class="hs-blurb-display" style="margin-bottom:6px; font-size:12px; line-height:1.5; color:#555;">';
         if (!empty($blurb)) {
             echo wp_kses_post($blurb);
         } else {
@@ -157,7 +157,7 @@ function hs_weekly_update_column_content($column_name, $post_id) {
                 echo '<span style="background: #f0f6fc; border: 1px solid #c5d9ed; color: #1d2327; font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 500; display:inline-block; margin-bottom:2px; margin-right:2px;">' . esc_html($name) . '</span> ';
             }
             echo '</div>';
-            echo '<a href="' . esc_url(get_edit_post_link($post_id) . '#hs-issue-contents') . '" class="button button-small" title="Short names are set in the update\'s In this issue box">Edit</a>';
+            echo '<a href="' . esc_url(get_edit_post_link($post_id) . '#hs-issue-contents-list') . '" class="button button-small" title="Short names are set in the update\'s In this issue box">Edit</a>';
             echo '</div>';
             return;
         }

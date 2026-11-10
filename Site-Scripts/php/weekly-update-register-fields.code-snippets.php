@@ -22,15 +22,15 @@ function hs_register_weekly_update_acf_fields() {
             // 1. Blurb (WYSIWYG for List View)
             array(
                 'key' => 'field_weekly_update_blurb',
-                'label' => 'Blurb (List View)',
+                'label' => 'Blurb',
                 'name' => 'blurb',
                 'type' => 'wysiwyg',
-                'instructions' => 'This text will appear in the list view on the Campus Hub page.',
+                'instructions' => 'Shown under this update on the Campus Hub page.',
                 'required' => 0,
                 'conditional_logic' => 0,
                 'wrapper' => array(
-                    'width' => '25',
-                    'class' => '',
+                    'width' => '',
+                    'class' => 'hs-wu-blurb',
                     'id' => '',
                 ),
                 'default_value' => '',
@@ -50,8 +50,8 @@ function hs_register_weekly_update_acf_fields() {
                 'required' => 0,
                 'conditional_logic' => 0,
                 'wrapper' => array(
-                    'width' => '25',
-                    'class' => '',
+                    'width' => '',
+                    'class' => 'hs-wu-campus',
                     'id' => '',
                 ),
                 'taxonomy' => 'hs_campus',
@@ -67,15 +67,15 @@ function hs_register_weekly_update_acf_fields() {
             // 3. Week Number
             array(
                 'key' => 'field_6a377249f9320',
-                'label' => 'Week Number',
+                'label' => 'Week number',
                 'name' => 'hs_week_number',
                 'type' => 'number',
                 'instructions' => '',
                 'required' => 1,
                 'conditional_logic' => 0,
                 'wrapper' => array(
-                    'width' => '25',
-                    'class' => '',
+                    'width' => '',
+                    'class' => 'hs-wu-week',
                     'id' => '',
                 ),
                 'default_value' => '',
@@ -87,15 +87,15 @@ function hs_register_weekly_update_acf_fields() {
             // 4. In This Issue (Tags)
             array(
                 'key' => 'field_weekly_update_tags',
-                'label' => 'In This Issue (Tags)',
+                'label' => 'In this issue',
                 'name' => 'in_this_issue_tax',
                 'type' => 'taxonomy',
-                'instructions' => 'Select relevant tags (e.g., Primary, School Houses). You can also add new ones directly here.',
+                'instructions' => 'Tick the topics this issue covers, or add new ones. (Issues built with Divi articles list them automatically instead.)',
                 'required' => 0,
                 'conditional_logic' => 0,
                 'wrapper' => array(
-                    'width' => '25',
-                    'class' => '',
+                    'width' => '',
+                    'class' => 'hs-wu-issue',
                     'id' => '',
                 ),
                 'taxonomy' => 'in_this_issue',
@@ -108,6 +108,24 @@ function hs_register_weekly_update_acf_fields() {
                 'multiple' => 1,
             ),
 
+            // 4b. In this issue, for issues with Divi articles: the article headings with short names.
+            // Drawn by hs_issue_contents_render_field(); saves nothing itself (see hs_issue_contents_on_save).
+            array(
+                'key' => 'field_weekly_update_contents',
+                'label' => 'In this issue',
+                'name' => 'hs_issue_contents_ui',
+                'type' => 'message',
+                'instructions' => '',
+                'message' => '',
+                'new_lines' => '',
+                'esc_html' => 0,
+                'wrapper' => array(
+                    'width' => '',
+                    'class' => 'hs-wu-issue hs-wu-contents',
+                    'id' => '',
+                ),
+            ),
+
             // 5. Legacy Archive
             array(
                 'key' => 'field_6a3772e6f9322',
@@ -118,8 +136,8 @@ function hs_register_weekly_update_acf_fields() {
                 'required' => 0,
                 'conditional_logic' => 0,
                 'wrapper' => array(
-                    'width' => '100',
-                    'class' => '',
+                    'width' => '',
+                    'class' => 'hs-wu-archive',
                     'id' => '',
                 ),
                 'message' => 'Yes, this is an imported post from the previous website.',
@@ -347,12 +365,22 @@ function hs_issue_hide_tags_field( $field ) {
 
 /* The edit box ------------------------------------------------------------ */
 
-add_action( 'add_meta_boxes_weekly_update', 'hs_issue_contents_add_box' );
-function hs_issue_contents_add_box( $post ) {
-    if ( ! hs_issue_headings( $post->post_content )['items'] ) {
-        return;
+/** The list shows only on issues that have articles (the tags field shows on the others). */
+add_filter( 'acf/prepare_field/key=field_weekly_update_contents', 'hs_issue_contents_prepare_field' );
+function hs_issue_contents_prepare_field( $field ) {
+    $post_id = (int) ( $GLOBALS['post']->ID ?? 0 );
+    if ( ! $post_id || 'weekly_update' !== get_post_type( $post_id ) || ! hs_issue_headings( get_post_field( 'post_content', $post_id ) )['items'] ) {
+        return false;
     }
-    add_meta_box( 'hs-issue-contents', 'In this issue', 'hs_issue_contents_render_box', 'weekly_update', 'normal', 'high' );
+    return $field;
+}
+
+add_action( 'acf/render_field/key=field_weekly_update_contents', 'hs_issue_contents_render_field' );
+function hs_issue_contents_render_field( $field ) {
+    $post_id = (int) ( $GLOBALS['post']->ID ?? 0 );
+    if ( $post_id ) {
+        hs_issue_contents_render_box( get_post( $post_id ) );
+    }
 }
 
 /** Rows for the box: the stored list, refreshed from the content first so it's never stale. */
@@ -365,8 +393,8 @@ function hs_issue_contents_rows( $post_id ) {
 function hs_issue_contents_render_box( $post ) {
     wp_nonce_field( 'hs_issue_contents_' . $post->ID, 'hs_issue_contents_nonce' );
     $data = hs_issue_contents_rows( $post->ID );
-    echo '<p class="description">Every article in this issue, found from its heading each time you save (promos are left out). Type a shorter name to use on the Campus Hub page, or leave it empty to use the heading.</p>';
-    echo '<div id="hs-issue-contents-list" data-post="' . (int) $post->ID . '" data-nonce="' . esc_attr( wp_create_nonce( 'hs_issue_contents_get' ) ) . '">';
+    echo '<p class="description hs-ic-hint">Each article’s heading (promos left out). Add a short name for the Campus Hub, or leave it blank.</p>';
+    echo '<div id="hs-issue-contents-list" class="hs-ic-scroll" data-post="' . (int) $post->ID . '" data-nonce="' . esc_attr( wp_create_nonce( 'hs_issue_contents_get' ) ) . '">';
     hs_issue_contents_print_rows( $data );
     echo '</div>';
 }
@@ -375,7 +403,7 @@ function hs_issue_contents_print_rows( $data ) {
     echo '<ol class="hs-ic-list">';
     foreach ( $data['items'] as $i ) {
         printf(
-            '<li class="hs-ic-row"><span class="hs-ic-heading">%1$s</span><input type="text" class="hs-ic-input" name="hs_issue_label[%2$s]" value="%3$s" placeholder="%1$s" maxlength="80" aria-label="Short name for %1$s" /></li>',
+            '<li class="hs-ic-row"><label class="hs-ic-heading" for="hs-ic-%2$s">%1$s</label><input type="text" class="hs-ic-input" id="hs-ic-%2$s" name="hs_issue_label[%2$s]" value="%3$s" placeholder="Short name (optional)" maxlength="80" /></li>',
             esc_attr( $i['heading'] ),
             esc_attr( $i['key'] ),
             esc_attr( $i['label'] )
@@ -409,12 +437,40 @@ function hs_issue_contents_admin_assets() {
     }
     ?>
 <style id="hs-issue-contents-css">
-#hs-issue-contents .hs-ic-list { margin: 8px 0 0; padding: 0; list-style: none; counter-reset: hsic; display: grid; gap: 6px; }
-#hs-issue-contents .hs-ic-row { counter-increment: hsic; display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: center; margin: 0; }
-#hs-issue-contents .hs-ic-row::before { content: counter(hsic) "."; color: #646970; text-align: right; }
-#hs-issue-contents .hs-ic-heading { font-weight: 600; overflow-wrap: anywhere; }
-#hs-issue-contents .hs-ic-input { width: 100%; }
-@media (max-width: 782px) { #hs-issue-contents .hs-ic-row { grid-template-columns: 22px minmax(0, 1fr); } #hs-issue-contents .hs-ic-input { grid-column: 2; } }
+/* Weekly Update Details as a grid: Blurb wide on the left, Campus over Week number, In this issue on the right
+   (scrolling, as tall as the blurb), Archive Post across the bottom. Narrow boxes stack. */
+#acf-group_6a3772490951b { container-type: inline-size; }
+#acf-group_6a3772490951b > .inside.acf-fields { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(220px, 0.65fr) minmax(0, 1.4fr); grid-template-areas: "blurb campus issue" "blurb week issue" "archive archive archive"; grid-template-rows: auto 1fr auto; column-gap: 16px; row-gap: 4px; padding: 4px 12px 12px; align-items: stretch; }
+#acf-group_6a3772490951b > .inside.acf-fields::after { display: none; }
+#acf-group_6a3772490951b > .inside > .acf-field { width: auto !important; float: none; clear: none; min-height: 0; margin: 0; border-left: 0; border-top: 0; padding: 12px !important; }
+#acf-group_6a3772490951b > .inside > .acf-field.hs-wu-blurb { grid-area: blurb; }
+#acf-group_6a3772490951b > .inside > .acf-field.hs-wu-campus { grid-area: campus; }
+#acf-group_6a3772490951b > .inside > .acf-field.hs-wu-week { grid-area: week; align-self: start; }
+#acf-group_6a3772490951b > .inside > .acf-field.hs-wu-issue { grid-area: issue; min-width: 0; }
+#acf-group_6a3772490951b > .inside > .acf-field.hs-wu-archive { grid-area: archive; border-top: 1px solid #f0f0f1; padding-top: 10px !important; }
+#acf-group_6a3772490951b > .inside > .acf-field > .acf-label { margin-bottom: 6px; }
+#acf-group_6a3772490951b > .inside > .acf-field > .acf-label label { font-weight: 600; }
+#acf-group_6a3772490951b > .inside > .acf-field > .acf-label .description { margin-top: 2px; color: #646970; }
+#acf-group_6a3772490951b .hs-wu-blurb iframe { height: 260px !important; min-height: 260px !important; }
+#acf-group_6a3772490951b .hs-wu-week input[type=number] { max-width: 120px; }
+#acf-group_6a3772490951b .hs-wu-campus ul.acf-radio-list { display: grid; gap: 4px; }
+#acf-group_6a3772490951b .hs-wu-campus ul.acf-radio-list label { white-space: nowrap; }
+#acf-group_6a3772490951b .hs-wu-campus ul.acf-radio-list li { margin: 0; }
+#acf-group_6a3772490951b .hs-wu-issue .acf-checkbox-list { max-height: 300px; overflow-y: auto; }
+@container (max-width: 820px) {
+    #acf-group_6a3772490951b > .inside.acf-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "blurb blurb" "campus week" "issue issue" "archive archive"; grid-template-rows: none; }
+}
+/* The article list: number, heading, then the short-name box under it; scrolls to the blurb's height. */
+#hs-issue-contents-list.hs-ic-scroll { max-height: 312px; overflow-y: auto; border: 1px solid #dcdcde; border-radius: 4px; background: #fff; }
+#hs-issue-contents-list .hs-ic-list { margin: 0; padding: 0; list-style: none; counter-reset: hsic; }
+#hs-issue-contents-list .hs-ic-row { counter-increment: hsic; display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 6px; row-gap: 4px; margin: 0; padding: 8px 10px; border-top: 1px solid #f0f0f1; }
+#hs-issue-contents-list .hs-ic-row:first-child { border-top: 0; }
+#hs-issue-contents-list .hs-ic-row::before { content: counter(hsic) "."; grid-row: 1; color: #646970; font-size: 12px; line-height: 18px; text-align: right; }
+#hs-issue-contents-list .hs-ic-heading { grid-column: 2; font-size: 12px; font-weight: 600; line-height: 18px; color: #1d2327; overflow-wrap: anywhere; }
+#hs-issue-contents-list .hs-ic-input { grid-column: 2; width: 100%; min-height: 30px; font-size: 13px; }
+#hs-issue-contents-list .hs-ic-input:placeholder-shown { background: #fbfbfc; }
+.hs-wu-contents .hs-ic-skipped { margin: 6px 10px 8px; }
+.hs-wu-contents .hs-ic-hint { margin: -2px 0 8px; color: #646970; }
 </style>
 <script id="hs-issue-contents-js">
 (function () {
