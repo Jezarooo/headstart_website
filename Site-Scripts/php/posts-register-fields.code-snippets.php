@@ -373,6 +373,7 @@ add_action('admin_head', function () {
 #acf-group_hs_post_classification .hs-pc-event-end { grid-area: end; }
 #acf-group_hs_post_classification .hs-pc-tags { grid-area: tags; }
 #acf-group_hs_post_classification .hs-pc-portrait, #acf-group_hs_post_classification .hs-pc-images { grid-area: images; }
+#acf-group_hs_post_classification .hs-pc-hero-focus { grid-column: 1 / 3; }
 #acf-group_hs_post_classification .hs-pc-images .hs-pc-slot { padding: 10px 12px; background: #f6f7f7; border-radius: 2px; }
 #acf-group_hs_post_classification .hs-pc-images .hs-pc-slot .hs-cip-label { display: block; font-weight: 600; margin-bottom: 4px; }
 #acf-group_hs_post_classification .hs-pc-images .hs-cip-hint { margin: 4px 0 0; font-size: 12px; color: #646970; }
@@ -469,7 +470,7 @@ add_action('admin_footer', function () {
         };
     }
     /* ---- Image picker: Featured = WordPress's own featured image (block editor store); Portrait = the ACF field ---- */
-    var picker = null, pickState = {}, urls = {}, lastImages = '';
+    var picker = null, pickState = {}, urls = {}, lastImages = '', hero = null, lastFeatured = null;
     IMAGES.forEach(function (i) { urls[i.id] = i.url; });
     function featuredNow() {
         var id = 0;
@@ -516,7 +517,24 @@ add_action('admin_footer', function () {
         fields.appendChild(wrapper);
         field('hs_portrait_image').style.display = 'none'; // its input stays in the form, so the Portrait still saves
     }
+    /* ---- Hero focal point (desktop): kept in the ACF field hs_hero_focus ---- */
+    function focusInput() { var f = field('hs_hero_focus'); return f ? f.querySelector('input[type="text"]') : null; }
+    function buildHero() {
+        var input = focusInput();
+        if (!input || !window.hsCardPreview || !hsCardPreview.heroFocus) { return null; } // the plain text field stays
+        hero = hsCardPreview.heroFocus({
+            get: function () { return { url: featuredNow().url, focus: input.value }; },
+            set: function (focus) { input.value = focus; jQuery(input).trigger('change'); }
+        });
+        field('hs_hero_focus').style.display = 'none'; // its input stays in the form, so the focal point saves
+        return hero.node;
+    }
     function refresh() {
+        var featuredId = featuredNow().id;
+        // A different photo starts centred. Only when one real image replaces another, so a slow-loading editor can't wipe a saved focus.
+        if (lastFeatured && featuredId && featuredId !== lastFeatured && focusInput()) { focusInput().value = ''; jQuery(focusInput()).trigger('change'); }
+        lastFeatured = featuredId;
+        if (hero) { hero.draw(); }
         if (picker) {
             var key = JSON.stringify([featuredNow(), portraitNow()]);
             if (key !== lastImages) { lastImages = key; picker.draw(); }
@@ -550,6 +568,8 @@ add_action('admin_footer', function () {
         buildPicker();
         previewBox = el('div', 'hs-pc-preview');
         previewBox.appendChild(pv.node);
+        var heroNode = buildHero();
+        if (heroNode) { previewBox.appendChild(heroNode); }
         var toggle = el('button', 'button-link hs-pc-toggle', 'Show preview');
         toggle.type = 'button';
         toggle.addEventListener('click', function () {

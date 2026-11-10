@@ -194,6 +194,7 @@ function hs_a2p_row_defaults( $article, $issue_id ) {
 		'date'          => current_time( 'Y-m-d\TH:i' ),
 		'eventStart'    => get_post_time( 'Y-m-d', false, $issue_id ),
 		'eventEnd'      => '',
+		'heroFocus'     => '',
 		'image'         => 0,
 		'portrait'      => 0,
 		'status'        => $article['dark'] ? 'draft' : 'live',
@@ -223,10 +224,19 @@ function hs_a2p_sanitize_row( $raw ) {
 		'date'          => preg_match( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $date ) ? $date : '',
 		'eventStart'    => $ymd( $raw['eventStart'] ?? '' ),
 		'eventEnd'      => $ymd( $raw['eventEnd'] ?? '' ),
+		'heroFocus'     => hs_a2p_hero_focus( $raw['heroFocus'] ?? '' ),
 		'image'         => absint( $raw['image'] ?? 0 ),
 		'portrait'      => absint( $raw['portrait'] ?? 0 ),
 		'status'        => 'draft' === ( $raw['status'] ?? '' ) ? 'draft' : 'live',
 	);
+}
+
+/** Hero focal point "X Y" (0–100) or ''; the same rule as hs_hero_focus_sanitize() in Posts--Register-Fields. */
+function hs_a2p_hero_focus( $value ) {
+	if ( function_exists( 'hs_hero_focus_sanitize' ) ) {
+		return hs_hero_focus_sanitize( $value );
+	}
+	return preg_match( '/^\s*(\d{1,3})\s+(\d{1,3})\s*$/', (string) $value, $m ) && (int) $m[1] <= 100 && (int) $m[2] <= 100 ? (int) $m[1] . ' ' . (int) $m[2] : '';
 }
 
 /** The required fields a ticked row is missing. These rules exist only in this panel. */
@@ -412,6 +422,10 @@ function hs_a2p_create_post( $issue_id, $article, $row ) {
 	update_post_meta( $id, HS_A2P_SOURCE_META, hs_a2p_source_value( $issue_id, $article['key'] ) );
 	if ( $row['image'] ) {
 		set_post_thumbnail( $id, $row['image'] );
+	}
+	if ( '' !== ( $row['heroFocus'] ?? '' ) ) {
+		update_post_meta( $id, 'hs_hero_focus', $row['heroFocus'] );
+		update_post_meta( $id, '_hs_hero_focus', 'field_hs_hero_focus' );
 	}
 	if ( $row['portrait'] ) {
 		update_post_meta( $id, 'hs_portrait_image', $row['portrait'] );
@@ -903,7 +917,10 @@ function hs_a2p_print_assets() {
 	function imagesRow(row) {
 		var f = row.fields;
 		var wrap = el('div', { 'class': 'hs-a2p-g hs-a2p-g-wide hs-a2p-images' }, [el('h4', { text: 'Images' })]);
-		function set(name, id, url) { f[name] = id; row[SLOT_URL[name]] = url; changed(row); }
+		function set(name, id, url) {
+			if (name === 'image' && id !== f.image) { f.heroFocus = ''; } // a new photo starts centred
+			f[name] = id; row[SLOT_URL[name]] = url; changed(row);
+		}
 		if (!window.hsCardPreview || !window.hsCardPreview.imagePicker) {
 			// Posts--Card-Preview is off: plain Media Library buttons, so images can still be chosen.
 			['image', 'portrait'].forEach(function (name) {
@@ -1059,10 +1076,16 @@ function hs_a2p_print_assets() {
 		var pv = window.hsCardPreview.create({ labels: { badge: 'Shows the Yellow badge text if you fill it in, otherwise the Website Section.' } });
 		row.dom.preview = pv;
 		pv.update(previewValues(row));
-		return el('div', { 'class': 'hs-a2p-preview' }, [pv.node]);
+		var hero = window.hsCardPreview.heroFocus ? window.hsCardPreview.heroFocus({
+			get: function () { return { url: row.imageUrl || '', focus: row.fields.heroFocus || '' }; },
+			set: function (focus) { row.fields.heroFocus = focus; queueSave(); }
+		}) : null;
+		row.dom.hero = hero;
+		return el('div', { 'class': 'hs-a2p-preview' }, [pv.node, hero ? hero.node : null]);
 	}
 	function updatePreview(row) {
 		if (row.dom && row.dom.preview) { row.dom.preview.update(previewValues(row)); }
+		if (row.dom && row.dom.hero) { row.dom.hero.draw(); }
 	}
 	function drawCallouts(row) {
 		if (row.dom && row.dom.preview) { row.dom.preview.redraw(); }
