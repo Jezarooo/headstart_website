@@ -371,6 +371,12 @@ function hs_issue_contents_on_save( $post_id, $post ) {
     hs_issue_contents_refresh( $post_id, $labels, $shows );
 }
 
+/** Archive Post only matters for issues imported from the old site: show it only where it's already ticked. */
+add_filter( 'acf/prepare_field/key=field_6a3772e6f9322', 'hs_wu_hide_archive_field' );
+function hs_wu_hide_archive_field( $field ) {
+    return empty( $field['value'] ) ? false : $field;
+}
+
 /** Issues that have articles hide the old tags field: the list replaces it. Older issues keep it. */
 add_filter( 'acf/prepare_field/key=field_weekly_update_tags', 'hs_issue_hide_tags_field' );
 function hs_issue_hide_tags_field( $field ) {
@@ -412,7 +418,7 @@ function hs_issue_contents_render_box( $post ) {
     wp_nonce_field( 'hs_issue_contents_' . $post->ID, 'hs_issue_contents_nonce' );
     $tip = sprintf( 'Every article in this issue, from its heading (promos are left out). Untick one to leave it off the Campus Hub. Short names over %d characters turn red: they make long chips.', HS_ISSUE_NAME_MAX );
     echo '<div class="hs-ic-card">';
-    echo '<div class="hs-ic-head"><span class="hs-ic-title">In this issue</span><span class="dashicons dashicons-info-outline hs-ic-tip" tabindex="0" title="' . esc_attr( $tip ) . '" aria-label="' . esc_attr( $tip ) . '"></span><span class="hs-ic-count"></span></div>';
+    echo '<div class="hs-ic-head"><span class="hs-ic-title">In this issue</span><span class="hs-ic-tip" tabindex="0" role="button" aria-label="About this list" aria-describedby="hs-ic-tipbox"><span class="dashicons dashicons-info-outline" aria-hidden="true"></span><span class="hs-ic-tipbox" id="hs-ic-tipbox" role="tooltip">' . esc_html( $tip ) . '</span></span><span class="hs-ic-count"></span></div>';
     echo '<div id="hs-issue-contents-list" class="hs-ic-scroll" data-post="' . (int) $post->ID . '" data-max="' . (int) HS_ISSUE_NAME_MAX . '" data-nonce="' . esc_attr( wp_create_nonce( 'hs_issue_contents_get' ) ) . '">';
     hs_issue_contents_print_rows( hs_issue_contents_rows( $post->ID ) );
     echo '</div></div>';
@@ -492,9 +498,15 @@ function hs_issue_contents_admin_assets() {
 #acf-group_6a3772490951b .hs-wu-issue > .acf-label { display: none; }
 #acf-group_6a3772490951b .hs-wu-contents > .acf-input, #acf-group_6a3772490951b .hs-wu-contents .hs-ic-card { position: absolute; inset: 0; }
 #acf-group_6a3772490951b .hs-ic-card { display: flex; flex-direction: column; border: 1px solid #dcdcde; border-radius: 4px; background: #fff; }
-#acf-group_6a3772490951b .hs-ic-head { display: flex; align-items: center; gap: 4px; padding: 12px 12px 8px; border-bottom: 1px solid #f0f0f1; }
+#acf-group_6a3772490951b .hs-ic-head { position: relative; z-index: 5; display: flex; align-items: center; gap: 4px; padding: 12px 12px 8px; border-bottom: 1px solid #f0f0f1; }
 #acf-group_6a3772490951b .hs-ic-title { font-weight: 600; }
-#acf-group_6a3772490951b .hs-ic-tip { font-size: 16px; width: 16px; height: 16px; color: #8c8f94; cursor: help; }
+#acf-group_6a3772490951b .hs-ic-tip { position: relative; display: inline-flex; color: #8c8f94; cursor: help; outline: 0; border-radius: 50%; }
+#acf-group_6a3772490951b .hs-ic-tip .dashicons { font-size: 16px; width: 16px; height: 16px; }
+#acf-group_6a3772490951b .hs-ic-tip:hover, #acf-group_6a3772490951b .hs-ic-tip:focus { color: #2271b1; }
+#acf-group_6a3772490951b .hs-ic-tip:focus-visible { box-shadow: 0 0 0 2px #2271b1; }
+#acf-group_6a3772490951b .hs-ic-tipbox { position: absolute; top: calc(100% + 8px); left: -12px; z-index: 100; width: 260px; padding: 8px 10px; border-radius: 4px; background: #1d2327; color: #fff; font-size: 12px; font-weight: 400; line-height: 1.45; box-shadow: 0 4px 12px rgba(0, 0, 0, .2); opacity: 0; visibility: hidden; transition: opacity .12s; pointer-events: none; }
+#acf-group_6a3772490951b .hs-ic-tipbox::before { content: ""; position: absolute; top: -5px; left: 15px; border: 5px solid transparent; border-top: 0; border-bottom-color: #1d2327; }
+#acf-group_6a3772490951b .hs-ic-tip:hover .hs-ic-tipbox, #acf-group_6a3772490951b .hs-ic-tip:focus .hs-ic-tipbox { opacity: 1; visibility: visible; }
 #acf-group_6a3772490951b .hs-ic-count { margin-left: auto; font-size: 11px; color: #646970; }
 #hs-issue-contents-list.hs-ic-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 #hs-issue-contents-list .hs-ic-list { margin: 0; padding: 0; list-style: none; }

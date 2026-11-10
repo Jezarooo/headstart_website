@@ -90,17 +90,30 @@ try {
   t('the box lists every article heading in order, no promo', box.box && JSON.stringify(box.rows) === JSON.stringify(['A very long heading about the Year 6 Science Fair and its winners', 'Reception Detectives', 'Sports Day']), JSON.stringify(box));
   t('the old tags field is hidden; the list sits in Weekly Update Details', !box.tagsField && box.inGroup, JSON.stringify(box));
   const lay = JSON.parse(await run(`const q = (c) => document.querySelector('#acf-group_6a3772490951b .acf-field.' + c).getBoundingClientRect();
-    const b = q('hs-wu-blurb'), c = q('hs-wu-campus'), w = q('hs-wu-week'), i = q('hs-wu-contents'), a = q('hs-wu-archive');
+    const b = q('hs-wu-blurb'), c = q('hs-wu-campus'), w = q('hs-wu-week'), i = q('hs-wu-contents');
     const list = document.getElementById('hs-issue-contents-list'), card = document.querySelector('.hs-ic-card').getBoundingClientRect();
     const mid = Math.round(w.bottom - c.top);
-    return JSON.stringify({ cols: b.right <= c.left + 1 && c.right <= i.left + 1, campusOverWeek: Math.abs(c.left - w.left) < 2 && w.top >= c.bottom - 1, archiveBelow: a.top >= Math.max(b.bottom, i.bottom) - 1 && a.width > b.width + i.width,
+    return JSON.stringify({ cols: b.right <= c.left + 1 && c.right <= i.left + 1, campusOverWeek: Math.abs(c.left - w.left) < 2 && w.top >= c.bottom - 1, noArchive: !document.querySelector('#acf-group_6a3772490951b .hs-wu-archive'),
       tops: [Math.round(b.top), Math.round(c.top), Math.round(card.top)], heights: [Math.round(b.height), mid, Math.round(card.height)],
       noLabel: !document.querySelector('.hs-wu-contents > .acf-label') || getComputedStyle(document.querySelector('.hs-wu-contents > .acf-label')).display === 'none',
       blurbHint: !document.querySelector('.hs-wu-blurb .acf-label .description'), scrolls: getComputedStyle(list).overflowY === 'auto',
-      count: (document.querySelector('.hs-ic-count') || {}).textContent, tip: !!document.querySelector('.hs-ic-head .hs-ic-tip[title]') });`));
-  t('Blurb | Campus over Week number | In this issue, tops aligned, Archive Post across the bottom', lay.cols && lay.campusOverWeek && lay.archiveBelow && Math.max(...lay.tops) - Math.min(...lay.tops) <= 2, JSON.stringify(lay));
+      count: (document.querySelector('.hs-ic-count') || {}).textContent,
+      tip: true });`));
+  const tipAt = JSON.parse(await run(`const tp = document.querySelector('.hs-ic-head .hs-ic-tip'); tp.scrollIntoView({ block: 'center' }); await new Promise((r) => setTimeout(r, 300));
+    const r = tp.getBoundingClientRect(), box = tp.querySelector('.hs-ic-tipbox');
+    return JSON.stringify({ x: r.left + r.width / 2, y: r.top + r.height / 2, hidden: getComputedStyle(box).visibility === 'hidden' });`));
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: tipAt.x, y: tipAt.y });
+  await sleep(400);
+  const tipShown = JSON.parse(await run(`const tp = document.querySelector('.hs-ic-head .hs-ic-tip'), box = tp.querySelector('.hs-ic-tipbox'), r = box.getBoundingClientRect();
+    box.style.pointerEvents = 'auto'; const hit = document.elementFromPoint(r.left + 20, r.top + 10); box.style.pointerEvents = '';
+    return JSON.stringify({ vis: getComputedStyle(box).visibility, op: getComputedStyle(box).opacity, w: Math.round(r.width), onTop: !!(hit && hit.closest('.hs-ic-tipbox')), hit: hit ? (hit.className || hit.tagName) + ' / ' + ((hit.parentElement || {}).className || '') : 'none', r: [Math.round(r.left), Math.round(r.top)], vh: innerHeight, text: /Untick/.test(box.textContent) });`));
+  if (shots) { const pic = await send('Page.captureScreenshot', { format: 'png', clip: { x: tipAt.x - 450, y: tipAt.y - 60, width: 800, height: 260, scale: 1 } }); writeFileSync(join(shots, 'tooltip.png'), Buffer.from(pic.data, 'base64')); }
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 });
+  lay.tip = tipAt.hidden && tipShown.vis === 'visible' && +tipShown.op > 0.9 && tipShown.w > 200 && tipShown.onTop && tipShown.text;
+  lay.tipDetail = tipShown;
+  t('Blurb | Campus over Week number | In this issue, tops aligned; Archive Post hidden on a new issue', lay.cols && lay.campusOverWeek && lay.noArchive && Math.max(...lay.tops) - Math.min(...lay.tops) <= 2, JSON.stringify(lay));
   t('all three columns are the same height (set by Campus + Week number)', Math.max(...lay.heights) - Math.min(...lay.heights) <= 3, JSON.stringify(lay.heights));
-  t('no label or hint above the list or the blurb; the hint is a tooltip; a count shows', lay.noLabel && lay.blurbHint && lay.tip && lay.count === '3 of 3 shown' && lay.scrolls, JSON.stringify(lay));
+  t('no label or hint above the list or the blurb; the ⓘ tooltip opens on focus; a count shows', lay.noLabel && lay.blurbHint && lay.tip && lay.count === '3 of 3 shown' && lay.scrolls, JSON.stringify(lay));
   const marks = JSON.parse(await run(`const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const rows = [...document.querySelectorAll('#hs-issue-contents-list .hs-ic-row')];
     const before = rows.map((r) => r.querySelector('.hs-ic-len').classList.contains('is-long'));

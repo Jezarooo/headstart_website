@@ -112,6 +112,8 @@ try {
 	$GLOBALS['post'] = get_post( $id );
 	$t( 'the tags field is hidden on an issue with articles', false === hs_issue_hide_tags_field( array( 'key' => 'field_weekly_update_tags' ) ) );
 
+	$t( 'Archive Post is hidden unless the issue is already marked as imported', false === hs_wu_hide_archive_field( array( 'value' => 0 ) ) && false === hs_wu_hide_archive_field( array( 'value' => '' ) ) && is_array( hs_wu_hide_archive_field( array( 'value' => 1 ) ) ) );
+
 	echo "\nCampus Hub cards\n";
 	wp_publish_post( $id );
 	wp_update_post( array( 'ID' => $old, 'post_status' => 'publish' ) );
