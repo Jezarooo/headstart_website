@@ -146,17 +146,35 @@ function hs_a2p_section_for_heading( $heading ) {
 		'sports & academies'   => 'Sports Academies',
 		'eca news'             => 'ECA',
 		'capa news'            => 'CAPA',
-		'thai department'      => 'Thai',
+		'thai department'      => 'thai', // by slug, so it works before and after the Section is renamed
 		'languages department' => 'World Languages',
 		'langauges department' => 'World Languages',
 		'house update'         => 'School Houses',
 		'alumni network'       => 'HeadStart Alumni',
 	);
-	$want = strtolower( trim( $heading ) );
-	$want = $aliases[ $want ] ?? $want;
-	foreach ( get_terms( array( 'taxonomy' => 'hs_department', 'hide_empty' => false ) ) as $term ) {
-		if ( strtolower( html_entity_decode( $term->name, ENT_QUOTES, 'UTF-8' ) ) === strtolower( $want ) ) {
+	$heading = strtolower( trim( $heading ) );
+	if ( '' === $heading ) {
+		return 0;
+	}
+	$terms = get_terms( array( 'taxonomy' => 'hs_department', 'hide_empty' => false ) );
+	$name  = function ( $term ) { return strtolower( html_entity_decode( $term->name, ENT_QUOTES, 'UTF-8' ) ); };
+	// 1. Exact name. 2. Slug (still finds a Section after it's renamed). 3. Alias, by name or slug.
+	foreach ( $terms as $term ) {
+		if ( $name( $term ) === $heading ) {
 			return (int) $term->term_id;
+		}
+	}
+	foreach ( $terms as $term ) {
+		if ( $term->slug === sanitize_title( $heading ) ) {
+			return (int) $term->term_id;
+		}
+	}
+	if ( isset( $aliases[ $heading ] ) ) {
+		$want = strtolower( $aliases[ $heading ] );
+		foreach ( $terms as $term ) {
+			if ( $name( $term ) === $want || $term->slug === $want ) {
+				return (int) $term->term_id;
+			}
 		}
 	}
 	return 0;
@@ -194,6 +212,9 @@ function hs_a2p_row_defaults( $article, $issue_id ) {
 		'date'          => current_time( 'Y-m-d\TH:i' ),
 		'eventStart'    => get_post_time( 'Y-m-d', false, $issue_id ),
 		'eventEnd'      => '',
+		'heroFocus'     => '',
+		'heroMobile'    => 0,
+		'heroMobileFocus' => '',
 		'image'         => 0,
 		'portrait'      => 0,
 		'status'        => $article['dark'] ? 'draft' : 'live',
@@ -223,10 +244,21 @@ function hs_a2p_sanitize_row( $raw ) {
 		'date'          => preg_match( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $date ) ? $date : '',
 		'eventStart'    => $ymd( $raw['eventStart'] ?? '' ),
 		'eventEnd'      => $ymd( $raw['eventEnd'] ?? '' ),
+		'heroFocus'     => hs_a2p_hero_focus( $raw['heroFocus'] ?? '' ),
+		'heroMobile'    => absint( $raw['heroMobile'] ?? 0 ),
+		'heroMobileFocus' => hs_a2p_hero_focus( $raw['heroMobileFocus'] ?? '' ),
 		'image'         => absint( $raw['image'] ?? 0 ),
 		'portrait'      => absint( $raw['portrait'] ?? 0 ),
 		'status'        => 'draft' === ( $raw['status'] ?? '' ) ? 'draft' : 'live',
 	);
+}
+
+/** Hero focal point "X Y" (0–100) or ''; the same rule as hs_hero_focus_sanitize() in Posts--Register-Fields. */
+function hs_a2p_hero_focus( $value ) {
+	if ( function_exists( 'hs_hero_focus_sanitize' ) ) {
+		return hs_hero_focus_sanitize( $value );
+	}
+	return preg_match( '/^\s*(\d{1,3})\s+(\d{1,3})\s*$/', (string) $value, $m ) && (int) $m[1] <= 100 && (int) $m[2] <= 100 ? (int) $m[1] . ' ' . (int) $m[2] : '';
 }
 
 /** The required fields a ticked row is missing. These rules exist only in this panel. */
@@ -413,6 +445,18 @@ function hs_a2p_create_post( $issue_id, $article, $row ) {
 	if ( $row['image'] ) {
 		set_post_thumbnail( $id, $row['image'] );
 	}
+	if ( ! empty( $row['heroMobile'] ) && wp_attachment_is_image( $row['heroMobile'] ) ) {
+		update_post_meta( $id, 'hs_hero_mobile', (int) $row['heroMobile'] );
+		update_post_meta( $id, '_hs_hero_mobile', 'field_hs_hero_mobile' );
+		if ( '' !== ( $row['heroMobileFocus'] ?? '' ) ) {
+			update_post_meta( $id, 'hs_hero_mobile_focus', $row['heroMobileFocus'] );
+			update_post_meta( $id, '_hs_hero_mobile_focus', 'field_hs_hero_mobile_focus' );
+		}
+	}
+	if ( '' !== ( $row['heroFocus'] ?? '' ) ) {
+		update_post_meta( $id, 'hs_hero_focus', $row['heroFocus'] );
+		update_post_meta( $id, '_hs_hero_focus', 'field_hs_hero_focus' );
+	}
 	if ( $row['portrait'] ) {
 		update_post_meta( $id, 'hs_portrait_image', $row['portrait'] );
 		update_post_meta( $id, '_hs_portrait_image', 'field_hs_portrait_image' );
@@ -545,6 +589,7 @@ function hs_a2p_panel_data( $issue_id ) {
 			'fields'      => $fields,
 			'imageUrl'    => hs_a2p_image_url( (int) $fields['image'] ),
 			'portraitUrl' => hs_a2p_image_url( (int) $fields['portrait'] ),
+			'heroMobileUrl' => hs_a2p_image_url( (int) ( $fields['heroMobile'] ?? 0 ) ),
 			'post'        => $post ? hs_a2p_post_state( $post ) : null,
 		);
 	}
@@ -903,7 +948,10 @@ function hs_a2p_print_assets() {
 	function imagesRow(row) {
 		var f = row.fields;
 		var wrap = el('div', { 'class': 'hs-a2p-g hs-a2p-g-wide hs-a2p-images' }, [el('h4', { text: 'Images' })]);
-		function set(name, id, url) { f[name] = id; row[SLOT_URL[name]] = url; changed(row); }
+		function set(name, id, url) {
+			if (name === 'image' && id !== f.image) { f.heroFocus = ''; } // a new photo starts centred
+			f[name] = id; row[SLOT_URL[name]] = url; changed(row);
+		}
 		if (!window.hsCardPreview || !window.hsCardPreview.imagePicker) {
 			// Posts--Card-Preview is off: plain Media Library buttons, so images can still be chosen.
 			['image', 'portrait'].forEach(function (name) {
@@ -1023,12 +1071,12 @@ function hs_a2p_print_assets() {
 				])
 			], 'hs-a2p-g-wide'),
 			group('Website Section', [
-				field(row, 'Website Section *', 'section', [section, custom], 'Dictates where on the site the Post is shown (its feeds and URL). Also the default yellow badge.'),
+				field(row, 'Website Section *', 'section', [section, custom], 'Dictates where on the site the Post is shown (its feeds). Also the default yellow badge.'),
 				field(row, 'Yellow badge text', null, [text('badgeText')], 'Optional. Leave empty to show the Website Section.')
 			], 'hs-a2p-g-sub'),
 			group('Campus', [
-				field(row, 'Campus *', 'campus', [el('div', { 'class': 'hs-a2p-campuses' }, campusBoxes), row.dom.bothHint], 'Tick both for Both Campuses.'),
-				field(row, 'Location text', null, [text('location', 'e.g. Bangkok Trip')], 'Optional. Replaces the campus name in the chip.')
+				field(row, 'Campus *', 'campus', [el('div', { 'class': 'hs-a2p-campuses' }, campusBoxes), row.dom.bothHint], 'Tick both for Both Campuses. Sets the campus in the URL.'),
+				field(row, 'Location text', null, [text('location', 'e.g. Bangkok Trip')], 'Optional. Replaces the campus name in the chip and the URL, e.g. Bangkok Trip. Still tick a Campus.')
 			], 'hs-a2p-g-sub'),
 			imagesRow(row),
 			tagsField(row)
@@ -1059,10 +1107,19 @@ function hs_a2p_print_assets() {
 		var pv = window.hsCardPreview.create({ labels: { badge: 'Shows the Yellow badge text if you fill it in, otherwise the Website Section.' } });
 		row.dom.preview = pv;
 		pv.update(previewValues(row));
-		return el('div', { 'class': 'hs-a2p-preview' }, [pv.node]);
+		var hero = window.hsCardPreview.heroFocus ? window.hsCardPreview.heroFocus({
+			get: function () { return { url: row.imageUrl || '', focus: row.fields.heroFocus || '', mobile: { id: row.fields.heroMobile || 0, url: row.heroMobileUrl || '', focus: row.fields.heroMobileFocus || '' } }; },
+			set: function (focus) { row.fields.heroFocus = focus; queueSave(); },
+			setMobileFocus: function (focus) { row.fields.heroMobileFocus = focus; queueSave(); },
+			images: row.images,
+			setMobile: function (id, url) { row.fields.heroMobile = id || 0; row.heroMobileUrl = url || ''; queueSave(); }
+		}) : null;
+		row.dom.hero = hero;
+		return el('div', { 'class': 'hs-a2p-preview' }, [pv.node, hero ? hero.node : null]);
 	}
 	function updatePreview(row) {
 		if (row.dom && row.dom.preview) { row.dom.preview.update(previewValues(row)); }
+		if (row.dom && row.dom.hero) { row.dom.hero.draw(); }
 	}
 	function drawCallouts(row) {
 		if (row.dom && row.dom.preview) { row.dom.preview.redraw(); }

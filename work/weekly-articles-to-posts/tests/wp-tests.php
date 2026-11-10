@@ -425,10 +425,13 @@ try {
 		'field_hs_event_start'       => array( 'hs_event_start', 'date_picker', 'hs-pc-event-start' ),
 		'field_hs_event_end'         => array( 'hs_event_end', 'date_picker', 'hs-pc-event-end' ),
 		'field_hs_portrait_image'    => array( 'hs_portrait_image', 'image', 'hs-pc-portrait' ),
+		'field_hs_hero_focus'        => array( 'hs_hero_focus', 'text', 'hs-pc-hero-focus' ),
+		'field_hs_hero_mobile'       => array( 'hs_hero_mobile', 'image', 'hs-pc-hero-mobile' ),
+		'field_hs_hero_mobile_focus' => array( 'hs_hero_mobile_focus', 'text', 'hs-pc-hero-mobile-focus' ),
 	);
 	$group = acf_get_fields( 'group_hs_post_classification' );
 	$by_key = array_column( $group, null, 'key' );
-	$t( 'Post Classification still has exactly its eight fields', count( $group ) === 8 && ! array_diff( array_keys( $expect ), array_keys( $by_key ) ) );
+	$t( 'Post Classification has its eleven fields (eight plus hero focal point, phone image and its position)', count( $group ) === 11 && ! array_diff( array_keys( $expect ), array_keys( $by_key ) ) );
 	foreach ( $expect as $key => $e ) {
 		$fl = $by_key[ $key ] ?? array();
 		$t( "$key keeps its name and type, and has its layout class", ( $fl['name'] ?? '' ) === $e[0] && ( $fl['type'] ?? '' ) === $e[1] && ( $fl['wrapper']['class'] ?? '' ) === $e[2], wp_json_encode( array( $fl['name'] ?? '', $fl['type'] ?? '', $fl['wrapper']['class'] ?? '' ) ) );
@@ -447,6 +450,66 @@ try {
 	$legacy = '<img src="' . home_url( '/wp-content/uploads/legacy-images/x/1.jpg' ) . '"/><img src="' . home_url( '/wp-content/uploads/legacy-images/x/2.jpg' ) . '"/><img class="wp-image-' . $others[0] . '" src="a.jpg"/>';
 	$t( 'old-site photos are counted, not listed', 2 === hs_card_preview_unlisted_image_count( $legacy ) && array( $others[0] ) === array_column( hs_card_preview_content_images( $legacy ), 'id' ) );
 	$t( 'no photos: empty list, zero count', array() === hs_card_preview_content_images( '<p>none</p>' ) && 0 === hs_card_preview_unlisted_image_count( '<p>none</p>' ) );
+
+	echo "\nHero focal point (desktop)\n";
+	foreach ( array( '50 30' => '50 30', ' 0 100 ' => '0 100', '7 07' => '7 7', '120 10' => '', '-5 10' => '', '50' => '', 'x y' => '', '' => '', '50 30 10' => '' ) as $in => $want ) {
+		$t( "focus '$in' → '$want'", $want === hs_hero_focus_sanitize( $in ) && $want === hs_a2p_hero_focus( $in ) );
+	}
+	$t( 'ACF saves the focus through the sanitiser', has_filter( 'acf/update_value/key=field_hs_hero_focus', 'hs_hero_focus_sanitize' ) !== false );
+	$hp = (int) get_posts( array( 'post_type' => 'post', 'post_status' => 'publish', 'numberposts' => 1, 'fields' => 'ids', 'meta_key' => '_hs_a2p_source' ) )[0];
+	$had = get_post_meta( $hp, 'hs_hero_focus', true );
+	update_post_meta( $hp, 'hs_hero_focus', '25 70' );
+	$page = wp_remote_retrieve_body( wp_remote_get( add_query_arg( 'nc', time(), get_permalink( $hp ) ), array( 'timeout' => 30 ) ) );
+	$t( 'a Post with a focus prints it for its hero', false !== strpos( $page, '<style id="hs-hero-focus">.hs-post-hero{--hs-hero-focus:25% 70%}</style>' ) );
+	delete_post_meta( $hp, 'hs_hero_focus' );
+	$page = wp_remote_retrieve_body( wp_remote_get( add_query_arg( 'nc', time() + 1, get_permalink( $hp ) ), array( 'timeout' => 30 ) ) );
+	$t( 'a Post without one prints nothing (centred)', '' !== $page && false === strpos( $page, 'hs-hero-focus' ) );
+	$t( 'no Image for phones and tablets: nothing printed for phones', false === strpos( $page, 'hs-hero-mobile' ) );
+	$had_m = get_post_meta( $hp, 'hs_hero_mobile', true );
+	$had_mf = get_post_meta( $hp, 'hs_hero_mobile_focus', true );
+	update_post_meta( $hp, 'hs_hero_mobile', $image_id );
+	update_post_meta( $hp, 'hs_hero_mobile_focus', '30 60' );
+	$src = wp_get_attachment_image_src( $image_id, 'large' );
+	$page = wp_remote_retrieve_body( wp_remote_get( add_query_arg( 'nc', time() + 2, get_permalink( $hp ) ), array( 'timeout' => 30 ) ) );
+	$t( 'with one, below 981px the hero shows it in the same 70vh box at its own position', false !== strpos( $page, '<style id="hs-hero-mobile">@media (max-width:980px){' ) && false !== strpos( $page, 'background:url("' . esc_url( $src[0] ) . '") 30% 60%/cover no-repeat' ) && false !== strpos( $page, 'img{visibility:hidden!important}' ) );
+	if ( '' !== $had_mf ) { update_post_meta( $hp, 'hs_hero_mobile_focus', $had_mf ); } else { delete_post_meta( $hp, 'hs_hero_mobile_focus' ); }
+	if ( '' !== $had_m ) { update_post_meta( $hp, 'hs_hero_mobile', $had_m ); } else { delete_post_meta( $hp, 'hs_hero_mobile' ); }
+	if ( '' !== $had ) { update_post_meta( $hp, 'hs_hero_focus', $had ); }
+	$t( 'the slider card is unchanged by a focal point', false === strpos( hs_get_post_slider_card_html( get_post( $hp ) ), 'object-position' ) );
+	$t( 'panel: the focus is sanitised and defaults to centre', '30 40' === hs_a2p_sanitize_row( $good_row( array( 'heroFocus' => '30 40' ) ) )['heroFocus'] && '' === hs_a2p_sanitize_row( $good_row( array( 'heroFocus' => '300 1' ) ) )['heroFocus'] );
+	$r = hs_a2p_create_posts( $issue4, array( 'dark-styled-article' => $good_row( array( 'title' => 'A2P Hero Focus', 'heroFocus' => '30 40', 'heroMobile' => $image_id, 'heroMobileFocus' => '20 50', 'status' => 'draft' ) ) ) );
+	$track( $issue4 );
+	$hid = $r['created'][0]['id'] ?? 0;
+	$t( 'panel: a created Post stores its focus, tied to the ACF field', '30 40' === get_post_meta( $hid, 'hs_hero_focus', true ) && 'field_hs_hero_focus' === get_post_meta( $hid, '_hs_hero_focus', true ), wp_json_encode( $r ) );
+	$t( 'panel: and its Image for phones and tablets, with its position', (int) $image_id === (int) get_post_meta( $hid, 'hs_hero_mobile', true ) && 'field_hs_hero_mobile' === get_post_meta( $hid, '_hs_hero_mobile', true ) && '20 50' === get_post_meta( $hid, 'hs_hero_mobile_focus', true ) );
+	$t( 'ACF saves the phone image position through the sanitiser', has_filter( 'acf/update_value/key=field_hs_hero_mobile_focus', 'hs_hero_focus_sanitize' ) !== false );
+	$t( 'panel: a non-image phone image is ignored', 0 === hs_a2p_sanitize_row( $good_row( array( 'heroMobile' => 'abc' ) ) )['heroMobile'] );
+
+	echo "\nRenaming a Section, badge or Campus refreshes its Posts\n";
+	$rd = wp_insert_term( 'A2P Rename Dept', 'hs_department' ); $rc = wp_insert_term( 'A2P Rename Campus', 'hs_post_campus' ); $rb = wp_insert_term( 'A2P Rename Badge', 'hs_thematic_chip' );
+	$terms[] = $rd['term_id'];
+	$mk = function ( $title ) use ( &$made ) { $id = wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'draft', 'post_title' => $title ) ); $made[] = $id; return $id; };
+	$pa = $mk( 'A2P rename a' ); wp_set_object_terms( $pa, array( (int) $rd['term_id'] ), 'hs_department' ); wp_set_object_terms( $pa, array( (int) $rc['term_id'] ), 'hs_post_campus' );
+	$pb = $mk( 'A2P rename b' ); wp_set_object_terms( $pb, array( (int) $rd['term_id'] ), 'hs_department' ); wp_set_object_terms( $pb, array( (int) $rb['term_id'] ), 'hs_thematic_chip' );
+	$pc = $mk( 'A2P rename c' ); wp_set_object_terms( $pc, array( $primary ), 'hs_department' );
+	$t( 'before: chips show the original names', 'A2P Rename Dept' === get_post_meta( $pa, 'hs_final_section_chip', true ) && 'A2P Rename Campus' === get_post_meta( $pa, 'hs_final_location_chip', true ) && 'A2P Rename Badge' === get_post_meta( $pb, 'hs_final_section_chip', true ) );
+	$c_before = get_post_meta( $pc, 'hs_final_section_chip', true );
+	wp_update_term( (int) $rd['term_id'], 'hs_department', array( 'name' => 'A2P Renamed Dept' ) );
+	wp_update_term( (int) $rc['term_id'], 'hs_post_campus', array( 'name' => 'A2P Renamed Campus' ) );
+	$t( 'renaming the Section updates its Posts\' Section chip without re-saving them', 'A2P Renamed Dept' === get_post_meta( $pa, 'hs_final_section_chip', true ), get_post_meta( $pa, 'hs_final_section_chip', true ) );
+	$t( 'renaming the Campus updates the location chip', 'A2P Renamed Campus' === get_post_meta( $pa, 'hs_final_location_chip', true ) );
+	$t( 'a badge override still wins over the renamed Section', 'A2P Rename Badge' === get_post_meta( $pb, 'hs_final_section_chip', true ) );
+	wp_update_term( (int) $rb['term_id'], 'hs_thematic_chip', array( 'name' => 'A2P Renamed Badge' ) );
+	$t( 'renaming the badge updates the Posts that use it', 'A2P Renamed Badge' === get_post_meta( $pb, 'hs_final_section_chip', true ) );
+	$t( 'Posts in other Sections are untouched', $c_before === get_post_meta( $pc, 'hs_final_section_chip', true ) );
+	$t( 'the slug stays the same when only the name changes', 'a2p-rename-dept' === get_term( (int) $rd['term_id'] )->slug );
+
+	echo "\nPanel headings: name, then slug, then alias\n";
+	$thai = $section_id( 'Thai' );
+	$t( '"Thai" and "Thai Department" both find the Thai Section', $thai && $thai === hs_a2p_section_for_heading( 'Thai' ) && $thai === hs_a2p_section_for_heading( 'Thai Department' ) );
+	$t( 'after a rename the old heading still finds it by slug', (int) $rd['term_id'] === hs_a2p_section_for_heading( 'A2P Rename Dept' ) && (int) $rd['term_id'] === hs_a2p_section_for_heading( 'A2P Renamed Dept' ) );
+	$t( 'an unknown heading stays empty', 0 === hs_a2p_section_for_heading( 'Nothing Like This' ) && 0 === hs_a2p_section_for_heading( '' ) );
+	wp_delete_term( (int) $rc['term_id'], 'hs_post_campus' ); wp_delete_term( (int) $rb['term_id'], 'hs_thematic_chip' );
 
 	echo "\nPosts gatekeeper\n";
 	$gate = wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'draft', 'post_title' => 'A2P gate check' ) );

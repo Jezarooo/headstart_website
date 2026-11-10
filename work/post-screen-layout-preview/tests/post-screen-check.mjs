@@ -109,13 +109,13 @@ try {
       preview: !!pv && pv.offsetParent !== null, previewRight: pv ? pv.getBoundingClientRect().left >= fieldsRight - 2 : false,
       toggle: (box.querySelector('.hs-pc-toggle') || {}).offsetParent !== null, sticky: pv ? getComputedStyle(box.querySelector('.hs-pc-preview')).position : '',
       labels: [...box.querySelectorAll('.hs-cpv-label strong')].map((x) => x.textContent), lines: box.querySelectorAll('.hs-cpv-lines polyline').length,
-      hints: { section: (f('hs_department_tax').querySelector('.description') || {}).textContent, badge: (f('hs_thematic_chip_tax').querySelector('.description') || {}).textContent } })`));
+      hints: { section: (f('hs_department_tax').querySelector('.description') || {}).textContent, badge: (f('hs_thematic_chip_tax').querySelector('.description') || {}).textContent, campus: (f('hs_campus_tax').querySelector('.description') || {}).textContent, location: (f('hs_location_override').querySelector('.description') || {}).textContent } })`));
   t('fields are on the grid with the five group headings', lay.grid && JSON.stringify(lay.heads) === JSON.stringify(['Website Section', 'Campus', 'Event date (shown to readers)', 'Tags', 'Images']), JSON.stringify(lay.heads));
   t('Website Section beside Campus, badge override beside location override, event start beside end (same line)', lay.pair1 && lay.pair2 && lay.pair3 && lay.sideBySide, JSON.stringify(lay));
   t('order down the page: Section, badge, event dates, tags (full width), images', lay.order.every((v, i, a) => i === 0 || v > a[i - 1]) && lay.tagsWide, JSON.stringify(lay.order));
   t('preview to the right of the fields, no toggle, not sticky', lay.preview && lay.previewRight && !lay.toggle && lay.sticky !== 'sticky', JSON.stringify({ p: lay.preview, r: lay.previewRight, t: lay.toggle, s: lay.sticky }));
   t('nine labels with lines', lay.labels.length === 9 && lay.lines === 9, JSON.stringify(lay.labels));
-  t('shorter hints', /Dictates where on the site the Post is shown/.test(lay.hints.section || '') && /Leave empty to show the Website Section/.test(lay.hints.badge || ''), JSON.stringify(lay.hints));
+  t('hints: Section → feeds (not the URL); Campus and Location override → URL', /its feeds\)/.test(lay.hints.section || '') && !/URL/.test(lay.hints.section || '') && /Leave empty to show the Website Section/.test(lay.hints.badge || '') && /Sets the campus in the URL/.test(lay.hints.campus || '') && /chip and the URL/.test(lay.hints.location || ''), JSON.stringify(lay.hints));
   await shot('post-1-layout-1920.png');
 
   console.log('\nThe preview follows the saved Post');
@@ -126,6 +126,57 @@ try {
   t('photo is the Portrait', sameImage(start.img, setup.portrait), `${start.img} vs ${setup.portrait}`);
   t('tag chip without its prefix', start.tags.length === 1 && start.tags[0] === setup.tag.split(':').pop().trim(), JSON.stringify(start.tags));
   t('card date and chip are the publish date (today for a new draft)', /^\d{1,2}(st|nd|rd|th) [A-Z][a-z]+ \d{4}$/.test(start.date) && /^\d{1,2} [A-Z][a-z]+ \d{4}$/.test(start.chipDate), JSON.stringify({ d: start.date, c: start.chipDate }));
+
+  console.log('\nHero preview');
+  const hf = JSON.parse(await run(`${helpers}
+    const chf = document.getElementById('acf-group_hs_post_classification').querySelector('.hs-chf');
+    const input = f('hs_hero_focus').querySelector('input[type=text]');
+    const hiddenFields = ['hs_hero_focus', 'hs_hero_mobile', 'hs_hero_mobile_focus'].every((n) => f(n).style.display === 'none');
+    const startFocus = input.value;
+    const tab = (k) => chf.querySelector('.hs-chf-devices button[data-device=' + k + ']');
+    const heroEl = () => chf.querySelector('.hs-chf-hero');
+    const shape = () => { const b = heroEl().getBoundingClientRect(); return +(b.width / b.height).toFixed(2); };
+    const where = () => (chf.querySelector('.hs-chf-where') || {}).textContent || '';
+    const key = async (k, shift) => { heroEl().dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, shiftKey: !!shift })); await wait(60); };
+    const centre = async () => { [...chf.querySelectorAll('.hs-chf-actions button')].find((b) => b.textContent === 'Centre').click(); await wait(120); };
+    await wait(700);
+    const out = { tabs: [...chf.querySelectorAll('.hs-chf-devices button')].map((b) => b.textContent), on: (chf.querySelector('.hs-chf-devices .is-on') || {}).dataset.device, desktop: shape(), fold: !!chf.querySelector('.hs-chf-fold'), mobileHiddenOnDesktop: chf.querySelector('.hs-chf-mobile').style.display === 'none' };
+    tab('laptop').click(); await wait(300); out.laptop = shape();
+    await centre();
+    const h = heroEl(), hr = h.getBoundingClientRect();
+    const ev = (t, x, y) => h.dispatchEvent(new PointerEvent(t, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
+    ev('pointerdown', hr.left + hr.width / 2, hr.top + hr.height / 2); ev('pointermove', hr.left + hr.width / 2, hr.top + hr.height / 2 - 20); ev('pointerup', hr.left + hr.width / 2, hr.top + hr.height / 2 - 20); await wait(100);
+    out.dragged = where();
+    await centre();
+    for (let i = 0; i < 3; i++) { await key('ArrowDown'); }
+    await key('ArrowRight');
+    out.keys = where();
+    tab('tablet').click(); await wait(300); out.tablet = shape();
+    tab('phone').click(); await wait(400); out.phone = shape();
+    const scr = chf.querySelector('.hs-chf-screen').getBoundingClientRect(), hb = heroEl().getBoundingClientRect();
+    out.spaceBelow = Math.round(scr.bottom - hb.bottom); out.foldOnPhone = !!chf.querySelector('.hs-chf-fold');
+    await key('ArrowRight'); await key('ArrowRight');
+    out.phoneKeys = where();
+    const mb = chf.querySelector('.hs-chf-mobile'); out.mobileShown = mb.style.display !== 'none';
+    const slot = mb.querySelector('.hs-cip-slot[data-slot=portrait]'); out.slotPad = slot ? parseFloat(getComputedStyle(slot).paddingLeft) : 0;
+    const rack = mb.querySelector('.hs-cip-rack');
+    if (rack) { rack.scrollTop = 40; out.rackSet = Math.round(rack.scrollTop); await key('ArrowLeft'); await key('ArrowRight'); out.rackKept = rack.isConnected && Math.round(mb.querySelector('.hs-cip-rack').scrollTop); }
+    const items = [...mb.querySelectorAll('.hs-cip-rack-item')];
+    out.rackN = items.length;
+    if (items.length) { items[items.length - 1].click(); await wait(800); out.mobileId = +items[items.length - 1].dataset.id; }
+    out.phoneSrc = (heroEl().querySelector('img') || {}).src || '';
+    out.mobileStart = where();
+    await key('ArrowLeft', true); await key('ArrowUp', true);
+    out.mobileMoved = where();
+    tab('desktop').click(); await wait(800);
+    out.backOnDesktop = where(); out.hidden = hiddenFields; out.start = startFocus; out.focus = input.value; out.mobileInput = +f('hs_hero_mobile').querySelector('.acf-image-uploader input[type=hidden]').value; out.mobileFocus = f('hs_hero_mobile_focus').querySelector('input[type=text]').value;
+    return JSON.stringify(out);`));
+  t('the hero fields are hidden behind the preview; it starts centred', hf.hidden && hf.start === '', JSON.stringify(hf));
+  t('Desktop, Laptop, Tablet, Phone at the measured shapes', JSON.stringify(hf.tabs) === JSON.stringify(['Desktop', 'Laptop', 'Tablet', 'Phone']) && Math.abs(hf.desktop - 1632 / 756) < 0.05 && Math.abs(hf.laptop - 1380 / 581) < 0.05 && Math.abs(hf.tablet - 779 / 826) < 0.05 && Math.abs(hf.phone - 371 / 591) < 0.05, JSON.stringify(hf));
+  t('one focal point: up/down from Desktop/Laptop, left/right from Phone', hf.focus === '52 53' && hf.keys === '53% down' && hf.phoneKeys === '52% across', JSON.stringify({ f: hf.focus, k: hf.keys, p: hf.phoneKeys }));
+  t('Phone: no empty screen below the hero; picker padded; rack keeps its scroll', hf.spaceBelow <= 12 && hf.slotPad >= 8 && (hf.rackSet > 0 && hf.rackKept === hf.rackSet || hf.rackN <= 4), JSON.stringify({ s: hf.spaceBelow, pad: hf.slotPad, set: hf.rackSet, kept: hf.rackKept, n: hf.rackN }));
+  t('picking a phone image sets the ACF field and gives it its own position', hf.mobileInput === hf.mobileId && hf.mobileFocus !== '' && hf.mobileStart === 'Centred (default)', JSON.stringify({ id: hf.mobileInput, want: hf.mobileId, mf: hf.mobileFocus }));
+  if (shots) { await run(`document.querySelector('.hs-chf .hs-chf-devices button[data-device=phone]').click(); document.querySelector('.hs-chf').scrollIntoView({ block: 'start' });`); await sleep(1000); const p = await send('Page.captureScreenshot', { format: 'png' }); writeFileSync(join(shots, 'post-4-hero-phone.png'), Buffer.from(p.data, 'base64')); await run(`document.querySelector('.hs-chf .hs-chf-devices button[data-device=desktop]').click();`); await sleep(400); }
 
   console.log('\nEditing fields updates the preview');
   const edited = JSON.parse(await run(`${helpers}
@@ -179,8 +230,9 @@ try {
   const saved = JSON.parse(evalFile(`$id = ${setup.id}; clean_post_cache($id); wp_cache_flush();
 echo wp_json_encode(['title' => get_the_title($id), 'section' => wp_get_object_terms($id, 'hs_department', ['fields' => 'names']), 'campus' => wp_get_object_terms($id, 'hs_post_campus', ['fields' => 'slugs']),
   'location' => get_post_meta($id, 'hs_location_override', true), 'start' => get_post_meta($id, 'hs_event_start', true), 'portrait' => get_post_meta($id, 'hs_portrait_image', true),
-  'tags' => wp_get_object_terms($id, 'post_tag', ['fields' => 'names']), 'label' => get_post_meta($id, 'hs_final_date_label', true), 'chip' => get_post_meta($id, 'hs_final_section_chip', true)]);`).trim());
+  'tags' => wp_get_object_terms($id, 'post_tag', ['fields' => 'names']), 'focus' => get_post_meta($id, 'hs_hero_focus', true), 'mobile' => (int) get_post_meta($id, 'hs_hero_mobile', true), 'mfocus' => get_post_meta($id, 'hs_hero_mobile_focus', true), 'label' => get_post_meta($id, 'hs_final_date_label', true), 'chip' => get_post_meta($id, 'hs_final_section_chip', true)]);`).trim());
   t('saving stores every field', saved.title === 'PS Title Edited' && saved.section.join() === 'Secondary' && saved.campus.sort().join() === 'chaofah,cherngtalay' && saved.location === 'PS Saved Place' && saved.start === '20261201' && !saved.portrait && saved.tags.length === 1, JSON.stringify(saved));
+  t('saving stores the hero position, the phone image and its position', saved.focus === '52 53' && saved.mobile === hf.mobileId && saved.mfocus === hf.mobileFocus && saved.mfocus !== '', JSON.stringify({ f: saved.focus, m: saved.mobile, mf: saved.mfocus }));
   t('the chips are recalculated on save', saved.chip === 'Secondary' && saved.label === '1 December 2026', JSON.stringify({ c: saved.chip, l: saved.label }));
   await open();
   const reloaded = JSON.parse(await run(`${helpers} await wait(400);
@@ -190,12 +242,12 @@ echo wp_json_encode(['title' => get_the_title($id), 'section' => wp_get_object_t
   console.log('\nImage picker');
   const pk = JSON.parse(await run(`${helpers}
     const ed = () => wp.data.select('core/editor').getEditedPostAttribute('featured_media');
-    const items = () => [...box.querySelectorAll('.hs-cip-rack-item')];
+    const items = () => [...box.querySelectorAll('.hs-cip-rack-item')].filter((x) => !x.closest('.hs-chf-mobile'));
     const slotPick = (n) => box.querySelector('.hs-cip-slot[data-slot=' + n + '] .hs-cip-slot-pick');
     const out = { rack: items().map((b) => +b.dataset.id), acfHidden: f('hs_portrait_image').style.display === 'none', picker: !!box.querySelector('.hs-pc-images .hs-cip-grid') };
     slotPick('image').click(); await wait(200);
     items()[0].click(); await wait(800);
-    out.featured = ed(); out.fTag = !!items()[0].querySelector('.hs-cip-tag.is-f'); out.activeAfter = box.querySelector('.hs-cip-slot.is-active').dataset.slot;
+    out.featured = ed(); out.fTag = !!items()[0].querySelector('.hs-cip-tag.is-f'); out.focusAfterNewPhoto = f('hs_hero_focus').querySelector('input[type=text]').value; out.activeAfter = box.querySelector('.hs-cip-slot.is-active').dataset.slot;
     items()[1].click(); await wait(800);
     out.portrait = +f('hs_portrait_image').querySelector('.acf-image-uploader input[type=hidden]').value; out.pTag = !!items()[1].querySelector('.hs-cip-tag.is-p');
     out.previewImg = card().img;
@@ -208,6 +260,7 @@ echo wp_json_encode(['title' => get_the_title($id), 'section' => wp_get_object_t
   t('the rack lists this Post\'s Media Library photos in order (not the old-site one)', JSON.stringify(pk.rack) === JSON.stringify(setup.rackIds) && pk.picker, JSON.stringify(pk.rack));
   t('ACF\'s own Portrait box is hidden behind the picker', pk.acfHidden);
   t('clicking a photo sets the real featured image (editor store), tags it F, then picks the Portrait', pk.featured === setup.rackIds[0] && pk.fTag && pk.activeAfter === 'portrait', JSON.stringify(pk));
+  t('a new Featured image starts the hero centred', pk.focusAfterNewPhoto === '', JSON.stringify(pk.focusAfterNewPhoto));
   t('the next click sets the ACF Portrait, tags it P, and the preview shows it', pk.portrait === setup.rackIds[1] && pk.pTag && sameImage(pk.previewImg, setup.rackUrls[1]), JSON.stringify({ p: pk.portrait, tag: pk.pTag, img: pk.previewImg }));
   t('changing the featured image in the sidebar updates the slot', sameImage(pk.slotAfterSidebar, setup.featured) && pk.fTagGone, pk.slotAfterSidebar);
   const pkSaved = JSON.parse(evalFile(`$id = ${setup.id}; clean_post_cache($id); echo wp_json_encode(['thumb' => (int) get_post_thumbnail_id($id), 'portrait' => (int) get_post_meta($id, 'hs_portrait_image', true)]);`).trim());

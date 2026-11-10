@@ -27,7 +27,7 @@ function hs_register_post_acf_fields() {
                 'label' => 'Website Section',
                 'name' => 'hs_department_tax', // Internal ACF name, not highly relevant since save_terms is true
                 'type' => 'taxonomy',
-                'instructions' => 'Dictates where on the site the Post is shown (its feeds and URL). Also the default yellow badge.',
+                'instructions' => 'Dictates where on the site the Post is shown (its feeds). Also the default yellow badge.',
                 'required' => 1,
                 'conditional_logic' => 0,
                 'wrapper' => array(
@@ -99,7 +99,7 @@ function hs_register_post_acf_fields() {
                 'label' => 'Campus',
                 'name' => 'hs_campus_tax',
                 'type' => 'taxonomy',
-                'instructions' => 'Tick both for Both Campuses.',
+                'instructions' => 'Tick both for Both Campuses. Sets the campus in the URL.',
                 'required' => 1,
                 'conditional_logic' => 0,
                 'wrapper' => array(
@@ -123,7 +123,7 @@ function hs_register_post_acf_fields() {
                 'label' => 'Location override',
                 'name' => 'hs_location_override',
                 'type' => 'text',
-                'instructions' => 'Optional. Replaces the campus name in the chip, e.g. Bangkok Trip. Still tick a Campus.',
+                'instructions' => 'Optional. Replaces the campus name in the chip and the URL, e.g. Bangkok Trip. Still tick a Campus.',
                 'required' => 0,
                 'conditional_logic' => 0,
                 'wrapper' => array(
@@ -192,6 +192,63 @@ function hs_register_post_acf_fields() {
                 'preview_size' => 'medium',
                 'library' => 'all',
             ),
+
+            // 7. Hero focal point (desktop): which part of the Featured image stays in view in the 70vh hero.
+            array(
+                'key' => 'field_hs_hero_focus',
+                'label' => 'Hero focal point',
+                'name' => 'hs_hero_focus',
+                'type' => 'text',
+                'instructions' => 'Set by clicking the hero preview. Two percentages, left and top, e.g. "50 30". Empty is the centre.',
+                'required' => 0,
+                'conditional_logic' => 0,
+                'wrapper' => array(
+                    'width' => '',
+                    'class' => 'hs-pc-hero-focus',
+                    'id' => '',
+                ),
+                'default_value' => '',
+                'placeholder' => '50 50',
+                'maxlength' => 7,
+            ),
+
+            // 8. Image for phones and tablets: shown in the hero below 981px instead of the Featured image.
+            array(
+                'key' => 'field_hs_hero_mobile',
+                'label' => 'Image for phones and tablets',
+                'name' => 'hs_hero_mobile',
+                'type' => 'image',
+                'instructions' => 'Optional. Shown at the top of the Post page on phones and tablets instead of the Featured image, at its own shape. Set it from the hero preview\'s Phone view.',
+                'required' => 0,
+                'conditional_logic' => 0,
+                'wrapper' => array(
+                    'width' => '',
+                    'class' => 'hs-pc-hero-mobile',
+                    'id' => '',
+                ),
+                'return_format' => 'id',
+                'preview_size' => 'medium',
+                'library' => 'all',
+            ),
+
+            // 9. Position of the Image for phones and tablets ("X Y"), set from the hero preview.
+            array(
+                'key' => 'field_hs_hero_mobile_focus',
+                'label' => 'Phone image position',
+                'name' => 'hs_hero_mobile_focus',
+                'type' => 'text',
+                'instructions' => 'Set by dragging in the hero preview\'s Tablet or Phone view. Two percentages, left and top, e.g. "40 50". Empty is the centre.',
+                'required' => 0,
+                'conditional_logic' => 0,
+                'wrapper' => array(
+                    'width' => '',
+                    'class' => 'hs-pc-hero-mobile-focus',
+                    'id' => '',
+                ),
+                'default_value' => '',
+                'placeholder' => '50 50',
+                'maxlength' => 7,
+            ),
         ),
         'location' => array(
             array(
@@ -216,6 +273,43 @@ function hs_register_post_acf_fields() {
         'show_in_rest' => 1,
     ));
 }
+
+/**
+ * Hero focal point: two whole percentages "X Y" (0–100), or '' for the centre. Anything else is cleared.
+ */
+function hs_hero_focus_sanitize($value) {
+    if (preg_match('/^\s*(\d{1,3})\s+(\d{1,3})\s*$/', (string) $value, $m) && (int) $m[1] <= 100 && (int) $m[2] <= 100) {
+        return (int) $m[1] . ' ' . (int) $m[2];
+    }
+    return '';
+}
+add_filter('acf/update_value/key=field_hs_hero_focus', 'hs_hero_focus_sanitize');
+add_filter('acf/update_value/key=field_hs_hero_mobile_focus', 'hs_hero_focus_sanitize');
+
+// On a single Post's page, tell the hero (class hs-post-hero in the Post template) where to focus.
+add_action('wp_head', function () {
+    if (!is_singular('post')) {
+        return;
+    }
+    $post_id = get_queried_object_id();
+    $focus   = hs_hero_focus_sanitize(get_post_meta($post_id, 'hs_hero_focus', true));
+    if ('' !== $focus) {
+        list($x, $y) = explode(' ', $focus);
+        echo '<style id="hs-hero-focus">.hs-post-hero{--hs-hero-focus:' . (int) $x . '% ' . (int) $y . '%}</style>' . "\n";
+    }
+    // Phones and tablets (below Divi's 981px desktop breakpoint): the Post's own image for small screens,
+    // in the same 70vh box (the <img> stays, invisible, to keep its size), at its own position.
+    $mobile = (int) get_post_meta($post_id, 'hs_hero_mobile', true);
+    $src    = $mobile && wp_attachment_is_image($mobile) ? wp_get_attachment_image_src($mobile, 'large') : false;
+    if ($src) {
+        $mf = hs_hero_focus_sanitize(get_post_meta($post_id, 'hs_hero_mobile_focus', true));
+        list($mx, $my) = '' !== $mf ? explode(' ', $mf) : array(50, 50);
+        echo '<style id="hs-hero-mobile">@media (max-width:980px){'
+            . '.hs-post-hero .et_pb_image_wrap{display:block!important;background:url("' . esc_url($src[0]) . '") ' . (int) $mx . '% ' . (int) $my . '%/cover no-repeat}'
+            . '.hs-post-hero .et_pb_image_wrap img{visibility:hidden!important}'
+            . '}</style>' . "\n";
+    }
+});
 
 /**
  * Event end needs an Event start, and can't be before it. ACF posts dates as Ymd.
@@ -330,6 +424,7 @@ add_action('admin_head', function () {
 #acf-group_hs_post_classification .hs-pc-event-end { grid-area: end; }
 #acf-group_hs_post_classification .hs-pc-tags { grid-area: tags; }
 #acf-group_hs_post_classification .hs-pc-portrait, #acf-group_hs_post_classification .hs-pc-images { grid-area: images; }
+#acf-group_hs_post_classification .hs-pc-hero-focus, #acf-group_hs_post_classification .hs-pc-hero-mobile, #acf-group_hs_post_classification .hs-pc-hero-mobile-focus { grid-column: 1 / 3; }
 #acf-group_hs_post_classification .hs-pc-images .hs-pc-slot { padding: 10px 12px; background: #f6f7f7; border-radius: 2px; }
 #acf-group_hs_post_classification .hs-pc-images .hs-pc-slot .hs-cip-label { display: block; font-weight: 600; margin-bottom: 4px; }
 #acf-group_hs_post_classification .hs-pc-images .hs-cip-hint { margin: 4px 0 0; font-size: 12px; color: #646970; }
@@ -426,7 +521,7 @@ add_action('admin_footer', function () {
         };
     }
     /* ---- Image picker: Featured = WordPress's own featured image (block editor store); Portrait = the ACF field ---- */
-    var picker = null, pickState = {}, urls = {}, lastImages = '';
+    var picker = null, pickState = {}, urls = {}, lastImages = '', hero = null, lastFeatured = null, heroNow = null, lastHero = '';
     IMAGES.forEach(function (i) { urls[i.id] = i.url; });
     function featuredNow() {
         var id = 0;
@@ -473,7 +568,41 @@ add_action('admin_footer', function () {
         fields.appendChild(wrapper);
         field('hs_portrait_image').style.display = 'none'; // its input stays in the form, so the Portrait still saves
     }
+    /* ---- Hero focal point (desktop): kept in the ACF field hs_hero_focus ---- */
+    function focusInput() { var f = field('hs_hero_focus'); return f ? f.querySelector('input[type="text"]') : null; }
+    function buildHero() {
+        var input = focusInput();
+        if (!input || !window.hsCardPreview || !hsCardPreview.heroFocus) { return null; } // the plain text field stays
+        var mobileField = window.acf && acf.getField ? acf.getField('field_hs_hero_mobile') : null;
+        function mobileNow() {
+            var f = field('hs_hero_mobile'), i = f && f.querySelector('.acf-image-uploader input[type="hidden"]');
+            var id = i ? parseInt(i.value, 10) || 0 : 0;
+            var mf = field('hs_hero_mobile_focus'), mi = mf && mf.querySelector('input[type="text"]');
+            return { id: id, url: id ? (urls[id] || imageUrl('hs_hero_mobile')) : '', focus: mi ? mi.value : '' };
+        }
+        hero = hsCardPreview.heroFocus({
+            get: function () { return { url: featuredNow().url, focus: input.value, mobile: mobileNow() }; },
+            set: function (focus) { input.value = focus; jQuery(input).trigger('change'); },
+            setMobileFocus: function (focus) { var mf = field('hs_hero_mobile_focus'), mi = mf && mf.querySelector('input[type="text"]'); if (mi) { mi.value = focus; jQuery(mi).trigger('change'); } },
+            images: IMAGES,
+            setMobile: mobileField ? function (id, url) {
+                if (id && url) { urls[id] = url; }
+                if (id) { mobileField.render({ id: id, url: url }); } else if (mobileField.removeAttachment) { mobileField.removeAttachment(); } else { mobileField.render({}); }
+            } : null
+        });
+        field('hs_hero_focus').style.display = 'none'; // its input stays in the form, so the focal point saves
+        if (mobileField) { field('hs_hero_mobile').style.display = 'none'; } // likewise for the phone image
+        if (field('hs_hero_mobile_focus')) { field('hs_hero_mobile_focus').style.display = 'none'; } // and its position
+        heroNow = function () { return JSON.stringify([featuredNow().url, input.value, mobileNow()]); };
+        return hero.node;
+    }
     function refresh() {
+        var featuredId = featuredNow().id;
+        // A different photo starts centred. Only when one real image replaces another, so a slow-loading editor can't wipe a saved focus.
+        if (lastFeatured && featuredId && featuredId !== lastFeatured && focusInput()) { focusInput().value = ''; jQuery(focusInput()).trigger('change'); }
+        lastFeatured = featuredId;
+        // Redraw the hero preview only when what it shows has changed (the editor reports changes constantly).
+        if (hero && heroNow) { var hk = heroNow(); if (hk !== lastHero) { lastHero = hk; hero.draw(); } }
         if (picker) {
             var key = JSON.stringify([featuredNow(), portraitNow()]);
             if (key !== lastImages) { lastImages = key; picker.draw(); }
@@ -507,6 +636,8 @@ add_action('admin_footer', function () {
         buildPicker();
         previewBox = el('div', 'hs-pc-preview');
         previewBox.appendChild(pv.node);
+        var heroNode = buildHero();
+        if (heroNode) { previewBox.appendChild(heroNode); }
         var toggle = el('button', 'button-link hs-pc-toggle', 'Show preview');
         toggle.type = 'button';
         toggle.addEventListener('click', function () {

@@ -184,6 +184,40 @@ function hs_card_preview_print_assets() {
 #wpbody .hs-cip-tag.is-p { background: #8a2be2; left: auto; right: 2px; }
 #wpbody .hs-cip-rack-note { margin-top: 4px; }
 #wpbody .hs-cip-rack-label { display: block; font-weight: 600; margin-bottom: 4px; }
+/* Hero preview: a to-scale screen per device (measured on the Post template), with the hero where it really sits. */
+#wpbody .hs-chf { margin-top: 22px; }
+#wpbody .hs-chf-cap { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+#wpbody .hs-chf-cap span { display: inline-flex; white-space: nowrap; padding: 3px 10px; border-radius: 999px; background: #f0f0f1; color: #50575e; font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; }
+#wpbody .hs-chf-devices { display: inline-flex; margin-bottom: 8px; border: 1px solid #c3c4c7; border-radius: 4px; overflow: hidden; }
+#wpbody .hs-chf-devices button { padding: 4px 10px; border: 0; border-left: 1px solid #c3c4c7; background: #fff; color: #1d2327; font-size: 12px; cursor: pointer; }
+#wpbody .hs-chf-devices button:first-child { border-left: 0; }
+#wpbody .hs-chf-devices button.is-on { background: #2271b1; color: #fff; }
+#wpbody .hs-chf-screen { position: relative; overflow: hidden; margin: 0 auto; background: #fff; border: 1px solid #8c8f94; border-radius: 6px; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
+#wpbody .hs-chf-header { position: absolute; left: 0; right: 0; top: 0; background: #003057; }
+#wpbody .hs-chf-header::after { content: 'Site header'; position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: rgba(255, 255, 255, .55); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+#wpbody .hs-chf-hero { position: absolute; overflow: hidden; background: #1d2327; touch-action: none; user-select: none; outline: 0; }
+#wpbody .hs-chf-hero.can-move { cursor: grab; }
+#wpbody .hs-chf-hero.is-dragging { cursor: grabbing; }
+#wpbody .hs-chf-hero:focus-visible { box-shadow: 0 0 0 2px #f0b323; }
+#wpbody .hs-chf-hero img { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+#wpbody .hs-chf-hero .hs-chf-bg { width: 100%; height: 100%; background-size: cover; background-position: center; }
+#wpbody .hs-chf-fold { position: absolute; left: 0; right: 0; bottom: 0; height: 0; border-top: 2px dashed #d63638; }
+#wpbody .hs-chf-fold span { position: absolute; right: 6px; bottom: 3px; padding: 1px 5px; border-radius: 3px; background: #d63638; color: #fff; font-size: 10px; font-weight: 600; white-space: nowrap; }
+#wpbody .hs-chf-label { margin-top: 8px; padding: 3px 0 3px 8px; border-left: 2px solid #2271b1; font-size: 12px; line-height: 1.4; }
+#wpbody .hs-chf-label strong { display: block; color: #1d2327; }
+#wpbody .hs-chf-label span { display: block; color: #3c434a; font-size: 11.5px; }
+#wpbody .hs-chf-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; font-size: 12px; color: #646970; }
+#wpbody .hs-chf-mobile { margin-top: 10px; padding: 10px 12px 12px; background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 4px; }
+#wpbody .hs-chf-mobile > strong { display: block; margin-bottom: 8px; font-size: 12px; color: #1d2327; }
+#wpbody .hs-chf-mobile .hs-cip-grid { grid-template-columns: 150px minmax(0, 1fr); gap: 10px; }
+#wpbody .hs-chf-mobile .hs-cip-slot[data-slot="image"] { display: none; }
+#wpbody .hs-chf-mobile .hs-cip-slot { padding: 8px 10px; background: #fff; border: 1px solid #dcdcde; border-radius: 3px; }
+#wpbody .hs-chf-mobile .hs-cip-slot .hs-cip-label { display: none; }
+#wpbody .hs-chf-mobile .hs-cip-thumb, #wpbody .hs-chf-mobile .hs-cip-empty { height: 110px; }
+#wpbody .hs-chf-mobile .hs-cip-hint { margin: 6px 0 0; font-size: 11.5px; color: #646970; }
+#wpbody .hs-chf-mobile .hs-cip-rack { max-height: 160px; }
+#wpbody .hs-chf-mobile .hs-cip-rack-label { font-size: 12px; }
+#wpbody .hs-chf-empty { padding: 14px; border: 1px dashed #c3c4c7; border-radius: 4px; color: #646970; font-size: 12px; }
 </style>
 <script id="hs-card-preview-js">
 (function () {
@@ -487,7 +521,174 @@ function hs_card_preview_print_assets() {
 		return { node: node, draw: draw };
 	}
 
-	window.hsCardPreview = { create: create, imagePicker: imagePicker, cardDateLabel: cardDateLabel, postDateLabel: postDateLabel };
+	/*
+	 * Hero preview. A to-scale screen per device, measured on the Post template (10 Nov 2026), with the
+	 * hero at 70vh as on the page heroes:
+	 *   Desktop 1920×1080: header 256; hero 1632×756 at (144, 271).
+	 *   Laptop 1470×830:   header 157; hero 1380×581 at (45, 172).
+	 *   Tablet 820×1180:   header 100; hero 779×826 at (21, 115).
+	 *   Phone 390×844:     header 76;  hero 371×591 at (10, 91).
+	 * If the Post template's header or margins change, these numbers need re-measuring.
+	 * Desktop and Laptop show the Featured image at focus; Tablet and Phone show the Image for phones and
+	 * tablets at its own position when there is one, otherwise the Featured image at focus.
+	 * options:
+	 *   get() -> { url, focus, mobile: { id, url, focus } }    focuses are "X Y" or '' (centre)
+	 *   set(focus), setMobileFocus(focus)
+	 *   images: [{ id, url, thumb }], setMobile(id, url)         (optional) the phone image picker
+	 */
+	var DEVICES = {
+		desktop: { label: 'Desktop', w: 1920, h: 1080, header: 256, hero: { x: 144, y: 271, w: 1632, h: 756 }, shown: 520, small: false },
+		laptop: { label: 'Laptop', w: 1470, h: 830, header: 157, hero: { x: 45, y: 172, w: 1380, h: 581 }, shown: 520, small: false },
+		tablet: { label: 'Tablet', w: 820, h: 1180, header: 100, hero: { x: 21, y: 115, w: 779, h: 826 }, shown: 300, small: true },
+		phone: { label: 'Phone', w: 390, h: 844, header: 76, hero: { x: 10, y: 91, w: 371, h: 591 }, shown: 210, small: true }
+	};
+	function parseFocus(f) {
+		var m = /^\s*(\d{1,3})\s+(\d{1,3})\s*$/.exec(f || '');
+		return m && +m[1] <= 100 && +m[2] <= 100 ? { x: +m[1], y: +m[2] } : { x: 50, y: 50 };
+	}
+	function heroFocus(o) {
+		var state = { device: 'desktop' };
+		var node = el('div', { 'class': 'hs-chf' });
+		var tabs = el('div', { 'class': 'hs-chf-devices', role: 'tablist' });
+		var stage = el('div');
+		var label = el('div', { 'class': 'hs-chf-label' });
+		var actions = el('div', { 'class': 'hs-chf-actions' });
+		var mobileBox = el('div', { 'class': 'hs-chf-mobile' });
+		var empty = el('p', { 'class': 'hs-chf-empty', text: 'Pick a Featured image first; the hero preview then shows it on each screen size.' });
+		var body = el('div', {}, [tabs, stage, label, actions, mobileBox]);
+		node.appendChild(el('div', { 'class': 'hs-chf-cap' }, [el('span', { text: 'Preview · Hero (top of the Post page)' })]));
+		node.appendChild(empty);
+		node.appendChild(body);
+		Object.keys(DEVICES).forEach(function (key) {
+			var b = el('button', { type: 'button', role: 'tab', 'data-device': key, text: DEVICES[key].label });
+			b.addEventListener('click', function () { state.device = key; draw(); });
+			tabs.appendChild(b);
+		});
+		var sizes = {}; // natural size of each image shown, by URL
+		function sizeOf(url, then) {
+			if (sizes[url]) { return sizes[url]; }
+			var probe = new Image();
+			probe.onload = function () { sizes[url] = { w: probe.naturalWidth, h: probe.naturalHeight }; then(); };
+			probe.src = url;
+			return null;
+		}
+		// Which image, and which position, a device shows.
+		function source(d) {
+			var cur = o.get() || {}, m = cur.mobile || {};
+			if (d.small && m.url) { return { url: m.url, focus: m.focus || '', set: o.setMobileFocus, what: 'Image for phones and tablets' }; }
+			return { url: cur.url, focus: cur.focus || '', set: o.set, what: 'Featured image' };
+		}
+		function axisFor(size, box) {
+			if (!size) { return ''; }
+			var r = size.w / size.h, a = box.w / box.h;
+			if (Math.abs(r - a) / a < 0.01) { return ''; }
+			return r > a ? 'x' : 'y';
+		}
+		function overflow(size, axis, boxW, boxH) {
+			var s2 = Math.max(boxW / size.w, boxH / size.h);
+			return axis === 'x' ? size.w * s2 - boxW : size.h * s2 - boxH;
+		}
+
+		var picker = null;
+		function ensurePicker() {
+			if (picker || !o.setMobile) { return; }
+			picker = imagePicker({
+				images: o.images || [],
+				state: { active: 'portrait' },
+				get: function (name) { var m = (o.get() || {}).mobile || {}; return name === 'portrait' ? { id: m.id || 0, url: m.url || '' } : { id: 0, url: '' }; },
+				set: function (name, id, url) { if (name === 'portrait') { o.setMobile(id, url); if (o.setMobileFocus) { o.setMobileFocus(''); } drawScreen(); } },
+				slots: { image: { label: '' }, portrait: { label: 'Image for phones and tablets', hint: function () { return 'Optional. Used on phones and tablets instead of the Featured image. Leave empty to use the Featured image.'; } } },
+				source: 'Pick from this Post’s images',
+				empty: 'No images of its own; use Media Library.'
+			});
+			mobileBox.appendChild(el('strong', { text: 'Image for phones and tablets' }));
+			mobileBox.appendChild(picker.node);
+		}
+
+		var dragging = null;
+		function drawScreen() {
+			var cur = o.get() || {};
+			empty.style.display = cur.url ? 'none' : '';
+			body.style.display = cur.url ? '' : 'none';
+			if (!cur.url) { return; }
+			[].forEach.call(tabs.children, function (b) { var on = b.getAttribute('data-device') === state.device; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
+			var d = DEVICES[state.device], src = source(d);
+			var scale = Math.min(d.shown, stage.clientWidth || d.shown) / d.w;
+			// Tablet and Phone: the whole hero is on screen, so stop just below it (no empty screen below).
+			var screenH = d.small ? d.hero.y + d.hero.h + 14 : d.h;
+			var screen = el('div', { 'class': 'hs-chf-screen', 'data-device': state.device, style: 'width:' + Math.round(d.w * scale) + 'px;height:' + Math.round(screenH * scale) + 'px' });
+			screen.appendChild(el('div', { 'class': 'hs-chf-header', style: 'height:' + Math.round(d.header * scale) + 'px' }));
+			var box = { w: d.hero.w * scale, h: d.hero.h * scale };
+			var hero = el('div', { 'class': 'hs-chf-hero', tabindex: '0', 'data-device': state.device, style: 'left:' + Math.round(d.hero.x * scale) + 'px;top:' + Math.round(d.hero.y * scale) + 'px;width:' + Math.round(box.w) + 'px;height:' + Math.round(box.h) + 'px' });
+			var img = el('img', { alt: '', src: src.url });
+			var p = parseFocus(src.focus);
+			img.style.objectPosition = p.x + '% ' + p.y + '%';
+			hero.appendChild(img);
+			screen.appendChild(hero);
+			if (!d.small) { screen.appendChild(el('div', { 'class': 'hs-chf-fold' }, [el('span', { text: 'Bottom of the screen' })])); }
+			stage.textContent = '';
+			stage.appendChild(screen);
+
+			var size = sizeOf(src.url, drawScreen);
+			var axis = axisFor(size, d.hero);
+			hero.classList.toggle('can-move', !!axis);
+			function commit(x, y) {
+				var f = Math.max(0, Math.min(100, Math.round(x))) + ' ' + Math.max(0, Math.min(100, Math.round(y)));
+				src.set(f);
+				src.focus = f;
+				img.style.objectPosition = f.replace(' ', '% ') + '%';
+				describe(d, src, axis);
+			}
+			hero.addEventListener('pointerdown', function (e) {
+				if (!axis || !size) { return; }
+				var q = parseFocus(src.focus);
+				dragging = { x: e.clientX, y: e.clientY, fx: q.x, fy: q.y, over: overflow(size, axis, box.w, box.h) };
+				hero.classList.add('is-dragging');
+				try { hero.setPointerCapture(e.pointerId); } catch (err) { /* still drags */ }
+				hero.focus();
+			});
+			hero.addEventListener('pointermove', function (e) {
+				if (!dragging || dragging.over <= 0) { return; }
+				// Dragging the photo one way shows more of the other side, so the position moves the opposite way.
+				if (axis === 'x') { commit(dragging.fx - (e.clientX - dragging.x) / dragging.over * 100, dragging.fy); }
+				else { commit(dragging.fx, dragging.fy - (e.clientY - dragging.y) / dragging.over * 100); }
+			});
+			['pointerup', 'pointercancel'].forEach(function (t) { hero.addEventListener(t, function () { dragging = null; hero.classList.remove('is-dragging'); }); });
+			hero.addEventListener('keydown', function (e) {
+				var q = parseFocus(src.focus), step = e.shiftKey ? 10 : 1;
+				var dd = axis === 'x' ? { ArrowLeft: -step, ArrowRight: step }[e.key] : axis === 'y' ? { ArrowUp: -step, ArrowDown: step }[e.key] : 0;
+				if (!dd) { return; }
+				e.preventDefault();
+				if (axis === 'x') { commit(q.x + dd, q.y); } else { commit(q.x, q.y + dd); }
+			});
+			describe(d, src, axis);
+			mobileBox.style.display = d.small && o.setMobile ? '' : 'none';
+		}
+		function describe(d, src, axis) {
+			var p = parseFocus(src.focus);
+			label.textContent = '';
+			label.appendChild(el('strong', { text: d.label + ': the ' + src.what + ', 70% of the screen tall' }));
+			label.appendChild(el('span', { text: !axis
+				? 'This photo is the hero’s shape here, so nothing is cropped.'
+				: 'Drag the photo ' + (axis === 'x' ? 'left or right' : 'up or down') + ' to choose what shows. '
+					+ (d.small ? (src.what === 'Featured image' ? 'Tablet and Phone set the Featured image’s left/right position; Desktop and Laptop set its up/down position.' : 'Tablet and Phone share this image’s position.') : 'Desktop and Laptop share this up/down position.')
+					+ (d.small ? '' : ' The red line is the bottom of the screen.') }));
+			actions.textContent = '';
+			actions.appendChild(el('span', { 'class': 'hs-chf-where', text: !src.focus ? 'Centred (default)' : (axis === 'x' ? p.x + '% across' : p.y + '% down') }));
+			var centre = el('button', { type: 'button', 'class': 'button-link', text: 'Centre' });
+			centre.addEventListener('click', function () { src.set(''); drawScreen(); });
+			actions.appendChild(centre);
+		}
+		function draw() {
+			ensurePicker();
+			if (picker) { picker.draw(); } // updated in place, so the rack keeps its scroll position
+			drawScreen();
+		}
+		draw();
+		return { node: node, draw: draw, setDevice: function (key) { state.device = key; draw(); } };
+	}
+
+	window.hsCardPreview = { create: create, imagePicker: imagePicker, heroFocus: heroFocus, parseFocus: parseFocus, cardDateLabel: cardDateLabel, postDateLabel: postDateLabel };
 }());
 </script>
 	<?php
