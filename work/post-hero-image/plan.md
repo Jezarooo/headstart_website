@@ -8,7 +8,7 @@
 > Approval locks this file. Any edit after approval blocks code commits until the user approves again.
 
 ## In plain English
-A Post's featured image at the top of its page will be exactly as tall as the hero banners on the rest of the site: 70% of the window height. It's cropped to fill, so tall photos no longer run off the screen. Each Post gets a **focal point**: the part of the photo that stays in view when it's cropped. You set it by clicking or dragging on the photo in a new hero preview that shows the desktop crop and the phone crop side by side. This works both in the weekly update's Articles → Posts panel and on the Post edit screen. Slider cards that use the Featured image follow the same focal point. You switch it on by adding one CSS class to the image module in the Post templates. The main risk is how much 70vh crops landscape photos on phones, which is why the preview shows the phone crop.
+A Post's featured image at the top of its page will be exactly as tall as the hero banners on the rest of the site: 70% of the window height. It's cropped to fill, so tall photos no longer run off the screen. Each Post gets a **focal point**: the part of the photo that stays in view when it's cropped. You set it by clicking or dragging on the photo in a new hero preview that shows the desktop crop and the phone crop side by side. This works both in the weekly update's Articles → Posts panel and on the Post edit screen. Slider cards don't change; you choose their photo with the Portrait image as now. You switch it on by adding one CSS class to the image module in the Post templates. The main risk is how much 70vh crops landscape photos on phones, which is why the preview shows the phone crop.
 
 ## Problem / goal
 Page heroes are a row background image at `min-height: 70vh`, cropped to fill (`cover`) and centred. Measured: 756px on a 1080px window, 560px on 800px. On a Post, the featured image is a Divi **Image module** at the top of the Post template's body, shown at its natural height. A 3:2 photo comes out around 60% of the window, but a taller photo goes past the bottom and needs scrolling. There's also no way to choose which part of a photo stays in view.
@@ -16,7 +16,7 @@ Page heroes are a row background image at `min-height: 70vh`, cropped to fill (`
 Decisions from the user (10 Nov):
 - Use the same viewport height as the rest of the site, as a **fixed** 70vh (not "at most").
 - Allow the image to be nudged to its best position, with a preview, on both the weekly update panel and the Post screen.
-- Proposed and assumed unless the user says otherwise at approval: slider cards use the same focal point when they show the Featured image.
+- Slider cards are **not** changed: the Portrait image already chooses their photo.
 
 ## Proposed changes
 
@@ -54,25 +54,22 @@ In **HSN Post STANDARD** and **HSC Posts STANDARD** (body layout titled "HSC Pos
 - The hero preview is shown under the card preview, fed from the row's Featured image.
 - On **Create Posts**, `hs_hero_focus` and its ACF key are saved on the Post when set.
 
-### `Site-Scripts/php/posts-slider-shortcode.code-snippets.php` (Posts--Slider-Shortcode)
-In `hs_get_post_slider_card_html()`: when the card uses the **Featured** image (no Portrait) and `hs_hero_focus` is set, the `<img>` gets `style="object-position:X% Y%"`. A Portrait is its own crop, so it isn't moved. Nothing else changes.
-
-Not changed: URLs, chips, dates, the gatekeeper, page heroes, weekly updates.
+Not changed: URLs, chips, dates, the gatekeeper, page heroes, weekly updates, slider cards (Posts--Slider-Shortcode isn't touched).
 
 ## Risks & rollback
 - **Landscape photos on phones:** 70vh on a phone is a tall, narrow box, so most of a wide photo is cropped away. That's what the page heroes do today. The phone crop in the preview is there so the focal point can be set with that in mind.
 - **The class must be on the right module:** if it were added to another image module, that image would become 70vh. The template steps name the module. Checked on the local templates.
 - **CSS before the class:** harmless, because the rule only matches `.hs-post-hero`.
 - **Cache:** the hero's look is page output. Purge WP Super Cache and Cloudflare APO after adding the CSS and the class. A focal point change on one Post is picked up when that Post is saved, as now.
-- **Rollback:** remove the class from the templates (the heroes go back to natural height), or remove the CSS rule. Restore the three snippets from pack 3 / pack 2 as listed in the dev notes. `hs_hero_focus` meta stays and does nothing.
+- **Rollback:** remove the class from the templates (the heroes go back to natural height), or remove the CSS rule. Restore the three snippets from pack 3 as listed in the dev notes. `hs_hero_focus` meta stays and does nothing.
 
 ## Testing strategy
 ### Automated (Gate 4)
-- `tools/hs lint` on the four snippets; the inline JS is extracted and `node --check`ed.
+- `tools/hs lint` on the three snippets; the inline JS is extracted and `node --check`ed.
 - `wp eval-file work/weekly-articles-to-posts/tests/wp-tests.php` (all 188 still pass), plus:
   - `hs_hero_focus` sanitising: `"50 30"` kept; `"120 x"`, `"-5 10"` and junk cleared; empty is fine;
   - the front-end style tag is printed only for a single Post with a focus, with the right values;
-  - slider card HTML: Featured with a focus gets `object-position`; with a Portrait, or no focus, it doesn't;
+  - slider card HTML is unchanged by a focal point;
   - panel rows: `heroFocus` sanitised; a created Post stores it; the new ACF field keeps its key, name and type.
 - `panel-check.mjs` (all 65 still pass), plus: the hero preview appears with desktop and phone crops; clicking the photo moves the dot and both crops' `object-position`; a created Post has `hs_hero_focus`.
 - `post-screen-check.mjs` (all 35 still pass), plus:
@@ -93,13 +90,13 @@ Not changed: URLs, chips, dates, the gatekeeper, page heroes, weekly updates.
 - [ ] Open a Post on your 1920 screen: the hero is the same height as a page hero (70% of the window), with no scrolling needed to see all of it.
 - [ ] On the Post edit screen, the hero preview shows the Featured image with a dot, plus desktop and phone crops. Drag the dot: both crops follow. Save, then view the Post: the hero is positioned the same way.
 - [ ] The same in a weekly update's Articles → Posts panel: set a focal point, create a Draft, view it.
-- [ ] A slider card for a Post with no Portrait shows the same focal point; one with a Portrait is unchanged.
+- [ ] Slider cards look as before.
 - [ ] Narrow the browser and check a phone width (or use your phone on the local site): the hero is 70% of the screen tall and the focus holds.
 - [ ] Page heroes, weekly updates and archive Posts look as before.
 
 ## Deployment notes for the dev (Gate 7)
 Install **after** packs 1, 2 and 3.
-1. **Replace** the code of **Posts--Register-Fields**, **Posts--Card-Preview**, **Weekly-Update--Articles-To-Posts** and **Posts--Slider-Shortcode** with the files in `files/php/`.
+1. **Replace** the code of **Posts--Register-Fields**, **Posts--Card-Preview** and **Weekly-Update--Articles-To-Posts** with the files in `files/php/`.
 2. **Jeremy** adds the CSS rule to the live global stylesheet, then adds the class `hs-post-hero` to the featured image module in the two STANDARD templates (and the Archive ones if wanted), then purges WP Super Cache and Cloudflare APO.
 - No permalinks flush.
 - Smoke: open any Post → the hero is 70% of the window tall. Open a Post's edit screen → the hero preview with the dot is under the card preview.
