@@ -213,6 +213,7 @@ function hs_a2p_row_defaults( $article, $issue_id ) {
 		'eventStart'    => get_post_time( 'Y-m-d', false, $issue_id ),
 		'eventEnd'      => '',
 		'heroFocus'     => '',
+		'heroMobile'    => 0,
 		'image'         => 0,
 		'portrait'      => 0,
 		'status'        => $article['dark'] ? 'draft' : 'live',
@@ -243,6 +244,7 @@ function hs_a2p_sanitize_row( $raw ) {
 		'eventStart'    => $ymd( $raw['eventStart'] ?? '' ),
 		'eventEnd'      => $ymd( $raw['eventEnd'] ?? '' ),
 		'heroFocus'     => hs_a2p_hero_focus( $raw['heroFocus'] ?? '' ),
+		'heroMobile'    => absint( $raw['heroMobile'] ?? 0 ),
 		'image'         => absint( $raw['image'] ?? 0 ),
 		'portrait'      => absint( $raw['portrait'] ?? 0 ),
 		'status'        => 'draft' === ( $raw['status'] ?? '' ) ? 'draft' : 'live',
@@ -441,6 +443,10 @@ function hs_a2p_create_post( $issue_id, $article, $row ) {
 	if ( $row['image'] ) {
 		set_post_thumbnail( $id, $row['image'] );
 	}
+	if ( ! empty( $row['heroMobile'] ) && wp_attachment_is_image( $row['heroMobile'] ) ) {
+		update_post_meta( $id, 'hs_hero_mobile', (int) $row['heroMobile'] );
+		update_post_meta( $id, '_hs_hero_mobile', 'field_hs_hero_mobile' );
+	}
 	if ( '' !== ( $row['heroFocus'] ?? '' ) ) {
 		update_post_meta( $id, 'hs_hero_focus', $row['heroFocus'] );
 		update_post_meta( $id, '_hs_hero_focus', 'field_hs_hero_focus' );
@@ -577,6 +583,7 @@ function hs_a2p_panel_data( $issue_id ) {
 			'fields'      => $fields,
 			'imageUrl'    => hs_a2p_image_url( (int) $fields['image'] ),
 			'portraitUrl' => hs_a2p_image_url( (int) $fields['portrait'] ),
+			'heroMobileUrl' => hs_a2p_image_url( (int) ( $fields['heroMobile'] ?? 0 ) ),
 			'post'        => $post ? hs_a2p_post_state( $post ) : null,
 		);
 	}
@@ -1095,8 +1102,10 @@ function hs_a2p_print_assets() {
 		row.dom.preview = pv;
 		pv.update(previewValues(row));
 		var hero = window.hsCardPreview.heroFocus ? window.hsCardPreview.heroFocus({
-			get: function () { return { url: row.imageUrl || '', focus: row.fields.heroFocus || '' }; },
-			set: function (focus) { row.fields.heroFocus = focus; queueSave(); }
+			get: function () { return { url: row.imageUrl || '', focus: row.fields.heroFocus || '', mobile: { id: row.fields.heroMobile || 0, url: row.heroMobileUrl || '' } }; },
+			set: function (focus) { row.fields.heroFocus = focus; queueSave(); },
+			images: row.images,
+			setMobile: function (id, url) { row.fields.heroMobile = id || 0; row.heroMobileUrl = url || ''; queueSave(); }
 		}) : null;
 		row.dom.hero = hero;
 		return el('div', { 'class': 'hs-a2p-preview' }, [pv.node, hero ? hero.node : null]);

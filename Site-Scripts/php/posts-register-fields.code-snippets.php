@@ -550,11 +550,23 @@ add_action('admin_footer', function () {
     function buildHero() {
         var input = focusInput();
         if (!input || !window.hsCardPreview || !hsCardPreview.heroFocus) { return null; } // the plain text field stays
+        var mobileField = window.acf && acf.getField ? acf.getField('field_hs_hero_mobile') : null;
+        function mobileNow() {
+            var f = field('hs_hero_mobile'), i = f && f.querySelector('.acf-image-uploader input[type="hidden"]');
+            var id = i ? parseInt(i.value, 10) || 0 : 0;
+            return { id: id, url: id ? (urls[id] || imageUrl('hs_hero_mobile')) : '' };
+        }
         hero = hsCardPreview.heroFocus({
-            get: function () { return { url: featuredNow().url, focus: input.value }; },
-            set: function (focus) { input.value = focus; jQuery(input).trigger('change'); }
+            get: function () { return { url: featuredNow().url, focus: input.value, mobile: mobileNow() }; },
+            set: function (focus) { input.value = focus; jQuery(input).trigger('change'); },
+            images: IMAGES,
+            setMobile: mobileField ? function (id, url) {
+                if (id && url) { urls[id] = url; }
+                if (id) { mobileField.render({ id: id, url: url }); } else if (mobileField.removeAttachment) { mobileField.removeAttachment(); } else { mobileField.render({}); }
+            } : null
         });
         field('hs_hero_focus').style.display = 'none'; // its input stays in the form, so the focal point saves
+        if (mobileField) { field('hs_hero_mobile').style.display = 'none'; } // likewise for the phone image
         return hero.node;
     }
     function refresh() {
