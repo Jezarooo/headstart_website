@@ -415,6 +415,28 @@ try {
 	update_post_meta( $sample[0], 'hs_final_date_label', hs_date_label_for_post( $sample[0] ) );
 	if ( $had_flag ) { update_option( 'hs_date_label_fill_v1', $had_flag, false ); }
 
+	echo "\nPost Classification fields (layout only, data unchanged)\n";
+	$expect = array(
+		'field_hs_post_department'   => array( 'hs_department_tax', 'taxonomy', 'hs-pc-section' ),
+		'field_hs_thematic_chip'     => array( 'hs_thematic_chip_tax', 'taxonomy', 'hs-pc-badge' ),
+		'field_hs_post_tags'         => array( 'post_tag_tax', 'taxonomy', 'hs-pc-tags' ),
+		'field_hs_post_campus'       => array( 'hs_campus_tax', 'taxonomy', 'hs-pc-campus' ),
+		'field_hs_location_override' => array( 'hs_location_override', 'text', 'hs-pc-location' ),
+		'field_hs_event_start'       => array( 'hs_event_start', 'date_picker', 'hs-pc-event-start' ),
+		'field_hs_event_end'         => array( 'hs_event_end', 'date_picker', 'hs-pc-event-end' ),
+		'field_hs_portrait_image'    => array( 'hs_portrait_image', 'image', 'hs-pc-portrait' ),
+	);
+	$group = acf_get_fields( 'group_hs_post_classification' );
+	$by_key = array_column( $group, null, 'key' );
+	$t( 'Post Classification still has exactly its eight fields', count( $group ) === 8 && ! array_diff( array_keys( $expect ), array_keys( $by_key ) ) );
+	foreach ( $expect as $key => $e ) {
+		$fl = $by_key[ $key ] ?? array();
+		$t( "$key keeps its name and type, and has its layout class", ( $fl['name'] ?? '' ) === $e[0] && ( $fl['type'] ?? '' ) === $e[1] && ( $fl['wrapper']['class'] ?? '' ) === $e[2], wp_json_encode( array( $fl['name'] ?? '', $fl['type'] ?? '', $fl['wrapper']['class'] ?? '' ) ) );
+	}
+	$t( 'saving behaviour unchanged: taxonomy fields still save and load their terms', $by_key['field_hs_post_department']['save_terms'] && $by_key['field_hs_post_campus']['save_terms'] && $by_key['field_hs_post_tags']['save_terms'] && $by_key['field_hs_thematic_chip']['save_terms'] );
+	$t( 'required fields unchanged (Website Section and Campus)', 1 === (int) $by_key['field_hs_post_department']['required'] && 1 === (int) $by_key['field_hs_post_campus']['required'] && 0 === (int) $by_key['field_hs_thematic_chip']['required'] );
+	$t( 'the shared preview snippet is loaded', function_exists( 'hs_card_preview_print_assets' ) && function_exists( 'hs_card_preview_screen' ) );
+
 	echo "\nPosts gatekeeper\n";
 	$gate = wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'draft', 'post_title' => 'A2P gate check' ) );
 	$made[] = $gate;

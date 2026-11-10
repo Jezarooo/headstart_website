@@ -1,0 +1,216 @@
+// Drives the Post edit screen in a logged-in headless Chrome on headstart.local:
+// grouped Post Classification layout, the shared labelled preview, the gatekeeper borders, and save/reload.
+// Run from the repo root: node work/post-screen-layout-preview/tests/post-screen-check.mjs [screenshot-dir]
+// A temporary draft Post and badge term are created, then force-deleted.
+import { execFileSync, spawn } from 'node:child_process';
+import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir, homedir } from 'node:os';
+import { join, resolve } from 'node:path';
+
+const repo = resolve(process.cwd());
+const shots = process.argv[2] || '';
+const wpRoot = join(repo, 'app/public');
+const php = '/Applications/Local.app/Contents/Resources/extraResources/lightning-services/php-8.2.29+0/bin/darwin-arm64/bin/php';
+const sock = join(homedir(), 'Library/Application Support/Local/run/l_0Fnw6Gq/mysql/mysqld.sock');
+const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const port = 9343;
+const tmp = mkdtempSync(join(tmpdir(), 'hs-post-screen-'));
+const sessionFile = join(tmp, 'session.json');
+const evalFile = (code) => {
+  const f = join(tmp, 'x.php');
+  writeFileSync(f, `<?php\n${code}`);
+  return execFileSync(php, ['-d', `mysqli.default_socket=${sock}`, '-d', 'error_reporting=E_ERROR', '-d', 'display_errors=0', 'wp-cli.phar', 'eval-file', f],
+    { cwd: wpRoot, env: { ...process.env, HS_SESSION: sessionFile }, encoding: 'utf8' });
+};
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let pass = 0; let fail = 0;
+// The same image at any size: drop WordPress's -WIDTHxHEIGHT and -scaled suffixes.
+const sameImage = (a, b) => { const base = (u) => String(u || '').split('/').pop().replace(/-(\d+x\d+|scaled)(?=\.[a-z]+$)/i, ''); return !!a && base(a) === base(b); };
+const t = (name, ok, detail = '') => { if (ok) { pass++; console.log(`  ok    ${name}`); } else { fail++; console.log(`  FAIL  ${name}${detail ? ` — ${detail}` : ''}`); } };
+
+// A temporary draft Post: Section Primary, Chaofah, one tag, a featured image and a portrait.
+const setup = JSON.parse(evalFile(`
+$u = get_users(['role' => 'administrator', 'number' => 1])[0];
+wp_set_current_user($u->ID);
+$imgs = get_posts(['post_type' => 'attachment', 'post_mime_type' => 'image', 'post_status' => 'inherit', 'numberposts' => 2, 'fields' => 'ids', 'orderby' => 'ID', 'order' => 'DESC']);
+$id = wp_insert_post(['post_type' => 'post', 'post_status' => 'draft', 'post_title' => 'PS Check Post', 'post_content' => '<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->']);
+wp_set_object_terms($id, ['primary'], 'hs_department');
+wp_set_object_terms($id, ['chaofah'], 'hs_post_campus');
+$tag = get_terms(['taxonomy' => 'post_tag', 'hide_empty' => false, 'number' => 1, 'name__like' => 'ACADEMIC'])[0];
+wp_set_object_terms($id, [$tag->term_id], 'post_tag');
+set_post_thumbnail($id, $imgs[0]);
+update_post_meta($id, 'hs_portrait_image', $imgs[1]); update_post_meta($id, '_hs_portrait_image', 'field_hs_portrait_image');
+update_post_meta($id, '_et_pb_use_builder', 'off');
+$badge = wp_insert_term('PS Check Badge', 'hs_thematic_chip');
+$exp = time() + 1800; $tok = WP_Session_Tokens::get_instance($u->ID)->create($exp);
+file_put_contents(getenv('HS_SESSION'), json_encode(['uid' => $u->ID, 'tok' => $tok, 'cookies' => [[LOGGED_IN_COOKIE, wp_generate_auth_cookie($u->ID, $exp, 'logged_in', $tok)], [AUTH_COOKIE, wp_generate_auth_cookie($u->ID, $exp, 'auth', $tok)]]]));
+echo wp_json_encode(['id' => $id, 'badge' => is_wp_error($badge) ? 0 : $badge['term_id'], 'tag' => $tag->name,
+  'featured' => wp_get_attachment_image_url($imgs[0], 'medium'), 'featuredId' => $imgs[0], 'portrait' => wp_get_attachment_url($imgs[1])]);
+`).trim());
+const session = JSON.parse(readFileSync(sessionFile, 'utf8'));
+const browser = spawn(chrome, ['--headless=new', '--disable-gpu', '--window-size=1920,1200', `--user-data-dir=${join(tmp, 'chrome')}`, `--remote-debugging-port=${port}`, 'about:blank'], { stdio: 'ignore' });
+
+let ws;
+try {
+  for (let i = 0; i < 20; i++) { try { await fetch(`http://127.0.0.1:${port}/json/version`); break; } catch { await sleep(500); } }
+  const target = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json();
+  ws = new WebSocket(target.webSocketDebuggerUrl);
+  let id = 0; const waiting = {}; const errors = new Set();
+  const send = (method, params = {}) => new Promise((r) => { const i = ++id; waiting[i] = r; ws.send(JSON.stringify({ id: i, method, params })); });
+  ws.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+    if (d.id && waiting[d.id]) { waiting[d.id](d.result || d.error); return; }
+    if (d.method === 'Runtime.exceptionThrown') { const x = d.params.exceptionDetails; errors.add((x.exception?.description || x.text).split('\n')[0].slice(0, 200)); }
+    if (d.method === 'Page.javascriptDialogOpening') { send('Page.handleJavaScriptDialog', { accept: true }); }
+  };
+  await new Promise((r) => { ws.onopen = r; });
+  for (const m of ['Network.enable', 'Runtime.enable', 'Page.enable']) await send(m);
+  for (const [name, value] of session.cookies) for (const path of ['/', '/wp-admin']) await send('Network.setCookie', { name, value, domain: 'headstart.local', path });
+  const setWidth = (w) => send('Emulation.setDeviceMetricsOverride', { width: w, height: 1200, deviceScaleFactor: 1, mobile: false });
+  await setWidth(1920);
+  const open = async () => { await send('Page.navigate', { url: `http://headstart.local/wp-admin/post.php?post=${setup.id}&action=edit` }); await sleep(16000); };
+  await open();
+  const run = async (expr) => {
+    const r = await send('Runtime.evaluate', { expression: `(async function(){ ${expr} })()`, awaitPromise: true, returnByValue: true });
+    if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
+    return r.result.value;
+  };
+  const shot = async (name) => {
+    if (!shots) return;
+    await run(`document.querySelectorAll('.editor-visual-editor').forEach((n) => { n.style.display = 'none'; }); document.getElementById('acf-group_hs_post_classification').scrollIntoView({ block: 'start' });`);
+    await sleep(800);
+    const p = await send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(join(shots, name), Buffer.from(p.data, 'base64'));
+  };
+  const helpers = `
+    const box = document.getElementById('acf-group_hs_post_classification');
+    const f = (n) => box.querySelector('.acf-field[data-name="' + n + '"]');
+    const top = (n) => Math.round(n.getBoundingClientRect().top);
+    const pv = box.querySelector('.hs-cpv');
+    const q = (sel) => ((pv && pv.querySelector(sel)) || {}).textContent || '';
+    const card = () => ({ badge: q('.hs-badge-primary p'), place: q('.hs-badge-location p'), date: q('.hs-story-date p'), title: q('.hs-story-title p'),
+      tags: [...pv.querySelectorAll('.hs-story-tags span')].map((x) => x.textContent), img: (pv.querySelector('.hs-story-image img') || {}).src || '',
+      sec: q('.hs-cpv-sec p'), chipDate: (pv.querySelectorAll('.hs-cpv-chip p')[0] || {}).textContent, chipPlace: (pv.querySelectorAll('.hs-cpv-chip p')[1] || {}).textContent });
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const tick = (name, label, on) => { const i = [...f(name).querySelectorAll('input[type=checkbox]')].find((x) => x.closest('label').textContent.trim() === label); if (i && i.checked !== on) { i.click(); } return !!i; };`;
+
+  console.log('\nLayout at 1920');
+  const lay = JSON.parse(await run(`${helpers}
+    const r = (n) => f(n).getBoundingClientRect();
+    const heads = [...box.querySelectorAll('.hs-pc-head')].map((h) => h.textContent);
+    const fieldsRight = Math.max(...['hs_campus_tax', 'hs_location_override', 'hs_event_end', 'post_tag_tax'].map((n) => r(n).right));
+    return JSON.stringify({ grid: box.querySelector('.inside').classList.contains('hs-pc-grid'), heads,
+      pair1: top(f('hs_department_tax')) === top(f('hs_campus_tax')), pair2: top(f('hs_thematic_chip_tax')) === top(f('hs_location_override')), pair3: top(f('hs_event_start')) === top(f('hs_event_end')),
+      sideBySide: r('hs_campus_tax').left > r('hs_department_tax').right - 2, tagsWide: r('post_tag_tax').width > r('hs_department_tax').width * 1.8,
+      order: ['hs_department_tax', 'hs_thematic_chip_tax', 'hs_event_start', 'post_tag_tax', 'hs_portrait_image'].map((n) => top(f(n))),
+      preview: !!pv && pv.offsetParent !== null, previewRight: pv ? pv.getBoundingClientRect().left >= fieldsRight - 2 : false,
+      toggle: (box.querySelector('.hs-pc-toggle') || {}).offsetParent !== null, sticky: pv ? getComputedStyle(box.querySelector('.hs-pc-preview')).position : '',
+      labels: [...box.querySelectorAll('.hs-cpv-label strong')].map((x) => x.textContent), lines: box.querySelectorAll('.hs-cpv-lines polyline').length,
+      hints: { section: (f('hs_department_tax').querySelector('.description') || {}).textContent, badge: (f('hs_thematic_chip_tax').querySelector('.description') || {}).textContent } })`));
+  t('fields are on the grid with the five group headings', lay.grid && JSON.stringify(lay.heads) === JSON.stringify(['Website Section', 'Campus', 'Event date (shown to readers)', 'Tags', 'Images']), JSON.stringify(lay.heads));
+  t('Website Section beside Campus, badge override beside location override, event start beside end (same line)', lay.pair1 && lay.pair2 && lay.pair3 && lay.sideBySide, JSON.stringify(lay));
+  t('order down the page: Section, badge, event dates, tags (full width), portrait', lay.order.every((v, i, a) => i === 0 || v > a[i - 1]) && lay.tagsWide, JSON.stringify(lay.order));
+  t('preview to the right of the fields, no toggle, not sticky', lay.preview && lay.previewRight && !lay.toggle && lay.sticky !== 'sticky', JSON.stringify({ p: lay.preview, r: lay.previewRight, t: lay.toggle, s: lay.sticky }));
+  t('nine labels with lines', lay.labels.length === 9 && lay.lines === 9, JSON.stringify(lay.labels));
+  t('shorter hints', /Sets the feeds, the URL and the yellow badge/.test(lay.hints.section || '') && /Leave empty to show the Website Section/.test(lay.hints.badge || ''), JSON.stringify(lay.hints));
+  await shot('post-1-layout-1920.png');
+
+  console.log('\nThe preview follows the saved Post');
+  const start = JSON.parse(await run(`${helpers} await wait(300); return JSON.stringify(card());`));
+  t('badge and section heading show the Website Section', start.badge === 'Primary' && start.sec === 'Primary', JSON.stringify(start));
+  t('campus line and chip show the campus', /Chaofah/.test(start.place) && /Chaofah/.test(start.chipPlace), JSON.stringify(start));
+  t('title from the editor', start.title === 'PS Check Post', start.title);
+  t('photo is the Portrait', sameImage(start.img, setup.portrait), `${start.img} vs ${setup.portrait}`);
+  t('tag chip without its prefix', start.tags.length === 1 && start.tags[0] === setup.tag.split(':').pop().trim(), JSON.stringify(start.tags));
+  t('card date and chip are the publish date (today for a new draft)', /^\d{1,2}(st|nd|rd|th) [A-Z][a-z]+ \d{4}$/.test(start.date) && /^\d{1,2} [A-Z][a-z]+ \d{4}$/.test(start.chipDate), JSON.stringify({ d: start.date, c: start.chipDate }));
+
+  console.log('\nEditing fields updates the preview');
+  const edited = JSON.parse(await run(`${helpers}
+    const out = {};
+    tick('hs_department_tax', 'Primary', false); tick('hs_department_tax', 'Secondary', true); await wait(500);
+    out.section = card().badge;
+    // The badge dropdown loads its options as you type; picking one adds it to the select, as here.
+    const sel = f('hs_thematic_chip_tax').querySelector('select'); sel.appendChild(new Option('PS Check Badge', '${setup.badge}', true, true)); jQuery(sel).trigger('change'); await wait(500);
+    out.badge = card(); 
+    jQuery(f('hs_thematic_chip_tax').querySelector('select')).val('').trigger('change'); await wait(500);
+    out.badgeCleared = card().badge;
+    tick('hs_campus_tax', 'Cherngtalay Campus', true); await wait(500);
+    out.both = card().place;
+    const loc = f('hs_location_override').querySelector('input[type=text]'); loc.value = 'Bangkok Trip'; loc.dispatchEvent(new Event('input', { bubbles: true })); await wait(500);
+    out.loc = card();
+    loc.value = ''; loc.dispatchEvent(new Event('input', { bubbles: true }));
+    const setDate = (name, ymd, shown) => { const h = f(name).querySelector('input[type=hidden]'); h.value = ymd; f(name).querySelector('input[type=text]').value = shown; jQuery(h).trigger('change'); };
+    setDate('hs_event_start', '20261112', '12/11/2026'); setDate('hs_event_end', '20261114', '14/11/2026'); await wait(500);
+    out.range = card();
+    setDate('hs_event_start', '', ''); setDate('hs_event_end', '', ''); await wait(300);
+    wp.data.dispatch('core/editor').editPost({ title: 'PS Title Edited', date: '2026-09-05T10:00:00' }); await wait(800);
+    out.editor = card();
+    tick('post_tag_tax', ${JSON.stringify(setup.tag)}, false); await wait(500);
+    out.noTags = card().tags.length;
+    tick('post_tag_tax', ${JSON.stringify(setup.tag)}, true); await wait(300);
+    const remove = f('hs_portrait_image').querySelector('a[data-name="remove"]'); if (remove) { remove.click(); } await wait(1200);
+    out.featured = card().img;
+    out.dirty = wp.data.select('core/editor').isEditedPostDirty();
+    out.gate = { sectionOk: f('hs_department_tax').classList.contains('hs-valid') };
+    tick('hs_department_tax', 'Secondary', false); await wait(500);
+    out.gate.sectionMissing = f('hs_department_tax').classList.contains('hs-missing');
+    tick('hs_department_tax', 'Secondary', true); await wait(500);
+    out.gate.sectionBack = f('hs_department_tax').classList.contains('hs-valid');
+    return JSON.stringify(out);`));
+  t('ticking another Website Section updates the badge', edited.section === 'Secondary', edited.section);
+  t('a Yellow badge override replaces it on the card and the heading; clearing it goes back', edited.badge.badge === 'PS Check Badge' && edited.badge.sec === 'PS Check Badge' && edited.badgeCleared === 'Secondary', JSON.stringify(edited.badge));
+  t('both campuses → "Both Campuses"', edited.both === 'Both Campuses', edited.both);
+  t('location override replaces the campus on the card and the chip', edited.loc.place === 'Bangkok Trip' && edited.loc.chipPlace === 'Bangkok Trip', JSON.stringify(edited.loc));
+  t('event range: card short form, chip full form', edited.range.date === '12–14 Nov 2026' && edited.range.chipDate === '12–14 November 2026', JSON.stringify(edited.range));
+  t('title and publish date from the editor sidebar', edited.editor.title === 'PS Title Edited' && edited.editor.date === '5th September 2026' && edited.editor.chipDate === '5 September 2026', JSON.stringify(edited.editor));
+  t('unticking the tag removes its chip', edited.noTags === 0);
+  t('removing the Portrait falls back to the Featured image', sameImage(edited.featured, setup.featured), `${edited.featured} vs ${setup.featured}`);
+  t('the gatekeeper still marks Website Section: green when set, red when not', edited.gate.sectionOk && edited.gate.sectionMissing && edited.gate.sectionBack, JSON.stringify(edited.gate));
+  await shot('post-2-edited-1920.png');
+
+  console.log('\nSave and reload');
+  await run(`${helpers}
+    const loc = f('hs_location_override').querySelector('input[type=text]'); loc.value = 'PS Saved Place'; loc.dispatchEvent(new Event('input', { bubbles: true }));
+    const h = f('hs_event_start').querySelector('input[type=hidden]'); h.value = '20261201'; jQuery(h).trigger('change');
+    await wp.data.dispatch('core/editor').savePost(); await wait(6000);`);
+  const saved = JSON.parse(evalFile(`$id = ${setup.id}; clean_post_cache($id); wp_cache_flush();
+echo wp_json_encode(['title' => get_the_title($id), 'section' => wp_get_object_terms($id, 'hs_department', ['fields' => 'names']), 'campus' => wp_get_object_terms($id, 'hs_post_campus', ['fields' => 'slugs']),
+  'location' => get_post_meta($id, 'hs_location_override', true), 'start' => get_post_meta($id, 'hs_event_start', true), 'portrait' => get_post_meta($id, 'hs_portrait_image', true),
+  'tags' => wp_get_object_terms($id, 'post_tag', ['fields' => 'names']), 'label' => get_post_meta($id, 'hs_final_date_label', true), 'chip' => get_post_meta($id, 'hs_final_section_chip', true)]);`).trim());
+  t('saving stores every field', saved.title === 'PS Title Edited' && saved.section.join() === 'Secondary' && saved.campus.sort().join() === 'chaofah,cherngtalay' && saved.location === 'PS Saved Place' && saved.start === '20261201' && !saved.portrait && saved.tags.length === 1, JSON.stringify(saved));
+  t('the chips are recalculated on save', saved.chip === 'Secondary' && saved.label === '1 December 2026', JSON.stringify({ c: saved.chip, l: saved.label }));
+  await open();
+  const reloaded = JSON.parse(await run(`${helpers} await wait(400);
+    return JSON.stringify({ card: card(), sec: [...f('hs_department_tax').querySelectorAll('input:checked')].map((i) => i.closest('label').textContent.trim()), loc: f('hs_location_override').querySelector('input[type=text]').value });`));
+  t('after reload the fields and preview show the saved values', reloaded.sec.join() === 'Secondary' && reloaded.loc === 'PS Saved Place' && reloaded.card.place === 'PS Saved Place' && reloaded.card.date === '1st December 2026', JSON.stringify(reloaded));
+
+  console.log('\nNarrower window');
+  await setWidth(1280); await sleep(1500);
+  const narrow = JSON.parse(await run(`${helpers}
+    const wrap = box.querySelector('.hs-pc-preview'), toggle = box.querySelector('.hs-pc-toggle');
+    const hidden = wrap.offsetParent === null, toggleShown = toggle.offsetParent !== null;
+    toggle.click(); await wait(400);
+    const shownBelow = wrap.offsetParent !== null && wrap.getBoundingClientRect().top >= f('hs_portrait_image').getBoundingClientRect().bottom - 2;
+    toggle.click();
+    return JSON.stringify({ hidden, toggleShown, shownBelow });`));
+  t('at 1280 the preview is under the fields behind Show preview', narrow.hidden && narrow.toggleShown && narrow.shownBelow, JSON.stringify(narrow));
+  await send('Emulation.clearDeviceMetricsOverride');
+
+  t('no JavaScript errors on the page', errors.size === 0, [...errors].join(' | '));
+  for (const [url, label] of [['http://headstart.local/cherngtalay/school-life/2026/10/headstart-cherngtalay-celebrates-exceed-standards-onesqa-accreditation-results/', 'a Post'], ['http://headstart.local/cherngtalay/weekly-update/2026/10/weekly-update-9/', 'a weekly update']]) {
+    const r = await fetch(url);
+    t(`${label} is 200 logged out`, r.status === 200, String(r.status));
+  }
+} catch (e) {
+  t('check finished', false, e.message);
+} finally {
+  if (ws) ws.close();
+  browser.kill();
+  const left = evalFile(`wp_delete_post(${setup.id}, true); if (${setup.badge}) { wp_delete_term(${setup.badge}, 'hs_thematic_chip'); }
+$d = json_decode(file_get_contents(getenv('HS_SESSION')), true); WP_Session_Tokens::get_instance($d['uid'])->destroy($d['tok']); echo 'deleted ${setup.id}';`);
+  console.log(`  cleanup: ${left.trim()}, the temporary badge and the login session`);
+  await sleep(300);
+  rmSync(tmp, { recursive: true, force: true });
+}
+console.log(`\n${pass} passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);
