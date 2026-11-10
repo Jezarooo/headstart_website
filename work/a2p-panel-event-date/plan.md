@@ -16,7 +16,7 @@ The Articles → Posts panel is tidied into labelled groups: Title, publish date
 
 Decisions from the user (10 Nov):
 - URLs keep using the **publish** date (`/school-life/YYYY/MM/`).
-- Sliders and feeds are unchanged (their ordering logic stays; may be reviewed later).
+- Sliders and feeds keep their ordering logic (may be reviewed later). **Slider cards show the event date when one is set**, in a shorter form for ranges *(user, 10 Nov)*.
 - The event date can be a **range**.
 - Images: **click** to pick, no drag; one rack only.
 - The user switches the Theme Builder templates himself; this plan gives the steps.
@@ -40,8 +40,20 @@ Two new ACF fields in the existing **Post Classification** group, after Display 
    | different years | `30 December 2026 – 2 January 2027` |
    Dates are read as plain calendar dates (no timezone shift). It uses an en dash, as above.
 2. The existing `updated_post_meta` catch also recalculates on `hs_event_start` / `hs_event_end`, and a new `added_post_meta`/`deleted_post_meta` catch covers first-time and cleared values.
+2b. **Card date:** new `hs_card_date_label( $post_id )`, the short date for slider cards, worked out when the card is drawn (nothing stored, so no fill needed):
+   | Event fields | Card shows (uppercase via CSS) |
+   |---|---|
+   | none | publish date as today: `jS F Y`, e.g. `28th March 2025` (unchanged for every existing Post) |
+   | start only, or end = start | `12th November 2026` |
+   | same month | `12–14 Nov 2026` |
+   | same year, different months | `30 Oct – 2 Nov 2026` |
+   | different years | `30 Dec 2026 – 2 Jan 2027` |
+   Months are shortened only for ranges, so the longest card date is about 24 characters and fits on one line at the card's smallest width.
 3. **One-off fill:** `hs_fill_date_labels_v1()` on `admin_init`, guarded by the option `hs_date_label_fill_v1`. It writes `hs_final_date_label` for every Post (any status) in batches of 200 per admin page load until done, then sets the option. It only writes that one meta key; it doesn't re-save Posts or touch `post_date`. On local it runs once I build it; on live it runs on Nick's first wp-admin page loads after install.
 4. The repo copy has no stray `?>` after the header comment; live's copy does (it's the only difference). Handover uses `--accept-drift` for this, with the reason recorded.
+
+### `Site-Scripts/php/posts-slider-shortcode.code-snippets.php` (live "Posts--Slider-Shortcode")
+One line in `hs_get_post_slider_card_html()`: the card date becomes `hs_card_date_label( $post_id )` when that function exists, else `get_the_date( 'jS F Y' )` as now, so the slider still works if the chip snippet is ever off. Ordering, the recent-post filter and everything else in the slider are unchanged. The live copy matches the repo (no drift).
 
 ### `Site-Scripts/php/weekly-articles-to-posts.code-snippets.php` (live "Weekly-Update--Articles-To-Posts", new in the badge package)
 1. **Layout:** the row body becomes labelled groups (CSS grid, two columns on wide screens, one on narrow):
@@ -82,7 +94,7 @@ Five templates show the date with a Text module labelled **Date**, using dynamic
 4. Save the layout, then Save in the Theme Builder. Repeat for all five.
 5. Check: a Post with an event range shows the range; an imported Post shows its original date.
 
-Not changed: URLs, slider cards and order, search results, RSS, Yoast dates (they keep the publish date).
+Not changed: URLs, slider order, search results, RSS, Yoast dates (they keep the publish date). The preview's slider-date label becomes "Event date, else publish date (short for ranges)".
 
 ### Tests
 `work/weekly-articles-to-posts/tests/wp-tests.php` and `panel-check.mjs` are extended (below).
@@ -95,7 +107,7 @@ Not changed: URLs, slider cards and order, search results, RSS, Yoast dates (the
 - **Publish date default is now "now".** Posts made from an old weekly update get this month in their URL unless the date is changed. This is intended; the event date carries the "when".
 - **Install order on live:** share-links package, then the badge package (`a2p-badge-override-2026-11-10`), then this one, because this one builds on the badge version of the panel snippet.
 - **Fill on live:** 770+ Posts at 200 per admin page load; a handful of page loads. If it times out, it resumes on the next load.
-- **Rollback:** switch the five templates back to **Post Publish Date** first, then restore the three snippets from `rollback/`. Event meta and `hs_final_date_label` stay in the database and do nothing without the code.
+- **Rollback:** switch the five templates back to **Post Publish Date** first, then restore the three snippets from `rollback/`. Event meta and `hs_final_date_label` stay in the database and do nothing without the code. The slider falls back to the publish date by itself if the chip snippet is restored first.
 
 ## Testing strategy
 ### Automated (Gate 4)
@@ -104,6 +116,7 @@ Not changed: URLs, slider cards and order, search results, RSS, Yoast dates (the
   - labels for every row of the table above, including year boundary, end = start, and the en dash;
   - no event fields → label equals the publish date in `j F Y`; changing `post_date` and saving updates it;
   - ACF validation refuses end-before-start and end-without-start;
+  - card labels for every row of the card table; a Post without event fields keeps exactly `get_the_date( 'jS F Y' )`; the slider card HTML for a Post with a range contains the short range;
   - setting/clearing event meta directly (quick-edit path) recalculates the label;
   - the fill writes a label for every Post, changes no `post_date`/`post_modified`, sets its option, and does nothing on the next run;
   - panel rows: defaults (event start = issue date, Publish now ticked), sanitising, invalid ranges reported as missing; a created Post has the event meta and the right label;
@@ -135,11 +148,12 @@ Not changed: URLs, slider cards and order, search results, RSS, Yoast dates (the
 - [ ] On a normal Post edit screen, Event start / Event end are under the location override; end before start is refused.
 - [ ] Rows that already have a Post show Live/Draft with View and Edit, and no Re-copy.
 - [ ] On your 1920 screen, a ticked row shows the labelled slider card and Post-top strip to the right; they change as you edit fields, and each label names the right field. They match a real slider card closely.
-- [ ] Weekly updates, sliders and search look as before.
+- [ ] A slider showing a Post with an event range shows the short range (e.g. `12–14 NOV 2026`) on its card, on one line; the preview card shows the same. Cards for Posts without event dates look as before.
+- [ ] Weekly updates, slider order and search look as before.
 
 ## Deployment notes for the dev (Gate 7)
 Install **after** the share-links package and the badge package `a2p-badge-override-2026-11-10`. Then:
-1. **Replace** the code of **Posts--Register-Fields**, **Posts--Compute-Taxonomies-From-Custom-Fields** and **Weekly-Update--Articles-To-Posts** with the files in `files/php/`.
+1. **Replace** the code of **Posts--Register-Fields**, **Posts--Compute-Taxonomies-From-Custom-Fields**, **Posts--Slider-Shortcode** and **Weekly-Update--Articles-To-Posts** with the files in `files/php/`.
 2. **Load wp-admin a few times** (any admin page) until the date-label fill finishes; it runs 200 Posts per load. Tell Jeremy when it's done (the option `hs_date_label_fill_v1` exists).
 3. **Jeremy** then switches the Date module in the five Post templates and purges WP Super Cache and Cloudflare APO.
 - No permalinks flush.
