@@ -38,6 +38,18 @@ The Post screen's override field stays as it is, including its "e.g. Spotlight" 
 
 No rewrite rules and no new front-end output. No published Post changes, because none has a badge.
 
+### `Site-Scripts/css/core.css` (global stylesheet): card bottom padding on tool-made Posts
+Added 10 Nov. On a Post made by the tool, the article card has its top padding but none at the bottom, so the last module (often the gallery) touches the card's edge. The cause is two rules in core.css. The Post card rule (`.single-post .hs-post-content-sandbox .hs-weekly-article`, ~line 3082) gives `padding: 2rem 2.5rem` (1.5rem on phones). The older weekly-update separator rule (`.hs-post-content-sandbox .et_pb_group.hs-weekly-article`, ~line 2680) sets `padding-bottom: 0 !important` on every Divi article group, and its `!important` wins. Imported Posts aren't affected because their articles are plain-HTML `<article>` tags, which that rule doesn't match.
+
+Fix: one Posts-only rule, placed straight after the Post card rules and their `@media` block:
+```css
+.single-post .hs-post-content-sandbox .et_pb_group.hs-weekly-article { padding-bottom: 2rem !important; }
+@media (max-width: 768px) { .single-post .hs-post-content-sandbox .et_pb_group.hs-weekly-article { padding-bottom: 1.5rem !important; } }
+```
+Reach (checked on the local DB, 5 Nov data): weekly update pages have `single-weekly_update`, not `single-post`, so they never match. Of 772 Posts with an article, the 770 imported ones are plain HTML and don't match; only the 2 Posts made by the tool are Divi groups. Tested by injecting the rule on the ONESQA Post: card padding became 24px top and 24px bottom.
+
+**Live:** the user adds this CSS on live himself (as a separate snippet added to core.css). It is not one of Nick's steps.
+
 ### Tests
 `work/weekly-articles-to-posts/tests/wp-tests.php` and `panel-check.mjs` are updated to this behaviour.
 
@@ -47,6 +59,8 @@ No rewrite rules and no new front-end output. No published Post changes, because
 - **Order on live:** if the terms are deleted before the snippet is updated, the code recreates them on the next page load. The deployment notes put the steps in order, and checking the list afterwards shows whether it worked.
 - **A live draft or Post using a badge:** the local data is from 5 Nov. The published Posts had none then, but this may have changed, or a draft may use one. That's why Nick leaves any term with a count above 0 and tells us; the count only covers published Posts, so a draft could lose its badge and fall back to its Section.
 - **Rollback:** deactivate the snippet "Weekly-Update--Articles-To-Posts", and restore `Posts--Register-Taxonomies` from `rollback/`. The restored code recreates the 14 terms by itself on the next page load (not `Test`). Posts already created stay as ordinary Posts.
+- **CSS reach:** if someone on live has built a Post by hand in Divi 5 with an `hs-weekly-article` group, it gets the same bottom padding, which is the intended look. Rollback for the CSS: remove the added rule.
+- **CSS added on live by hand:** until the next snapshot, live and `main` differ for core.css. The next `tools/hs snapshot` should show core.css matching this branch; if the live copy differs in wording, the repo copy is aligned to live then.
 - **Two packages:** `tools/hs status` will also list the 9 Nov package as not confirmed live until it is logged. It is superseded by this one, and its deploy record should say so.
 
 ## Testing strategy
@@ -61,6 +75,7 @@ No rewrite rules and no new front-end output. No published Post changes, because
 - `work/weekly-articles-to-posts/tests/panel-check.mjs`: no badge dropdown; the override box has no colour and doesn't hold back Create Posts; a Post made with it empty is logged-out 200 with the Section shown in its chip.
 - `tools/hs drift`: the only new difference is `posts-register-taxonomies`, and the new snippet is still local only.
 - Logged out: a published Post, the homepage and a weekly update → 200. A logged-in Post edit screen loads with no errors.
+- CSS, measured in the browser: on the ONESQA Post the card's bottom padding equals its top padding (2rem desktop, 1.5rem at ≤768px); on Weekly Update 9 the article groups still have `padding-bottom: 0`; on one imported Post the card padding is unchanged.
 
 ### UAT checklist for the user (Gate 5)
 - [ ] Tick an article: there is no badge list, only the optional override box, and it has no colour.
@@ -71,6 +86,8 @@ No rewrite rules and no new front-end output. No published Post changes, because
 - [ ] Posts → Thematic Chips no longer lists Spotlight, Academics, `Test` and the others; only badges you wrote are there. Reload it: they don't come back.
 - [ ] Open a Post: the Yellow Badge Override dropdown has no theme badges, and typing a new one works and shows on the Post.
 - [ ] Existing Posts and the sliders still show their Sections.
+- [ ] On a Post made by the tool (e.g. the ONESQA one), the card has space below its last item, on desktop and phone width.
+- [ ] A weekly update's articles and separator lines look as before, and an imported Post looks as before.
 
 ## Deployment notes for the dev (Gate 7)
 In this order:
@@ -79,5 +96,6 @@ In this order:
 3. **Add** a new Code Snippet "Weekly-Update--Articles-To-Posts" from `files/php/weekly-articles-to-posts.code-snippets.php`, set to "Only run in administration area", and activate it.
 
 - This replaces the 9 Nov package `weekly-articles-to-posts-2026-11-09.zip`. Don't install that one. If it was already installed, replace the snippet's code with this version.
-- No permalinks flush. No cache purge needed to install it.
+- The core.css change (card bottom padding) is added on live by Jeremy, not Nick; `files/css/core.css` in the package is for reference only. After it is added: purge WP Super Cache and Cloudflare APO so visitors get the new CSS.
+- No permalinks flush. No cache purge needed for the snippets.
 - Smoke: open a weekly update and create one **Draft** with the override empty, check its chip shows the Section, then trash it.
