@@ -638,8 +638,6 @@ add_action( 'admin_enqueue_scripts', function () {
 	$screen = get_current_screen();
 	if ( $screen && 'weekly_update' === $screen->post_type && 'post' === $screen->base ) {
 		wp_enqueue_media();
-		// The preview uses the site's own heading and body fonts (the same Google Fonts link the front end loads).
-		wp_enqueue_style( 'hs-a2p-fonts', 'https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;700&display=swap', array(), null );
 	}
 } );
 
@@ -695,56 +693,6 @@ function hs_a2p_print_assets() {
 	#hs-a2p .hs-a2p-pv-toggle { display: none; }
 	#hs-a2p .hs-a2p-preview { display: block; grid-column: 2; grid-row: 1; border-top: 0; border-left: 1px solid #f0f0f1; }
 }
-#hs-a2p .hs-a2p-pv-stage { position: relative; display: grid; grid-template-columns: 216px minmax(0, 1fr); column-gap: 44px; align-items: start; align-content: start; }
-#hs-a2p .hs-a2p-pv-labels { position: relative; grid-column: 2; grid-row: 2; align-self: stretch; }
-#hs-a2p .hs-a2p-pv-striplabels { grid-column: 1 / -1; grid-row: 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
-#hs-a2p .hs-a2p-pv-striplabels .hs-a2p-pv-label { position: static; }
-/* The card and the strip are shown at 80% with zoom, so every part keeps its proportions. */
-#hs-a2p .hs-a2p-pv-cardbox, #hs-a2p .hs-a2p-pv-stripbox { zoom: .8; }
-#hs-a2p .hs-a2p-pv-cardbox { grid-column: 1; width: 270px; }
-#hs-a2p .hs-a2p-pv-stripbox { grid-column: 1 / -1; justify-self: start; }
-#hs-a2p .hs-a2p-pv-cardbox { grid-row: 2; padding-top: 18px; }
-#hs-a2p .hs-a2p-pv-stripbox { grid-row: 4; }
-#hs-a2p .hs-a2p-pv-cap { grid-column: 1 / -1; justify-self: end; position: relative; z-index: 2; display: inline-flex; align-items: center; white-space: nowrap; margin: 0 0 8px; padding: 3px 10px; border-radius: 999px; background: #f0f0f1; color: #50575e; font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; }
-#hs-a2p .hs-a2p-pv-cap:first-child { grid-row: 1; }
-#hs-a2p .hs-a2p-pv-cap:nth-child(3) { grid-row: 3; margin-top: 18px; }
-#hs-a2p .hs-a2p-pv-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
-#hs-a2p .hs-a2p-pv-lines polyline { fill: none; stroke: #2271b1; stroke-width: 1; }
-#hs-a2p .hs-a2p-pv-lines circle { fill: #2271b1; }
-#hs-a2p .hs-a2p-pv-label { position: absolute; left: 0; right: 0; padding: 3px 0 3px 8px; border-left: 2px solid #2271b1; background: #fff; font-size: 12px; line-height: 1.35; }
-#hs-a2p .hs-a2p-pv-label strong { display: block; color: #1d2327; font-size: 12px; }
-#hs-a2p .hs-a2p-pv-label span { display: block; color: #3c434a; font-size: 11.5px; line-height: 1.4; }
-
-/* Slider card: copied from core.css (.hs-story-*, .hs-shortcode-slider-wrapper) and the slider snippet's inline styles. */
-#hs-a2p .hs-a2p-preview { --hs-dark: #003057; --hs-gold: #f0b323; --hs-font-head: 'Montserrat', sans-serif; }
-#hs-a2p .hs-a2p-preview .hs-story-card { container-type: inline-size; box-sizing: border-box; position: relative; display: flex; flex-direction: column; justify-content: space-between; width: 270px; aspect-ratio: 9 / 16; padding: 15px 0 20px; background-color: var(--hs-dark); color: #fff; border-radius: 12px; overflow: visible; box-shadow: 0 10px 25px rgba(0, 0, 0, .15); }
-#hs-a2p .hs-a2p-preview .hs-story-card p { margin: 0; padding: 0; }
-#hs-a2p .hs-a2p-preview .hs-story-image { position: absolute; inset: 0; z-index: 1; border-radius: 12px; overflow: hidden; background: #1d4466; }
-#hs-a2p .hs-a2p-preview .hs-story-image::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0, 48, 87, .3) 0%, rgba(0, 48, 87, .8) 100%); z-index: 2; }
-#hs-a2p .hs-a2p-preview .hs-story-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
-#hs-a2p .hs-a2p-preview .hs-badge-primary { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); z-index: 30; display: inline-flex; max-width: 90%; }
-#hs-a2p .hs-a2p-preview .hs-badge-primary-inner { display: inline-flex; align-items: center; justify-content: center; padding: 4px; border-radius: 50px; background: rgba(255, 255, 255, .15); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, .2); box-shadow: 0 4px 15px rgba(0, 0, 0, .15); }
-#hs-a2p .hs-a2p-preview .hs-badge-primary p { display: block; padding: 6px 16px; border-radius: 50px; background: var(--hs-gold); color: var(--hs-dark); font-family: var(--hs-font-head); font-weight: 800; font-size: clamp(.3rem, 4.5cqw, .8rem); line-height: 1.2; letter-spacing: .5px; text-transform: uppercase; white-space: nowrap; }
-#hs-a2p .hs-a2p-preview .hs-story-top-group { position: relative; z-index: 20; display: flex; flex-direction: column; align-items: center; width: 100%; padding-top: 5px; }
-#hs-a2p .hs-a2p-preview .hs-badge-location p { display: inline-flex; align-items: center; color: #fff; font-family: var(--hs-font-head); font-size: .75rem; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; text-shadow: 0 2px 4px rgba(0, 0, 0, .6); white-space: nowrap; }
-#hs-a2p .hs-a2p-preview .hs-badge-location p::before { content: ''; width: 9px; height: 12px; margin-right: 6px; background: var(--hs-gold); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath d='M172 501C27 291 0 269 0 192 0 86 86 0 192 0s192 86 192 192c0 77-27 99-172 309a24 24 0 0 1-40 0zm20-229a80 80 0 1 0 0-160 80 80 0 0 0 0 160z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath d='M172 501C27 291 0 269 0 192 0 86 86 0 192 0s192 86 192 192c0 77-27 99-172 309a24 24 0 0 1-40 0zm20-229a80 80 0 1 0 0-160 80 80 0 0 0 0 160z'/%3E%3C/svg%3E") center / contain no-repeat; }
-#hs-a2p .hs-a2p-preview .hs-story-date { display: flex; justify-content: center; width: 100%; margin-top: 4px; padding: 4px 0; background: rgba(255, 255, 255, .2); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
-#hs-a2p .hs-a2p-preview .hs-story-date p { color: #fff; font-family: var(--hs-font-head); font-size: .65rem; font-weight: 700; line-height: 1; letter-spacing: .5px; text-transform: uppercase; text-shadow: 0 1px 4px rgba(0, 0, 0, .8); }
-#hs-a2p .hs-a2p-preview .hs-story-bottom-group { position: relative; z-index: 20; display: flex; flex-direction: column; align-items: center; width: 100%; }
-#hs-a2p .hs-a2p-preview .hs-story-title { box-sizing: border-box; display: flex; justify-content: center; width: 100%; margin: 0 0 12px; padding: 0 25px; text-align: center; }
-#hs-a2p .hs-a2p-preview .hs-story-title p { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; color: #fff; font-family: var(--hs-font-head); font-weight: 800; font-size: 1.3rem; line-height: 1.1; text-shadow: 0 2px 5px rgba(0, 0, 0, .4); }
-#hs-a2p .hs-a2p-preview .hs-story-tags { display: flex; justify-content: center; padding: 0 15px; }
-#hs-a2p .hs-a2p-preview .hs-story-tags p { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
-#hs-a2p .hs-a2p-preview .hs-story-tags span { display: inline-flex; align-items: center; padding: 5px 8px; border-radius: 6px; background: rgba(240, 179, 35, .15); border: 1px solid rgba(240, 179, 35, .3); color: var(--hs-gold); font-family: var(--hs-font-head); font-size: .55rem; font-weight: 700; line-height: 1; text-transform: uppercase; }
-
-/* Top of the Post page: the Section, date and campus chips from the Post templates (measured on a live Post). */
-#hs-a2p .hs-a2p-pv-strip { display: flex; flex-wrap: nowrap; white-space: nowrap; align-items: center; gap: 16px; padding: 4px 0 16px; border-bottom: 1px solid #f0b323; font-family: 'Open Sans', sans-serif; }
-#hs-a2p .hs-a2p-pv-strip p { margin: 0; }
-#hs-a2p .hs-a2p-pv-sec { padding-right: 16px; border-right: 1px solid rgba(71, 85, 105, .2); }
-#hs-a2p .hs-a2p-pv-sec p { color: #003057; font-size: 32px; font-weight: 700; line-height: 1.05; text-transform: uppercase; }
-#hs-a2p .hs-a2p-pv-chips { display: flex; flex-wrap: nowrap; gap: 8px; }
-#hs-a2p .hs-a2p-pv-chip { padding: 2px 8px; border-radius: 5px; background: #003057; box-shadow: 0 2px 18px rgba(0, 0, 0, .3); }
-#hs-a2p .hs-a2p-pv-chip p { color: #fff; font-size: 11.2px; font-weight: 700; line-height: 27.2px; white-space: nowrap; }
 #hs-a2p .hs-a2p-intro { color: #50575e; margin: 0 0 12px; }
 #hs-a2p .hs-a2p-row { border: 1px solid #dcdcde; border-radius: 4px; margin-bottom: 8px; background: #fff; }
 #hs-a2p .hs-a2p-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; flex-wrap: wrap; }
@@ -1141,207 +1089,36 @@ function hs_a2p_print_assets() {
 		return body;
 	}
 
-	/* ---- Labelled preview: a slider card and the top of the Post page, built from the row's fields ---- */
-	var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-	function ymd(v) {
-		var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v || '');
-		if (!m) { return null; }
-		var y = +m[1], mo = +m[2], d = +m[3];
-		var check = new Date(Date.UTC(y, mo - 1, d));
-		return check.getUTCMonth() === mo - 1 && check.getUTCDate() === d ? { y: y, m: mo, d: d, key: m[1] + m[2] + m[3] } : null;
-	}
-	function ordinal(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
-	function publishDay(f) { return ymd(f.publishNow ? panel.today : f.date); }
-	// Same rules as hs_date_label_for_post(): event start/end, else the publish date.
-	function postDateLabel(f) {
-		var s = ymd(f.eventStart), e = ymd(f.eventEnd), dash = '–', p = publishDay(f);
-		var full = function (x) { return x.d + ' ' + MONTHS[x.m - 1] + ' ' + x.y; };
-		if (!s) { return p ? full(p) : ''; }
-		if (!e || e.key <= s.key) { return full(s); }
-		if (s.y === e.y && s.m === e.m) { return s.d + dash + full(e); }
-		if (s.y === e.y) { return s.d + ' ' + MONTHS[s.m - 1] + ' ' + dash + ' ' + full(e); }
-		return full(s) + ' ' + dash + ' ' + full(e);
-	}
-	// Same rules as hs_card_date_label(): short months only for ranges.
-	function cardDateLabel(f) {
-		var s = ymd(f.eventStart), e = ymd(f.eventEnd), dash = '\u2013', p = publishDay(f);
-		var long = function (x) { return ordinal(x.d) + ' ' + MONTHS[x.m - 1] + ' ' + x.y; };
-		var mon = function (x) { return MONTHS[x.m - 1].slice(0, 3); };
-		if (!s) { return p ? long(p) : ''; }
-		if (!e || e.key <= s.key) { return long(s); }
-		if (s.y === e.y && s.m === e.m) { return s.d + dash + e.d + ' ' + mon(e) + ' ' + e.y; }
-		if (s.y === e.y) { return s.d + ' ' + mon(s) + ' ' + dash + ' ' + e.d + ' ' + mon(e) + ' ' + e.y; }
-		return s.d + ' ' + mon(s) + ' ' + s.y + ' ' + dash + ' ' + e.d + ' ' + mon(e) + ' ' + e.y;
-	}
+	/* ---- Labelled preview: the shared hsCardPreview (Posts--Card-Preview), fed from the row's fields ---- */
 	function previewValues(row) {
 		var f = row.fields;
 		var section = f.section === 'custom' ? String(f.customSection || '').trim() : ((panel.sections.filter(function (s) { return String(s.id) === String(f.section); })[0] || {}).name || '');
-		var names = panel.campuses.filter(function (c) { return f.campus.indexOf(c.slug) !== -1; }).map(function (c) { return c.name; });
-		var place = String(f.location || '').trim() || (names.length > 1 ? 'Both Campuses' : names[0] || '');
 		return {
-			badge: String(f.badgeText || '').trim() || section || 'News',
-			place: place,
-			sliderDate: cardDateLabel(f),
-			postDate: postDateLabel(f),
-			image: row.portraitUrl || row.imageUrl || '',
 			title: String(f.title || '').trim() || row.headline,
-			tags: (f.tags || []).map(function (t) { var i = t.indexOf(':'); return (i > -1 ? t.slice(i + 1) : t).trim(); }).filter(Boolean)
+			section: section,
+			badgeText: f.badgeText,
+			campusNames: panel.campuses.filter(function (c) { return f.campus.indexOf(c.slug) !== -1; }).map(function (c) { return c.name; }),
+			location: f.location,
+			publishDate: f.publishNow ? panel.today : String(f.date || '').slice(0, 10),
+			eventStart: f.eventStart,
+			eventEnd: f.eventEnd,
+			image: row.portraitUrl || row.imageUrl || '',
+			tags: f.tags || []
 		};
 	}
-
-	// [where, target, part of the page, where its text comes from]
-	var CALLOUTS = [
-		['card', 'badge', 'Yellow badge', 'Shows the Yellow badge text if you fill it in, otherwise the Website Section.'],
-		['card', 'place', 'Campus line', 'Shows the Location text if you fill it in, otherwise the campus name (or \u201cBoth Campuses\u201d).'],
-		['card', 'sliderDate', 'Date', 'The event date if set, otherwise the publish date.'],
-		['card', 'image', 'Photo', 'The Portrait image if chosen, otherwise the Featured image.'],
-		['card', 'title', 'Title', 'The Title field.'],
-		['card', 'tags', 'Tag chips', 'Thematic Tags without their prefix: \u201cSPORT: Swimming\u201d shows as \u201cSwimming\u201d.'],
-		['strip', 'section', 'Section heading', 'Shows the Yellow badge text if you fill it in, otherwise the Website Section.'],
-		['strip', 'postDate', 'Date chip', 'The event date if set, otherwise the publish date.'],
-		['strip', 'chipPlace', 'Campus chip', 'Shows the Location text if you fill it in, otherwise the campus name.']
-	];
-
 	function previewNode(row) {
-		var t = {};
-		var card = el('div', { 'class': 'hs-shortcode-slider-wrapper' }, [
-			el('div', { 'class': 'hs-story-card' }, [
-				t.image = el('div', { 'class': 'hs-story-image' }),
-				t.badge = el('div', { 'class': 'hs-badge-primary' }, [el('div', { 'class': 'hs-badge-primary-inner' }, [el('p')])]),
-				el('div', { 'class': 'hs-story-top-group' }, [
-					t.place = el('div', { 'class': 'hs-badge-location' }, [el('p')]),
-					t.sliderDate = el('div', { 'class': 'hs-story-date' }, [el('p')])
-				]),
-				el('div', { 'class': 'hs-story-bottom-group' }, [
-					t.title = el('div', { 'class': 'hs-story-title' }, [el('p')]),
-					t.tags = el('div', { 'class': 'hs-story-tags' }, [el('p')])
-				])
-			])
-		]);
-		var strip = el('div', { 'class': 'hs-a2p-pv-strip' }, [
-			t.section = el('div', { 'class': 'hs-a2p-pv-sec' }, [el('p')]),
-			el('div', { 'class': 'hs-a2p-pv-chips' }, [
-				t.postDate = el('div', { 'class': 'hs-a2p-pv-chip' }, [el('p')]),
-				t.chipPlace = el('div', { 'class': 'hs-a2p-pv-chip' }, [el('p')])
-			])
-		]);
-		var lines = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-		lines.setAttribute('class', 'hs-a2p-pv-lines');
-		lines.setAttribute('aria-hidden', 'true');
-		var labels = el('div', { 'class': 'hs-a2p-pv-labels' });
-		var stripLabels = el('div', { 'class': 'hs-a2p-pv-striplabels' });
-		var capCard = el('span', { 'class': 'hs-a2p-pv-cap', text: 'Preview \u00b7 Slider card' });
-		var capStrip = el('span', { 'class': 'hs-a2p-pv-cap', text: 'Preview \u00b7 Top of the Post page' });
-		var stage = el('div', { 'class': 'hs-a2p-pv-stage' }, [
-			capCard,
-			el('div', { 'class': 'hs-a2p-pv-cardbox' }, [card]),
-			capStrip,
-			el('div', { 'class': 'hs-a2p-pv-stripbox' }, [strip]),
-			stripLabels,
-			labels, lines
-		]);
-		var box = el('div', { 'class': 'hs-a2p-preview' }, [
-			stage
-		]);
-		row.dom.preview = { box: box, stage: stage, labels: labels, stripLabels: stripLabels, lines: lines, t: t, caps: { card: capCard, strip: capStrip } };
-		updatePreview(row);
-		return box;
+		if (!window.hsCardPreview) { return null; } // Posts--Card-Preview is off: the panel works without a preview.
+		var pv = window.hsCardPreview.create({ labels: { badge: 'Shows the Yellow badge text if you fill it in, otherwise the Website Section.' } });
+		row.dom.preview = pv;
+		pv.update(previewValues(row));
+		return el('div', { 'class': 'hs-a2p-preview' }, [pv.node]);
 	}
-
 	function updatePreview(row) {
-		var pv = row.dom && row.dom.preview;
-		if (!pv) { return; }
-		var v = previewValues(row), t = pv.t;
-		var setText = function (node, text) { node.querySelector('p').textContent = text; node.style.display = text ? '' : 'none'; };
-		setText(t.badge, v.badge);
-		setText(t.place, v.place);
-		setText(t.sliderDate, v.sliderDate);
-		setText(t.title, v.title);
-		setText(t.section, v.badge);
-		setText(t.postDate, v.postDate);
-		setText(t.chipPlace, v.place);
-		var tp = t.tags.querySelector('p');
-		tp.textContent = '';
-		v.tags.forEach(function (name) { tp.appendChild(el('span', { text: name })); });
-		t.tags.style.display = v.tags.length ? '' : 'none';
-		if (t.image.dataset.src !== v.image) {
-			t.image.dataset.src = v.image;
-			t.image.textContent = '';
-			if (v.image) {
-				var img = el('img', { src: v.image, alt: '' });
-				img.addEventListener('load', function () { drawCallouts(row); });
-				t.image.appendChild(img);
-			}
-		}
-		drawCallouts(row);
+		if (row.dom && row.dom.preview) { row.dom.preview.update(previewValues(row)); }
 	}
-
-	// Card labels sit in the right-hand column, level with their target where they can.
-	// Strip labels sit in a row under the strip, each joined by a line from below its target.
 	function drawCallouts(row) {
-		var pv = row.dom && row.dom.preview;
-		if (!pv || !pv.stage.isConnected) { return; }
-		window.requestAnimationFrame(function () {
-			var base = pv.stage.getBoundingClientRect();
-			if (!base.width) { return; }
-			var svg = function (tag, attrs) { var n = document.createElementNS('http://www.w3.org/2000/svg', tag); Object.keys(attrs).forEach(function (k) { n.setAttribute(k, attrs[k]); }); pv.lines.appendChild(n); };
-			var labelNode = function (c) { return el('div', { 'class': 'hs-a2p-pv-label' }, [el('strong', { text: c[2] }), c[3] ? el('span', { text: c[3] }) : null]); };
-			var shown = function (c) { var t = pv.t[c[1]]; return t && t.style.display !== 'none' ? t : null; };
-			pv.labels.textContent = '';
-			pv.stripLabels.textContent = '';
-			pv.labels.style.minHeight = '';
-			while (pv.lines.firstChild) { pv.lines.removeChild(pv.lines.firstChild); }
-
-			// Card: right-hand column.
-			var lx = pv.labels.getBoundingClientRect().left - base.left;
-			var next = pv.caps.card.getBoundingClientRect().bottom - base.top + 6;
-			var placed = [];
-			CALLOUTS.filter(function (c) { return c[0] === 'card'; }).forEach(function (c) {
-				var target = shown(c);
-				if (!target) { return; }
-				var r = (c[1] === 'image' ? target : (target.querySelector('p') || target)).getBoundingClientRect();
-				if (!r.width) { return; }
-				var ty = c[1] === 'image' ? r.top - base.top + r.height * 0.42 : r.top - base.top + r.height / 2;
-				var tx = c[1] === 'image' ? r.right - base.left - 14 : r.right - base.left + 4;
-				var label = labelNode(c);
-				pv.labels.appendChild(label);
-				var h = label.offsetHeight;
-				var top = Math.max(ty - h / 2, next);
-				next = top + h + 6;
-				placed.push({ label: label, top: top, h: h, tx: tx, ty: ty });
-			});
-			var labelsTop = pv.labels.getBoundingClientRect().top - base.top;
-			placed.forEach(function (p) { p.label.style.top = (p.top - labelsTop) + 'px'; });
-			pv.labels.style.minHeight = Math.max(0, next - labelsTop) + 'px'; // pushes the strip down if the labels run long
-
-			// Strip: labels in a row underneath; lines go down from each target, then across to its label.
-			var stripCallouts = CALLOUTS.filter(function (c) { return c[0] === 'strip' && shown(c); });
-			stripCallouts.forEach(function (c) { pv.stripLabels.appendChild(labelNode(c)); });
-			var sx = pv.stripLabels.getBoundingClientRect();
-			var stripBottom = pv.stage.querySelector('.hs-a2p-pv-stripbox').getBoundingClientRect().bottom - base.top;
-			var midY = stripBottom + (sx.top - base.top - stripBottom) / 2;
-
-			pv.lines.setAttribute('width', base.width);
-			pv.lines.setAttribute('height', base.height);
-			placed.forEach(function (p) {
-				var ly = p.top + Math.min(p.h / 2, 10);
-				svg('polyline', { points: p.tx + ',' + p.ty + ' ' + (lx - 16) + ',' + p.ty + ' ' + (lx - 4) + ',' + ly });
-				svg('circle', { cx: p.tx, cy: p.ty, r: 3 });
-			});
-			stripCallouts.forEach(function (c, i) {
-				var r = (pv.t[c[1]].querySelector('p') || pv.t[c[1]]).getBoundingClientRect();
-				var l = pv.stripLabels.children[i].getBoundingClientRect();
-				var tx = r.left - base.left + r.width / 2, ty = r.bottom - base.top + 2;
-				var x2 = l.left - base.left + 10, y2 = l.top - base.top;
-				svg('polyline', { points: tx + ',' + ty + ' ' + tx + ',' + midY + ' ' + x2 + ',' + midY + ' ' + x2 + ',' + y2 });
-				svg('circle', { cx: tx, cy: ty, r: 3 });
-			});
-		});
+		if (row.dom && row.dom.preview) { row.dom.preview.redraw(); }
 	}
-
-	window.addEventListener('resize', function () {
-		panel.rows.forEach(function (row) { drawCallouts(row); });
-	});
 
 	function previewToggle(row, preview) {
 		var button = el('button', { type: 'button', 'class': 'button-link hs-a2p-pv-toggle', text: row.showPreview ? 'Hide preview' : 'Show preview', on: { click: function () {
@@ -1379,7 +1156,7 @@ function hs_a2p_print_assets() {
 		var preview = open ? previewNode(row) : null;
 		var node = el('div', { 'class': 'hs-a2p-row' }, [
 			el('div', { 'class': 'hs-a2p-head' }, head),
-			open ? el('div', { 'class': 'hs-a2p-rowgrid' }, [body, previewToggle(row, preview), preview]) : null
+			open ? el('div', { 'class': 'hs-a2p-rowgrid' }, [body, preview ? previewToggle(row, preview) : null, preview]) : null
 		]);
 		if (open) { setTimeout(function () { drawCallouts(row); }, 0); }
 		return node;
