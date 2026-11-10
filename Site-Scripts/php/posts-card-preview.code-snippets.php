@@ -184,21 +184,32 @@ function hs_card_preview_print_assets() {
 #wpbody .hs-cip-tag.is-p { background: #8a2be2; left: auto; right: 2px; }
 #wpbody .hs-cip-rack-note { margin-top: 4px; }
 #wpbody .hs-cip-rack-label { display: block; font-weight: 600; margin-bottom: 4px; }
-/* Hero focal point (desktop): the whole Featured image with a frame showing what the 70vh desktop hero shows. */
+/* Hero preview: a to-scale screen per device (measured on the Post template), with the hero where it really sits. */
 #wpbody .hs-chf { margin-top: 22px; }
 #wpbody .hs-chf-cap { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 #wpbody .hs-chf-cap span { display: inline-flex; white-space: nowrap; padding: 3px 10px; border-radius: 999px; background: #f0f0f1; color: #50575e; font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; }
-#wpbody .hs-chf-stage { position: relative; overflow: hidden; line-height: 0; border-radius: 4px; background: #1d2327; touch-action: none; user-select: none; outline: 0; }
-#wpbody .hs-chf-stage:focus-visible { box-shadow: 0 0 0 2px #2271b1; }
-#wpbody .hs-chf-stage img { display: block; width: 100%; height: auto; pointer-events: none; }
-#wpbody .hs-chf-frame { position: absolute; box-sizing: border-box; border: 2px solid #f0b323; box-shadow: 0 0 0 9999px rgba(15, 23, 42, .6); cursor: grab; }
-#wpbody .hs-chf-stage.is-dragging .hs-chf-frame { cursor: grabbing; }
-#wpbody .hs-chf-frame.is-fixed { cursor: default; }
-#wpbody .hs-chf-tag { position: absolute; left: 6px; top: 6px; padding: 2px 6px; border-radius: 3px; background: #f0b323; color: #003057; font: 700 10px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; }
-#wpbody .hs-chf-label { margin-top: 6px; padding: 3px 0 3px 8px; border-left: 2px solid #2271b1; font-size: 12px; line-height: 1.35; }
+#wpbody .hs-chf-devices { display: inline-flex; margin-bottom: 8px; border: 1px solid #c3c4c7; border-radius: 4px; overflow: hidden; }
+#wpbody .hs-chf-devices button { padding: 4px 10px; border: 0; border-left: 1px solid #c3c4c7; background: #fff; color: #1d2327; font-size: 12px; cursor: pointer; }
+#wpbody .hs-chf-devices button:first-child { border-left: 0; }
+#wpbody .hs-chf-devices button.is-on { background: #2271b1; color: #fff; }
+#wpbody .hs-chf-screen { position: relative; overflow: hidden; margin: 0 auto; background: #fff; border: 1px solid #8c8f94; border-radius: 6px; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
+#wpbody .hs-chf-header { position: absolute; left: 0; right: 0; top: 0; background: #003057; }
+#wpbody .hs-chf-header::after { content: 'Site header'; position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: rgba(255, 255, 255, .55); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+#wpbody .hs-chf-hero { position: absolute; overflow: hidden; background: #1d2327; touch-action: none; user-select: none; outline: 0; }
+#wpbody .hs-chf-hero.can-move { cursor: grab; }
+#wpbody .hs-chf-hero.is-dragging { cursor: grabbing; }
+#wpbody .hs-chf-hero:focus-visible { box-shadow: 0 0 0 2px #f0b323; }
+#wpbody .hs-chf-hero img { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+#wpbody .hs-chf-hero .hs-chf-bg { width: 100%; height: 100%; background-size: cover; background-position: center; }
+#wpbody .hs-chf-strip { position: absolute; background: repeating-linear-gradient(90deg, #e2e4e7 0 40px, #f0f0f1 40px 80px); border-bottom: 1px solid #f0b323; }
+#wpbody .hs-chf-fold { position: absolute; left: 0; right: 0; bottom: 0; height: 0; border-top: 2px dashed #d63638; }
+#wpbody .hs-chf-fold span { position: absolute; right: 6px; bottom: 3px; padding: 1px 5px; border-radius: 3px; background: #d63638; color: #fff; font-size: 10px; font-weight: 600; white-space: nowrap; }
+#wpbody .hs-chf-label { margin-top: 8px; padding: 3px 0 3px 8px; border-left: 2px solid #2271b1; font-size: 12px; line-height: 1.4; }
 #wpbody .hs-chf-label strong { display: block; color: #1d2327; }
 #wpbody .hs-chf-label span { display: block; color: #3c434a; font-size: 11.5px; }
-#wpbody .hs-chf-actions { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 12px; color: #646970; }
+#wpbody .hs-chf-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; font-size: 12px; color: #646970; }
+#wpbody .hs-chf-mobile { margin-top: 8px; }
+#wpbody .hs-chf-mobile .hs-cip-rack { max-height: 150px; }
 #wpbody .hs-chf-empty { padding: 14px; border: 1px dashed #c3c4c7; border-radius: 4px; color: #646970; font-size: 12px; }
 </style>
 <script id="hs-card-preview-js">
@@ -504,96 +515,168 @@ function hs_card_preview_print_assets() {
 	}
 
 	/*
-	 * Hero focal point (desktop). options:
-	 *   get() -> { url, focus }   focus is "X Y" (whole percentages) or '' for the centre
-	 *   set(focus)                 called with "X Y" or ''
-	 * Shows the whole Featured image with a frame: what the desktop hero shows. The frame is the hero's
-	 * shape at a 1920×1080 window (973px content column × 70vh) and is placed with the same maths as
-	 * object-fit: cover + object-position X% Y%, so what's inside it is what the page shows.
+	 * Hero preview. A to-scale screen per device, measured on the Post template (10 Nov 2026):
+	 *   Desktop 1920×1080: header 256px; hero 1632×756 at (144, 271), i.e. 70vh; Section strip at 1096.
+	 *   MacBook Air 13" browser 1470×830: header 157px; hero 1380×581 at (45, 172); strip at 822.
+	 *   Phone 390×844: header 76px; hero 371 wide at (10, 91), the image's own shape; strip 65px below it.
+	 * If the Post template's header or margins change, these numbers need re-measuring.
+	 * options:
+	 *   get() -> { url, focus, mobile: { id, url } }   focus is "X Y" or '' (centre)
+	 *   set(focus)                                     "X Y" or ''
+	 *   images: [{ id, url, thumb }]                   for picking the phone image (optional)
+	 *   setMobile(id, url)                             (optional) shows the Phone image picker
 	 */
-	var HERO_RATIO = 973 / 756;
+	var DEVICES = {
+		desktop: { label: 'Desktop 1920×1080', w: 1920, h: 1080, header: 256, hero: { x: 144, y: 271, w: 1632, h: 756 }, strip: 1096, shown: 520 },
+		laptop: { label: 'MacBook Air 13″', w: 1470, h: 830, header: 157, hero: { x: 45, y: 172, w: 1380, h: 581 }, strip: 822, shown: 520 },
+		phone: { label: 'Phone', w: 390, h: 844, header: 76, hero: { x: 10, y: 91, w: 371, h: 0 }, strip: 65, shown: 230 }
+	};
 	function parseFocus(f) {
 		var m = /^\s*(\d{1,3})\s+(\d{1,3})\s*$/.exec(f || '');
 		return m && +m[1] <= 100 && +m[2] <= 100 ? { x: +m[1], y: +m[2] } : { x: 50, y: 50 };
 	}
 	function heroFocus(o) {
+		var state = { device: 'desktop' };
 		var node = el('div', { 'class': 'hs-chf' });
-		var img = el('img', { alt: '' });
-		var frame = el('div', { 'class': 'hs-chf-frame' }, [el('span', { 'class': 'hs-chf-tag', text: 'Desktop hero' })]);
-		var stage = el('div', { 'class': 'hs-chf-stage', tabindex: '0', role: 'slider', 'aria-label': 'Desktop hero position: drag the frame or use the arrow keys' }, [img, frame]);
-		var where = el('span');
-		var centre = el('button', { type: 'button', 'class': 'button-link', text: 'Centre' });
-		var help = el('span');
-		var empty = el('p', { 'class': 'hs-chf-empty', text: 'Pick a Featured image first; then drag the frame here to choose what the desktop hero shows.' });
-		var body = el('div', {}, [stage, el('div', { 'class': 'hs-chf-label' }, [el('strong', { text: 'Desktop hero' }), help]), el('div', { 'class': 'hs-chf-actions' }, [where, centre])]);
-		node.appendChild(el('div', { 'class': 'hs-chf-cap' }, [el('span', { text: 'Preview · Hero (top of the Post page, desktop)' })]));
+		var probe = el('img', { alt: '' }); // to learn the Featured image's shape
+		var tabs = el('div', { 'class': 'hs-chf-devices', role: 'tablist' });
+		var stage = el('div');
+		var label = el('div', { 'class': 'hs-chf-label' });
+		var actions = el('div', { 'class': 'hs-chf-actions' });
+		var mobileBox = el('div', { 'class': 'hs-chf-mobile' });
+		var empty = el('p', { 'class': 'hs-chf-empty', text: 'Pick a Featured image first; the hero preview then shows it on each screen size.' });
+		var body = el('div', {}, [tabs, stage, label, actions, mobileBox]);
+		node.appendChild(el('div', { 'class': 'hs-chf-cap' }, [el('span', { text: 'Preview · Hero (top of the Post page)' })]));
 		node.appendChild(empty);
 		node.appendChild(body);
+		Object.keys(DEVICES).forEach(function (key) {
+			var b = el('button', { type: 'button', role: 'tab', 'data-device': key, text: DEVICES[key].label });
+			b.addEventListener('click', function () { state.device = key; draw(); });
+			tabs.appendChild(b);
+		});
+		probe.addEventListener('load', function () { draw(); });
 
-		// The frame's size in % of the photo, and which way it can move.
-		function geometry() {
-			var w = img.naturalWidth, h = img.naturalHeight;
-			if (!w || !h) { return null; }
-			var ratio = w / h;
-			if (Math.abs(ratio - HERO_RATIO) / HERO_RATIO < 0.01) { return { axis: '', fw: 100, fh: 100 }; }
-			return ratio > HERO_RATIO ? { axis: 'x', fw: HERO_RATIO / ratio * 100, fh: 100 } : { axis: 'y', fw: 100, fh: ratio / HERO_RATIO * 100 };
+		var hero = null, heroImg = null, dragging = null, dims = {}; // dims: the phone image's natural size, by URL
+		function axisFor(box) {
+			var w = probe.naturalWidth, h = probe.naturalHeight;
+			if (!w || !h) { return ''; }
+			var r = w / h, a = box.w / box.h;
+			if (Math.abs(r - a) / a < 0.01) { return ''; }
+			return r > a ? 'x' : 'y';
 		}
-		function apply(f) {
-			var g = geometry(), p = parseFocus(f);
-			where.textContent = !f ? 'Centred (default)' : (g && g.axis === 'y' ? p.y + '% down' : p.x + '% across');
-			if (!g) { return; }
-			frame.style.width = g.fw + '%';
-			frame.style.height = g.fh + '%';
-			frame.style.left = (100 - g.fw) * p.x / 100 + '%';
-			frame.style.top = (100 - g.fh) * p.y / 100 + '%';
-			frame.classList.toggle('is-fixed', !g.axis);
-			help.textContent = !g.axis
-				? 'This photo is already the hero’s shape, so nothing is cropped.'
-				: 'Inside the frame is what shows at the top of the Post page on desktop (70% of the window height). Drag it ' + (g.axis === 'x' ? 'left or right' : 'up or down') + ' to choose.';
-			stage.setAttribute('aria-valuetext', where.textContent);
+		// How far (in screen px) the photo can move inside the hero box along its axis.
+		function overflow(axis, boxW, boxH) {
+			var w = probe.naturalWidth, h = probe.naturalHeight, s = Math.max(boxW / w, boxH / h);
+			return axis === 'x' ? w * s - boxW : h * s - boxH;
 		}
 		function commit(x, y) {
 			var f = Math.max(0, Math.min(100, Math.round(x))) + ' ' + Math.max(0, Math.min(100, Math.round(y)));
 			o.set(f);
-			apply(f);
+			positionImage();
+			describe();
 		}
-		// Put the frame's centre under the pointer, as far as the photo allows.
-		var dragging = false;
-		function fromEvent(e) {
-			var g = geometry();
-			if (!g || !g.axis) { return; }
-			var r = stage.getBoundingClientRect(), p = parseFocus(o.get().focus);
-			if (g.axis === 'x') {
-				var left = (e.clientX - r.left) / r.width * 100 - g.fw / 2;
-				commit(left / (100 - g.fw) * 100, p.y);
-			} else {
-				var top = (e.clientY - r.top) / r.height * 100 - g.fh / 2;
-				commit(p.x, top / (100 - g.fh) * 100);
+		function positionImage() {
+			if (!heroImg) { return; }
+			var p = parseFocus(o.get().focus);
+			heroImg.style.objectPosition = p.x + '% ' + p.y + '%';
+		}
+		function describe() {
+			var cur = o.get() || {}, d = DEVICES[state.device], p = parseFocus(cur.focus);
+			if (state.device === 'phone') {
+				var m = cur.mobile && cur.mobile.url;
+				label.innerHTML = '';
+				label.appendChild(el('strong', { text: 'Phones and tablets (below 981px wide)' }));
+				label.appendChild(el('span', { text: m ? 'Shows the Image for phones and tablets, at its own shape.' : 'Shows the whole Featured image at its own shape (not cropped). Choose a different image below if another works better on small screens.' }));
+				actions.textContent = '';
+				return;
 			}
+			var axis = axisFor(d.hero);
+			label.innerHTML = '';
+			label.appendChild(el('strong', { text: d.label + ': hero ' + d.hero.w + '×' + d.hero.h + ' (70% of the window height)' }));
+			label.appendChild(el('span', { text: !axis ? 'This photo is the hero’s shape here, so nothing is cropped.' : 'Drag the photo ' + (axis === 'x' ? 'left or right' : 'up or down') + ' inside the hero to choose what shows. Desktop and MacBook share this position. The red line is the bottom of the screen.' }));
+			actions.textContent = '';
+			actions.appendChild(el('span', { 'class': 'hs-chf-where', text: !cur.focus ? 'Centred (default)' : (axis === 'x' ? p.x + '% across' : p.y + '% down') }));
+			var centre = el('button', { type: 'button', 'class': 'button-link', text: 'Centre' });
+			centre.addEventListener('click', function () { o.set(''); positionImage(); describe(); });
+			actions.appendChild(centre);
 		}
-		stage.addEventListener('pointerdown', function (e) { dragging = true; stage.classList.add('is-dragging'); try { stage.setPointerCapture(e.pointerId); } catch (err) { /* still drags */ } stage.focus(); fromEvent(e); });
-		stage.addEventListener('pointermove', function (e) { if (dragging) { fromEvent(e); } });
-		['pointerup', 'pointercancel'].forEach(function (t) { stage.addEventListener(t, function () { dragging = false; stage.classList.remove('is-dragging'); }); });
-		stage.addEventListener('keydown', function (e) {
-			var g = geometry(), p = parseFocus(o.get().focus), step = e.shiftKey ? 10 : 1;
-			if (!g || !g.axis) { return; }
-			var d = g.axis === 'x' ? { ArrowLeft: -step, ArrowRight: step }[e.key] : { ArrowUp: -step, ArrowDown: step }[e.key];
-			if (!d) { return; }
-			e.preventDefault();
-			if (g.axis === 'x') { commit(p.x + d, p.y); } else { commit(p.x, p.y + d); }
-		});
-		centre.addEventListener('click', function () { o.set(''); apply(''); });
-		img.addEventListener('load', function () { apply(o.get().focus || ''); });
-
+		function drawMobilePicker(cur) {
+			mobileBox.textContent = '';
+			if (state.device !== 'phone' || !o.setMobile || !window.hsCardPreview.imagePicker) { return; }
+			var picker = imagePicker({
+				images: o.images || [],
+				state: { active: 'portrait' },
+				get: function (name) { return name === 'portrait' ? (o.get().mobile || { id: 0, url: '' }) : { id: 0, url: '' }; },
+				set: function (name, id, url) { if (name === 'portrait') { o.setMobile(id, url); draw(); } },
+				slots: { image: { label: '', hint: null }, portrait: { label: 'Image for phones and tablets', hint: function () { return 'Optional. Leave empty to use the Featured image.'; } } },
+				source: 'Pick from this Post’s images',
+				empty: 'No images of its own; use Media Library.'
+			});
+			var featuredSlot = picker.node.querySelector('.hs-cip-slot[data-slot="image"]');
+			if (featuredSlot) { featuredSlot.style.display = 'none'; }
+			var grid = picker.node.querySelector('.hs-cip-grid');
+			if (grid) { grid.style.gridTemplateColumns = '170px minmax(0, 1fr)'; }
+			mobileBox.appendChild(picker.node);
+		}
 		function draw() {
 			var cur = o.get() || {};
 			empty.style.display = cur.url ? 'none' : '';
 			body.style.display = cur.url ? '' : 'none';
-			if (cur.url && img.getAttribute('src') !== cur.url) { img.setAttribute('src', cur.url); }
-			apply(cur.focus || '');
+			if (cur.url && probe.getAttribute('src') !== cur.url) { probe.setAttribute('src', cur.url); }
+			[].forEach.call(tabs.children, function (b) { b.classList.toggle('is-on', b.getAttribute('data-device') === state.device); b.setAttribute('aria-selected', b.getAttribute('data-device') === state.device ? 'true' : 'false'); });
+			var d = DEVICES[state.device];
+			var heroBox = { x: d.hero.x, y: d.hero.y, w: d.hero.w, h: d.hero.h };
+			var src = cur.url, mobile = state.device === 'phone' && cur.mobile && cur.mobile.url;
+			if (state.device === 'phone') {
+				var iw = probe.naturalWidth || 3, ih = probe.naturalHeight || 2;
+				heroBox.h = Math.round(d.hero.w * ih / iw);
+				if (mobile) { src = cur.mobile.url; if (dims[src]) { heroBox.h = Math.round(d.hero.w * dims[src].h / dims[src].w); } }
+			}
+			var scale = Math.min(d.shown, stage.clientWidth || d.shown) / d.w;
+			var screen = el('div', { 'class': 'hs-chf-screen', 'data-device': state.device, style: 'width:' + Math.round(d.w * scale) + 'px;height:' + Math.round(d.h * scale) + 'px' });
+			screen.appendChild(el('div', { 'class': 'hs-chf-header', style: 'height:' + Math.round(d.header * scale) + 'px' }));
+			var stripTop = state.device === 'phone' ? heroBox.y + heroBox.h + d.strip : d.strip;
+			screen.appendChild(el('div', { 'class': 'hs-chf-strip', style: 'left:' + Math.round(heroBox.x * scale) + 'px;top:' + Math.round(stripTop * scale) + 'px;width:' + Math.round(heroBox.w * 0.75 * scale) + 'px;height:' + Math.max(3, Math.round(48 * scale)) + 'px' }));
+			hero = el('div', { 'class': 'hs-chf-hero', tabindex: state.device === 'phone' ? '-1' : '0', 'data-device': state.device, style: 'left:' + Math.round(heroBox.x * scale) + 'px;top:' + Math.round(heroBox.y * scale) + 'px;width:' + Math.round(heroBox.w * scale) + 'px;height:' + Math.round(heroBox.h * scale) + 'px' });
+			heroImg = el('img', { alt: '', src: src });
+			if (mobile && !dims[src]) { heroImg.addEventListener('load', function () { if (!dims[src] && heroImg.naturalWidth) { dims[src] = { w: heroImg.naturalWidth, h: heroImg.naturalHeight }; draw(); } }); }
+			hero.appendChild(heroImg);
+			screen.appendChild(hero);
+			screen.appendChild(el('div', { 'class': 'hs-chf-fold' }, [el('span', { text: 'Bottom of the screen' })]));
+			stage.textContent = '';
+			stage.appendChild(screen);
+			if (state.device !== 'phone') {
+				var axis = axisFor(heroBox);
+				hero.classList.toggle('can-move', !!axis);
+				positionImage();
+				hero.addEventListener('pointerdown', function (e) {
+					if (!axis) { return; }
+					var p = parseFocus(o.get().focus);
+					dragging = { x: e.clientX, y: e.clientY, fx: p.x, fy: p.y, axis: axis, over: overflow(axis, heroBox.w * scale, heroBox.h * scale) };
+					hero.classList.add('is-dragging');
+					try { hero.setPointerCapture(e.pointerId); } catch (err) { /* still drags */ }
+					hero.focus();
+				});
+				hero.addEventListener('pointermove', function (e) {
+					if (!dragging || dragging.over <= 0) { return; }
+					// Dragging the photo down shows more of its top, so the position moves up.
+					if (dragging.axis === 'x') { commit(dragging.fx - (e.clientX - dragging.x) / dragging.over * 100, dragging.fy); }
+					else { commit(dragging.fx, dragging.fy - (e.clientY - dragging.y) / dragging.over * 100); }
+				});
+				['pointerup', 'pointercancel'].forEach(function (t) { hero.addEventListener(t, function () { dragging = null; hero.classList.remove('is-dragging'); }); });
+				hero.addEventListener('keydown', function (e) {
+					var p = parseFocus(o.get().focus), step = e.shiftKey ? 10 : 1;
+					var d2 = axis === 'x' ? { ArrowLeft: -step, ArrowRight: step }[e.key] : axis === 'y' ? { ArrowUp: -step, ArrowDown: step }[e.key] : 0;
+					if (!d2) { return; }
+					e.preventDefault();
+					if (axis === 'x') { commit(p.x + d2, p.y); } else { commit(p.x, p.y + d2); }
+				});
+			}
+			describe();
+			drawMobilePicker(cur);
 		}
 		draw();
-		return { node: node, draw: draw, geometry: geometry };
+		return { node: node, draw: draw, setDevice: function (key) { state.device = key; draw(); } };
 	}
 
 	window.hsCardPreview = { create: create, imagePicker: imagePicker, heroFocus: heroFocus, parseFocus: parseFocus, cardDateLabel: cardDateLabel, postDateLabel: postDateLabel };

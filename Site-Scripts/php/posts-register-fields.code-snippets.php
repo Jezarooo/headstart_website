@@ -211,6 +211,25 @@ function hs_register_post_acf_fields() {
                 'placeholder' => '50 50',
                 'maxlength' => 7,
             ),
+
+            // 8. Image for phones and tablets: shown in the hero below 981px instead of the Featured image.
+            array(
+                'key' => 'field_hs_hero_mobile',
+                'label' => 'Image for phones and tablets',
+                'name' => 'hs_hero_mobile',
+                'type' => 'image',
+                'instructions' => 'Optional. Shown at the top of the Post page on phones and tablets instead of the Featured image, at its own shape. Set it from the hero preview\'s Phone view.',
+                'required' => 0,
+                'conditional_logic' => 0,
+                'wrapper' => array(
+                    'width' => '',
+                    'class' => 'hs-pc-hero-mobile',
+                    'id' => '',
+                ),
+                'return_format' => 'id',
+                'preview_size' => 'medium',
+                'library' => 'all',
+            ),
         ),
         'location' => array(
             array(
@@ -252,12 +271,21 @@ add_action('wp_head', function () {
     if (!is_singular('post')) {
         return;
     }
-    $focus = hs_hero_focus_sanitize(get_post_meta(get_queried_object_id(), 'hs_hero_focus', true));
-    if ('' === $focus) {
-        return;
+    $post_id = get_queried_object_id();
+    $focus   = hs_hero_focus_sanitize(get_post_meta($post_id, 'hs_hero_focus', true));
+    if ('' !== $focus) {
+        list($x, $y) = explode(' ', $focus);
+        echo '<style id="hs-hero-focus">.hs-post-hero{--hs-hero-focus:' . (int) $x . '% ' . (int) $y . '%}</style>' . "\n";
     }
-    list($x, $y) = explode(' ', $focus);
-    echo '<style id="hs-hero-focus">.hs-post-hero{--hs-hero-focus:' . (int) $x . '% ' . (int) $y . '%}</style>' . "\n";
+    // Phones and tablets (below Divi's 981px desktop breakpoint): the Post's own image for small screens, at its own shape.
+    $mobile = (int) get_post_meta($post_id, 'hs_hero_mobile', true);
+    $src    = $mobile && wp_attachment_is_image($mobile) ? wp_get_attachment_image_src($mobile, 'large') : false;
+    if ($src && $src[1] && $src[2]) {
+        echo '<style id="hs-hero-mobile">@media (max-width:980px){'
+            . '.hs-post-hero .et_pb_image_wrap{display:block!important;width:100%!important;height:auto!important;aspect-ratio:' . (int) $src[1] . '/' . (int) $src[2] . ';background:url("' . esc_url($src[0]) . '") center/cover no-repeat}'
+            . '.hs-post-hero .et_pb_image_wrap img{display:none!important}'
+            . '}</style>' . "\n";
+    }
 });
 
 /**
@@ -373,7 +401,7 @@ add_action('admin_head', function () {
 #acf-group_hs_post_classification .hs-pc-event-end { grid-area: end; }
 #acf-group_hs_post_classification .hs-pc-tags { grid-area: tags; }
 #acf-group_hs_post_classification .hs-pc-portrait, #acf-group_hs_post_classification .hs-pc-images { grid-area: images; }
-#acf-group_hs_post_classification .hs-pc-hero-focus { grid-column: 1 / 3; }
+#acf-group_hs_post_classification .hs-pc-hero-focus, #acf-group_hs_post_classification .hs-pc-hero-mobile { grid-column: 1 / 3; }
 #acf-group_hs_post_classification .hs-pc-images .hs-pc-slot { padding: 10px 12px; background: #f6f7f7; border-radius: 2px; }
 #acf-group_hs_post_classification .hs-pc-images .hs-pc-slot .hs-cip-label { display: block; font-weight: 600; margin-bottom: 4px; }
 #acf-group_hs_post_classification .hs-pc-images .hs-cip-hint { margin: 4px 0 0; font-size: 12px; color: #646970; }
