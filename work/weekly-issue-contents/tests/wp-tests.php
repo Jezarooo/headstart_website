@@ -76,15 +76,32 @@ try {
 	echo "\nThe edit box's form post\n";
 	$_POST = array(
 		'hs_issue_contents_nonce' => wp_create_nonce( 'hs_issue_contents_' . $id ),
-		'hs_issue_label'          => array( 'new-first-article' => 'First', 'a-very-long-article-heading-about-the-science-fair' => '', 'bad key!' => 'x' ),
+		'hs_issue_label'          => array( 'new-first-article' => 'First', 'a-very-long-article-heading-about-the-science-fair' => '', 'sports-day' => '', 'bad key!' => 'x' ),
+		'hs_issue_show'           => array( 'new-first-article' => '1', 'a-very-long-article-heading-about-the-science-fair' => '1', 'sports-day' => '1' ),
 	);
 	wp_update_post( array( 'ID' => $id, 'post_title' => 'Issue contents test 2' ) );
 	$t( 'names typed in the box are saved; emptying one goes back to the heading', array( 'First', 'A very long article heading about the Science Fair', 'Sports Day' ) === hs_issue_contents_names( $id ), wp_json_encode( hs_issue_contents_names( $id ) ) );
+	$_POST['hs_issue_show'] = array( 'new-first-article' => '1', 'sports-day' => '1' );
+	wp_update_post( array( 'ID' => $id, 'post_title' => 'Issue contents test 2b' ) );
+	$t( 'unticking an article leaves it off the names, but keeps it in the list', array( 'First', 'Sports Day' ) === hs_issue_contents_names( $id ) && 3 === count( hs_issue_contents( $id ) ) && false === hs_issue_contents( $id )[1]['show'], wp_json_encode( hs_issue_contents( $id ) ) );
+	hs_issue_contents_refresh( $id );
+	$t( 'an untick survives the next save', array( 'First', 'Sports Day' ) === hs_issue_contents_names( $id ) );
+	$_POST['hs_issue_show'] = array( 'new-first-article' => '1', 'a-very-long-article-heading-about-the-science-fair' => '1', 'sports-day' => '1' );
+	wp_update_post( array( 'ID' => $id, 'post_title' => 'Issue contents test 2c' ) );
+	$t( 'ticking it again brings it back', 3 === count( hs_issue_contents_names( $id ) ) );
 	$_POST['hs_issue_contents_nonce'] = 'wrong';
 	$_POST['hs_issue_label']          = array( 'new-first-article' => 'Hacked' );
 	wp_update_post( array( 'ID' => $id, 'post_title' => 'Issue contents test 3' ) );
 	$t( 'a bad nonce saves nothing from the form', 'First' === hs_issue_contents_names( $id )[0] );
 	$_POST = array();
+
+	wp_update_post( wp_slash( array( 'ID' => $id, 'post_content' => $content( array( 'New First Article', 'A very long article heading about the Science Fair', 'Sports Day', 'Brand New' ) ) ) ) );
+	$t( 'a newly added article starts ticked', 'Brand New' === end( hs_issue_contents_names( $id ) ) && true === end( hs_issue_contents( $id ) )['show'] );
+	wp_update_post( wp_slash( array( 'ID' => $id, 'post_content' => $content( array( 'New First Article', 'A very long article heading about the Science Fair', 'Sports Day' ) ) ) ) );
+	ob_start();
+	hs_issue_contents_print_rows( array( 'items' => hs_issue_contents( $id ), 'skipped' => 0 ) );
+	$rows = ob_get_clean();
+	$t( 'the box flags names over ' . HS_ISSUE_NAME_MAX . ' characters (the long heading with no short name), not short ones', 1 === substr_count( $rows, 'hs-ic-len is-long' ) && false !== strpos( $rows, '50/' . HS_ISSUE_NAME_MAX ) && false !== strpos( $rows, '5/' . HS_ISSUE_NAME_MAX ), $rows );
 
 	echo "\nOld issues keep their tags\n";
 	$old = $make( '<p>Imported issue</p>' );

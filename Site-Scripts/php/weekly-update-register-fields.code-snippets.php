@@ -25,7 +25,7 @@ function hs_register_weekly_update_acf_fields() {
                 'label' => 'Blurb',
                 'name' => 'blurb',
                 'type' => 'wysiwyg',
-                'instructions' => 'Shown under this update on the Campus Hub page.',
+                'instructions' => '',
                 'required' => 0,
                 'conditional_logic' => 0,
                 'wrapper' => array(
@@ -34,8 +34,8 @@ function hs_register_weekly_update_acf_fields() {
                     'id' => '',
                 ),
                 'default_value' => '',
-                'tabs' => 'all',
-                'toolbar' => 'full',
+                'tabs' => 'visual',
+                'toolbar' => 'basic',
                 'media_upload' => 0,
                 'delay' => 0,
             ),
@@ -303,11 +303,20 @@ function hs_issue_contents( $post_id ) {
     return is_array( $list ) ? array_values( array_filter( $list, function ( $i ) { return is_array( $i ) && isset( $i['key'], $i['heading'] ); } ) ) : array();
 }
 
-/** The names to show: each article's short name, or its heading. Empty for issues without articles. */
+/** A wise length for a hub chip: longer names still work but get flagged in the editor. */
+const HS_ISSUE_NAME_MAX = 30;
+
+/** The name an item shows: its short name, or its heading. */
+function hs_issue_item_name( $i ) {
+    return '' !== trim( (string) ( $i['label'] ?? '' ) ) ? trim( (string) $i['label'] ) : (string) $i['heading'];
+}
+
+/** The names to show: the ticked articles' short names, or headings. Empty for issues without articles. */
 function hs_issue_contents_names( $post_id ) {
-    return array_map( function ( $i ) {
-        return '' !== trim( (string) ( $i['label'] ?? '' ) ) ? trim( (string) $i['label'] ) : $i['heading'];
-    }, hs_issue_contents( $post_id ) );
+    $shown = array_filter( hs_issue_contents( $post_id ), function ( $i ) {
+        return ! isset( $i['show'] ) || $i['show'];
+    } );
+    return array_values( array_map( 'hs_issue_item_name', $shown ) );
 }
 
 /**
@@ -315,17 +324,19 @@ function hs_issue_contents_names( $post_id ) {
  * $labels (key => text) overrides stored names, e.g. from the edit box; '' clears one.
  * Returns the new list. Deletes the meta when the issue has no articles.
  */
-function hs_issue_contents_refresh( $post_id, $labels = null ) {
+function hs_issue_contents_refresh( $post_id, $labels = null, $shows = null ) {
     $found = hs_issue_headings( get_post_field( 'post_content', $post_id ) );
     $old   = array();
     foreach ( hs_issue_contents( $post_id ) as $i ) {
-        $old[ $i['key'] ] = (string) ( $i['label'] ?? '' );
+        $old[ $i['key'] ] = $i;
     }
     $list = array();
     foreach ( $found['items'] as $item ) {
-        $label = is_array( $labels ) && array_key_exists( $item['key'], $labels ) ? $labels[ $item['key'] ] : ( $old[ $item['key'] ] ?? '' );
+        $k     = $item['key'];
+        $label = is_array( $labels ) && array_key_exists( $k, $labels ) ? $labels[ $k ] : ( $old[ $k ]['label'] ?? '' );
         $label = sanitize_text_field( (string) $label );
-        $list[] = array( 'key' => $item['key'], 'heading' => $item['heading'], 'label' => $label === $item['heading'] ? '' : $label );
+        $show  = is_array( $shows ) && array_key_exists( $k, $shows ) ? (bool) $shows[ $k ] : ( isset( $old[ $k ]['show'] ) ? (bool) $old[ $k ]['show'] : true );
+        $list[] = array( 'key' => $k, 'heading' => $item['heading'], 'label' => $label === $item['heading'] ? '' : $label, 'show' => $show );
     }
     if ( ! $list ) {
         delete_post_meta( $post_id, HS_ISSUE_CONTENTS_META );
@@ -342,6 +353,7 @@ function hs_issue_contents_on_save( $post_id, $post ) {
         return;
     }
     $labels = null;
+    $shows  = null;
     if ( isset( $_POST['hs_issue_contents_nonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['hs_issue_contents_nonce'] ) ), 'hs_issue_contents_' . $post_id ) && current_user_can( 'edit_post', $post_id ) ) {
         $labels = array();
         foreach ( (array) ( $_POST['hs_issue_label'] ?? array() ) as $key => $text ) {
@@ -349,8 +361,14 @@ function hs_issue_contents_on_save( $post_id, $post ) {
                 $labels[ (string) $key ] = wp_unslash( $text );
             }
         }
+        // Every listed article posts its name box, so a name without a ticked box means "leave it out".
+        $ticked = (array) ( $_POST['hs_issue_show'] ?? array() );
+        $shows  = array();
+        foreach ( array_keys( $labels ) as $key ) {
+            $shows[ $key ] = ! empty( $ticked[ $key ] );
+        }
     }
-    hs_issue_contents_refresh( $post_id, $labels );
+    hs_issue_contents_refresh( $post_id, $labels, $shows );
 }
 
 /** Issues that have articles hide the old tags field: the list replaces it. Older issues keep it. */
@@ -363,7 +381,7 @@ function hs_issue_hide_tags_field( $field ) {
     return $field;
 }
 
-/* The edit box ------------------------------------------------------------ */
+/* The edit box: inside Weekly Update Details, in the In this issue slot ----- */
 
 /** The list shows only on issues that have articles (the tags field shows on the others). */
 add_filter( 'acf/prepare_field/key=field_weekly_update_contents', 'hs_issue_contents_prepare_field' );
@@ -392,21 +410,30 @@ function hs_issue_contents_rows( $post_id ) {
 
 function hs_issue_contents_render_box( $post ) {
     wp_nonce_field( 'hs_issue_contents_' . $post->ID, 'hs_issue_contents_nonce' );
-    $data = hs_issue_contents_rows( $post->ID );
-    echo '<p class="description hs-ic-hint">Each article’s heading (promos left out). Add a short name for the Campus Hub, or leave it blank.</p>';
-    echo '<div id="hs-issue-contents-list" class="hs-ic-scroll" data-post="' . (int) $post->ID . '" data-nonce="' . esc_attr( wp_create_nonce( 'hs_issue_contents_get' ) ) . '">';
-    hs_issue_contents_print_rows( $data );
-    echo '</div>';
+    $tip = sprintf( 'Every article in this issue, from its heading (promos are left out). Untick one to leave it off the Campus Hub. Short names over %d characters turn red: they make long chips.', HS_ISSUE_NAME_MAX );
+    echo '<div class="hs-ic-card">';
+    echo '<div class="hs-ic-head"><span class="hs-ic-title">In this issue</span><span class="dashicons dashicons-info-outline hs-ic-tip" tabindex="0" title="' . esc_attr( $tip ) . '" aria-label="' . esc_attr( $tip ) . '"></span><span class="hs-ic-count"></span></div>';
+    echo '<div id="hs-issue-contents-list" class="hs-ic-scroll" data-post="' . (int) $post->ID . '" data-max="' . (int) HS_ISSUE_NAME_MAX . '" data-nonce="' . esc_attr( wp_create_nonce( 'hs_issue_contents_get' ) ) . '">';
+    hs_issue_contents_print_rows( hs_issue_contents_rows( $post->ID ) );
+    echo '</div></div>';
 }
 
 function hs_issue_contents_print_rows( $data ) {
     echo '<ol class="hs-ic-list">';
     foreach ( $data['items'] as $i ) {
+        $show = ! isset( $i['show'] ) || $i['show'];
+        $len  = mb_strlen( hs_issue_item_name( $i ) );
+        $over = $len > HS_ISSUE_NAME_MAX;
         printf(
-            '<li class="hs-ic-row"><label class="hs-ic-heading" for="hs-ic-%2$s">%1$s</label><input type="text" class="hs-ic-input" id="hs-ic-%2$s" name="hs_issue_label[%2$s]" value="%3$s" placeholder="Short name (optional)" maxlength="80" /></li>',
-            esc_attr( $i['heading'] ),
+            '<li class="hs-ic-row%5$s"><input type="checkbox" class="hs-ic-show" id="hs-ic-show-%2$s" name="hs_issue_show[%2$s]" value="1"%4$s aria-label="Show on the Campus Hub" /><label class="hs-ic-heading" for="hs-ic-show-%2$s">%1$s</label><input type="text" class="hs-ic-input%6$s" name="hs_issue_label[%2$s]" value="%3$s" placeholder="Short name (optional)" maxlength="80" aria-label="Short name for %1$s" /><span class="hs-ic-len%6$s">%7$d/%8$d</span></li>',
+            esc_html( $i['heading'] ),
             esc_attr( $i['key'] ),
-            esc_attr( $i['label'] )
+            esc_attr( $i['label'] ),
+            $show ? ' checked' : '',
+            $show ? '' : ' is-off',
+            $over ? ' is-long' : '',
+            $len,
+            HS_ISSUE_NAME_MAX
         );
     }
     echo '</ol>';
@@ -437,43 +464,113 @@ function hs_issue_contents_admin_assets() {
     }
     ?>
 <style id="hs-issue-contents-css">
-/* Weekly Update Details as a grid: Blurb wide on the left, Campus over Week number, In this issue on the right
-   (scrolling, as tall as the blurb), Archive Post across the bottom. Narrow boxes stack. */
+/* Weekly Update Details as a grid: Blurb | Campus over Week number | In this issue, all one height
+   (the Campus + Week number column sets it), Archive Post across the bottom. Narrow boxes stack. */
 #acf-group_6a3772490951b { container-type: inline-size; }
-#acf-group_6a3772490951b > .inside.acf-fields { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(220px, 0.65fr) minmax(0, 1.4fr); grid-template-areas: "blurb campus issue" "blurb week issue" "archive archive archive"; grid-template-rows: auto 1fr auto; column-gap: 16px; row-gap: 4px; padding: 4px 12px 12px; align-items: stretch; }
+#acf-group_6a3772490951b > .inside.acf-fields { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.65fr) minmax(0, 1.45fr); grid-template-areas: "blurb campus issue" "blurb week issue" "archive archive archive"; grid-template-rows: auto 1fr auto; column-gap: 16px; row-gap: 6px; padding: 14px 12px 12px !important; align-items: stretch; }
 #acf-group_6a3772490951b > .inside.acf-fields::after { display: none; }
 #acf-group_6a3772490951b > .inside > .acf-field { width: auto !important; float: none; clear: none; min-height: 0; margin: 0; border-left: 0; border-top: 0; padding: 12px !important; }
-#acf-group_6a3772490951b > .inside > .acf-field.hs-wu-blurb { grid-area: blurb; }
+#acf-group_6a3772490951b > .inside > .acf-field.hs-wu-blurb { grid-area: blurb; display: flex; flex-direction: column; padding: 0 !important; }
 #acf-group_6a3772490951b > .inside > .acf-field.hs-wu-campus { grid-area: campus; }
-#acf-group_6a3772490951b > .inside > .acf-field.hs-wu-week { grid-area: week; align-self: start; }
-#acf-group_6a3772490951b > .inside > .acf-field.hs-wu-issue { grid-area: issue; min-width: 0; }
-#acf-group_6a3772490951b > .inside > .acf-field.hs-wu-archive { grid-area: archive; border-top: 1px solid #f0f0f1; padding-top: 10px !important; }
+#acf-group_6a3772490951b > .inside > .acf-field.hs-wu-week { grid-area: week; }
+#acf-group_6a3772490951b > .inside > .acf-field.hs-wu-issue { grid-area: issue; min-width: 0; position: relative; padding: 0 !important; }
+#acf-group_6a3772490951b > .inside > .acf-field.hs-wu-archive { grid-area: archive; border-top: 1px solid #f0f0f1; padding: 10px 0 0 !important; }
 #acf-group_6a3772490951b > .inside > .acf-field > .acf-label { margin-bottom: 6px; }
 #acf-group_6a3772490951b > .inside > .acf-field > .acf-label label { font-weight: 600; }
-#acf-group_6a3772490951b > .inside > .acf-field > .acf-label .description { margin-top: 2px; color: #646970; }
-#acf-group_6a3772490951b .hs-wu-blurb iframe { height: 260px !important; min-height: 260px !important; }
 #acf-group_6a3772490951b .hs-wu-week input[type=number] { max-width: 120px; }
 #acf-group_6a3772490951b .hs-wu-campus ul.acf-radio-list { display: grid; gap: 4px; }
 #acf-group_6a3772490951b .hs-wu-campus ul.acf-radio-list label { white-space: nowrap; }
-#acf-group_6a3772490951b .hs-wu-campus ul.acf-radio-list li { margin: 0; }
-#acf-group_6a3772490951b .hs-wu-issue .acf-checkbox-list { max-height: 300px; overflow-y: auto; }
+/* Blurb: its label and a one-row toolbar, the editor filling the rest of the column's height. */
+#acf-group_6a3772490951b .hs-wu-blurb > .acf-label { padding: 13px 0 0; }
+#acf-group_6a3772490951b .hs-wu-blurb > .acf-input { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+#acf-group_6a3772490951b .hs-wu-blurb .acf-editor-wrap, #acf-group_6a3772490951b .hs-wu-blurb .wp-editor-container { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+#acf-group_6a3772490951b .hs-wu-blurb .mce-tinymce, #acf-group_6a3772490951b .hs-wu-blurb .mce-container-body.mce-stack-layout { flex: 1 1 auto; display: flex !important; flex-direction: column; min-height: 0; }
+#acf-group_6a3772490951b .hs-wu-blurb .mce-edit-area { flex: 1 1 auto; min-height: 0; }
+#acf-group_6a3772490951b .hs-wu-blurb .mce-statusbar { display: none; }
+#acf-group_6a3772490951b .hs-wu-blurb iframe { height: 100% !important; min-height: 110px !important; }
+/* In this issue (and the older issues' tags): a card filling the row, its list scrolling inside. */
+#acf-group_6a3772490951b .hs-wu-issue > .acf-label { display: none; }
+#acf-group_6a3772490951b .hs-wu-contents > .acf-input, #acf-group_6a3772490951b .hs-wu-contents .hs-ic-card { position: absolute; inset: 0; }
+#acf-group_6a3772490951b .hs-ic-card { display: flex; flex-direction: column; border: 1px solid #dcdcde; border-radius: 4px; background: #fff; }
+#acf-group_6a3772490951b .hs-ic-head { display: flex; align-items: center; gap: 4px; padding: 12px 12px 8px; border-bottom: 1px solid #f0f0f1; }
+#acf-group_6a3772490951b .hs-ic-title { font-weight: 600; }
+#acf-group_6a3772490951b .hs-ic-tip { font-size: 16px; width: 16px; height: 16px; color: #8c8f94; cursor: help; }
+#acf-group_6a3772490951b .hs-ic-count { margin-left: auto; font-size: 11px; color: #646970; }
+#hs-issue-contents-list.hs-ic-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+#hs-issue-contents-list .hs-ic-list { margin: 0; padding: 0; list-style: none; }
+#hs-issue-contents-list .hs-ic-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; column-gap: 8px; row-gap: 3px; align-items: center; margin: 0; padding: 6px 12px; border-top: 1px solid #f6f7f7; }
+#hs-issue-contents-list .hs-ic-row:first-child { border-top: 0; }
+#hs-issue-contents-list .hs-ic-show { grid-row: 1; grid-column: 1; margin: 0; }
+#hs-issue-contents-list .hs-ic-heading { grid-row: 1; grid-column: 2 / 4; font-size: 12px; font-weight: 600; line-height: 16px; color: #1d2327; overflow-wrap: anywhere; cursor: pointer; }
+#hs-issue-contents-list .hs-ic-input { grid-row: 2; grid-column: 2; width: 100%; min-height: 26px; height: 26px; padding: 0 6px; font-size: 12px; line-height: 24px; }
+#hs-issue-contents-list .hs-ic-len { grid-row: 2; grid-column: 3; font-size: 11px; color: #8c8f94; font-variant-numeric: tabular-nums; }
+#hs-issue-contents-list .hs-ic-len.is-long { color: #b32d2e; font-weight: 600; }
+#hs-issue-contents-list .hs-ic-input.is-long { border-color: #d63638; box-shadow: 0 0 0 1px #d63638; }
+#hs-issue-contents-list .hs-ic-row.is-off .hs-ic-heading, #hs-issue-contents-list .hs-ic-row.is-off .hs-ic-input, #hs-issue-contents-list .hs-ic-row.is-off .hs-ic-len { opacity: .45; }
+#hs-issue-contents-list .hs-ic-row.is-off .hs-ic-input.is-long { border-color: #8c8f94; box-shadow: none; }
+#hs-issue-contents-list .hs-ic-row.is-off .hs-ic-len.is-long { color: #8c8f94; font-weight: 400; }
+.hs-wu-contents .hs-ic-skipped { margin: 6px 12px 8px; }
+#acf-group_6a3772490951b .hs-wu-issue:not(.hs-wu-contents) { padding: 12px !important; border: 1px solid #dcdcde; border-radius: 4px; }
+#acf-group_6a3772490951b .hs-wu-issue:not(.hs-wu-contents) > .acf-label { display: block; }
+#acf-group_6a3772490951b .hs-wu-issue .acf-checkbox-list { max-height: 170px; overflow-y: auto; font-size: 12px; }
+#acf-group_6a3772490951b .hs-wu-issue .acf-checkbox-list li { margin: 0 0 2px; }
 @container (max-width: 820px) {
     #acf-group_6a3772490951b > .inside.acf-fields { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "blurb blurb" "campus week" "issue issue" "archive archive"; grid-template-rows: none; }
+    #acf-group_6a3772490951b .hs-wu-blurb iframe { min-height: 160px !important; }
+    #acf-group_6a3772490951b .hs-wu-contents > .acf-input, #acf-group_6a3772490951b .hs-wu-contents .hs-ic-card { position: static; }
+    #hs-issue-contents-list.hs-ic-scroll { max-height: 300px; }
 }
-/* The article list: number, heading, then the short-name box under it; scrolls to the blurb's height. */
-#hs-issue-contents-list.hs-ic-scroll { max-height: 312px; overflow-y: auto; border: 1px solid #dcdcde; border-radius: 4px; background: #fff; }
-#hs-issue-contents-list .hs-ic-list { margin: 0; padding: 0; list-style: none; counter-reset: hsic; }
-#hs-issue-contents-list .hs-ic-row { counter-increment: hsic; display: grid; grid-template-columns: 22px minmax(0, 1fr); column-gap: 6px; row-gap: 4px; margin: 0; padding: 8px 10px; border-top: 1px solid #f0f0f1; }
-#hs-issue-contents-list .hs-ic-row:first-child { border-top: 0; }
-#hs-issue-contents-list .hs-ic-row::before { content: counter(hsic) "."; grid-row: 1; color: #646970; font-size: 12px; line-height: 18px; text-align: right; }
-#hs-issue-contents-list .hs-ic-heading { grid-column: 2; font-size: 12px; font-weight: 600; line-height: 18px; color: #1d2327; overflow-wrap: anywhere; }
-#hs-issue-contents-list .hs-ic-input { grid-column: 2; width: 100%; min-height: 30px; font-size: 13px; }
-#hs-issue-contents-list .hs-ic-input:placeholder-shown { background: #fbfbfc; }
-.hs-wu-contents .hs-ic-skipped { margin: 6px 10px 8px; }
-.hs-wu-contents .hs-ic-hint { margin: -2px 0 8px; color: #646970; }
 </style>
 <script id="hs-issue-contents-js">
 (function () {
+    var PLACEHOLDER = 'Shown under this update on the Campus Hub page.';
+    function list() { return document.getElementById('hs-issue-contents-list'); }
+    // Count, colours and "N of M shown", worked out from the boxes so they follow every keystroke and tick.
+    function paint() {
+        var box = list();
+        if (!box) { return; }
+        var max = +box.dataset.max || 30, rows = box.querySelectorAll('.hs-ic-row'), on = 0;
+        rows.forEach(function (row) {
+            var input = row.querySelector('.hs-ic-input'), show = row.querySelector('.hs-ic-show'), len = row.querySelector('.hs-ic-len');
+            var name = (input.value.trim() || row.querySelector('.hs-ic-heading').textContent).trim();
+            var long = name.length > max;
+            if (show.checked) { on++; }
+            row.classList.toggle('is-off', !show.checked);
+            input.classList.toggle('is-long', long);
+            len.classList.toggle('is-long', long);
+            len.textContent = name.length + '/' + max;
+            len.title = long ? 'Long for a Campus Hub chip: try ' + max + ' characters or fewer.' : '';
+        });
+        var count = box.closest('.hs-ic-card') && box.closest('.hs-ic-card').querySelector('.hs-ic-count');
+        if (count) { count.textContent = on + ' of ' + rows.length + ' shown'; }
+    }
+    document.addEventListener('input', function (e) { if (e.target.closest && e.target.closest('#hs-issue-contents-list')) { paint(); } });
+    document.addEventListener('change', function (e) { if (e.target.closest && e.target.closest('#hs-issue-contents-list')) { paint(); } });
+    document.addEventListener('DOMContentLoaded', paint);
+    if (document.readyState !== 'loading') { paint(); }
+
+    // The blurb's starter text: shown in the editor while it's empty (TinyMCE has no placeholder of its own).
+    function placeholder(ed) {
+        if (!ed || !ed.getBody) { return; }
+        var doc = ed.getDoc();
+        if (!doc.getElementById('hs-wu-ph')) {
+            var st = doc.createElement('style');
+            st.id = 'hs-wu-ph';
+            st.textContent = 'body.hs-empty::before{content:attr(data-placeholder);position:absolute;color:#8c8f94;pointer-events:none;}';
+            doc.head.appendChild(st);
+        }
+        var body = ed.getBody();
+        body.setAttribute('data-placeholder', PLACEHOLDER);
+        var sync = function () { body.classList.toggle('hs-empty', !ed.getContent({ format: 'text' }).trim()); };
+        ['keyup', 'change', 'SetContent', 'input', 'focus', 'blur'].forEach(function (ev) { ed.on(ev, sync); });
+        sync();
+    }
+    if (window.acf && acf.addAction) {
+        acf.addAction('wysiwyg_tinymce_init', function (ed, id, init, field) {
+            if (field && field.get && field.get('name') === 'blurb') { placeholder(ed); }
+        });
+    }
+
     if (!window.wp || !wp.data || !wp.data.subscribe) { return; }
     var wasSaving = false;
     wp.data.subscribe(function () {
@@ -484,12 +581,12 @@ function hs_issue_contents_admin_assets() {
         wasSaving = saving;
     });
     function refresh() {
-        var box = document.getElementById('hs-issue-contents-list');
+        var box = list();
         if (!box) { return; }
         var body = new URLSearchParams({ action: 'hs_issue_contents_get', nonce: box.dataset.nonce, post_id: box.dataset.post });
         fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', { method: 'POST', credentials: 'same-origin', body: body })
             .then(function (r) { return r.json(); })
-            .then(function (res) { if (res && res.success) { box.innerHTML = res.data; } })
+            .then(function (res) { if (res && res.success) { box.innerHTML = res.data; paint(); } })
             .catch(function () {});
     }
 })();

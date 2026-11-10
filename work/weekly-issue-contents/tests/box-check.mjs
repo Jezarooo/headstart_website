@@ -91,10 +91,31 @@ try {
   t('the old tags field is hidden; the list sits in Weekly Update Details', !box.tagsField && box.inGroup, JSON.stringify(box));
   const lay = JSON.parse(await run(`const q = (c) => document.querySelector('#acf-group_6a3772490951b .acf-field.' + c).getBoundingClientRect();
     const b = q('hs-wu-blurb'), c = q('hs-wu-campus'), w = q('hs-wu-week'), i = q('hs-wu-contents'), a = q('hs-wu-archive');
-    const list = document.getElementById('hs-issue-contents-list');
+    const list = document.getElementById('hs-issue-contents-list'), card = document.querySelector('.hs-ic-card').getBoundingClientRect();
+    const mid = Math.round(w.bottom - c.top);
     return JSON.stringify({ cols: b.right <= c.left + 1 && c.right <= i.left + 1, campusOverWeek: Math.abs(c.left - w.left) < 2 && w.top >= c.bottom - 1, archiveBelow: a.top >= Math.max(b.bottom, i.bottom) - 1 && a.width > b.width + i.width,
-      tops: Math.abs(b.top - c.top) < 2 && Math.abs(b.top - i.top) < 2, heights: [Math.round(b.height), Math.round(i.height)], widths: [Math.round(b.width), Math.round(c.width), Math.round(i.width)], scrolls: list.scrollHeight > list.clientHeight && getComputedStyle(list).overflowY === 'auto' });`));
-  t('Blurb | Campus over Week number | In this issue, tops aligned, Archive Post across the bottom', lay.cols && lay.campusOverWeek && lay.archiveBelow && lay.tops, JSON.stringify(lay));
+      tops: [Math.round(b.top), Math.round(c.top), Math.round(card.top)], heights: [Math.round(b.height), mid, Math.round(card.height)],
+      noLabel: !document.querySelector('.hs-wu-contents > .acf-label') || getComputedStyle(document.querySelector('.hs-wu-contents > .acf-label')).display === 'none',
+      blurbHint: !document.querySelector('.hs-wu-blurb .acf-label .description'), scrolls: getComputedStyle(list).overflowY === 'auto',
+      count: (document.querySelector('.hs-ic-count') || {}).textContent, tip: !!document.querySelector('.hs-ic-head .hs-ic-tip[title]') });`));
+  t('Blurb | Campus over Week number | In this issue, tops aligned, Archive Post across the bottom', lay.cols && lay.campusOverWeek && lay.archiveBelow && Math.max(...lay.tops) - Math.min(...lay.tops) <= 2, JSON.stringify(lay));
+  t('all three columns are the same height (set by Campus + Week number)', Math.max(...lay.heights) - Math.min(...lay.heights) <= 3, JSON.stringify(lay.heights));
+  t('no label or hint above the list or the blurb; the hint is a tooltip; a count shows', lay.noLabel && lay.blurbHint && lay.tip && lay.count === '3 of 3 shown' && lay.scrolls, JSON.stringify(lay));
+  const marks = JSON.parse(await run(`const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const rows = [...document.querySelectorAll('#hs-issue-contents-list .hs-ic-row')];
+    const before = rows.map((r) => r.querySelector('.hs-ic-len').classList.contains('is-long'));
+    const inp = rows[1].querySelector('.hs-ic-input'); inp.value = 'Reception class detectives solve a mystery'; inp.dispatchEvent(new Event('input', { bubbles: true })); await wait(50);
+    const typedLong = inp.classList.contains('is-long') && rows[1].querySelector('.hs-ic-len').textContent === inp.value.length + '/30';
+    inp.value = ''; inp.dispatchEvent(new Event('input', { bubbles: true }));
+    const cb = rows[2].querySelector('.hs-ic-show'); cb.click(); await wait(50);
+    const off = rows[2].classList.contains('is-off') && document.querySelector('.hs-ic-count').textContent === '2 of 3 shown';
+    let ph = '';
+    const ed = window.tinymce && tinymce.editors.find((e) => e.getBody && e.getBody().dataset.placeholder);
+    if (ed) { ph = ed.getBody().classList.contains('hs-empty') ? ed.getBody().dataset.placeholder : 'not empty'; }
+    return JSON.stringify({ before, typedLong, off, ph });`));
+  t('names over 30 characters turn red as you type; the long heading is flagged until it has a short name', JSON.stringify(marks.before) === JSON.stringify([true, false, false]) && marks.typedLong, JSON.stringify(marks));
+  t('unticking dims the row and updates the count', marks.off, JSON.stringify(marks));
+  t('the empty blurb shows its starter text', marks.ph === 'Shown under this update on the Campus Hub page.', JSON.stringify(marks));
   if (shots) {
     for (const [w, name] of [[1440, 'details-1440.png'], [1100, 'details-1100.png']]) {
       await send('Emulation.setDeviceMetricsOverride', { width: w, height: 1800, deviceScaleFactor: 1, mobile: false });
@@ -128,7 +149,7 @@ try {
   const reloaded = JSON.parse(await run(`return JSON.stringify({ first: (document.querySelector('#hs-issue-contents-list .hs-ic-input') || {}).value, n: document.querySelectorAll('#hs-issue-contents-list .hs-ic-row').length });`));
   t('after a reload: the short name and all four articles are there', reloaded.first === 'Science Fair' && reloaded.n === 4, JSON.stringify(reloaded));
   const stored = evalFile(`echo wp_json_encode(hs_issue_contents_names(${ISSUE}));`).trim().split('\n').pop();
-  t('saved for the Campus Hub: short name, then headings', stored === JSON.stringify(['Science Fair', 'Reception Detectives', 'Sports Day', 'Added After Load']), stored);
+  t('saved for the Campus Hub: short name, headings, and the unticked article left out', stored === JSON.stringify(['Science Fair', 'Reception Detectives', 'Added After Load']), stored);
   t('no JavaScript errors', errors.size === 0, [...errors].join(' | '));
 } catch (e) {
   t('check finished', false, String(e));
