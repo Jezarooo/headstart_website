@@ -184,17 +184,17 @@ function hs_card_preview_print_assets() {
 #wpbody .hs-cip-tag.is-p { background: #8a2be2; left: auto; right: 2px; }
 #wpbody .hs-cip-rack-note { margin-top: 4px; }
 #wpbody .hs-cip-rack-label { display: block; font-weight: 600; margin-bottom: 4px; }
-/* Hero focal point (desktop): the whole Featured image with a dot, and the 70vh hero crop it gives. */
+/* Hero focal point (desktop): the whole Featured image with a frame showing what the 70vh desktop hero shows. */
 #wpbody .hs-chf { margin-top: 22px; }
 #wpbody .hs-chf-cap { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 #wpbody .hs-chf-cap span { display: inline-flex; white-space: nowrap; padding: 3px 10px; border-radius: 999px; background: #f0f0f1; color: #50575e; font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; }
-#wpbody .hs-chf-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
-#wpbody .hs-chf-edit { position: relative; display: block; line-height: 0; cursor: crosshair; outline: 0; border-radius: 4px; touch-action: none; user-select: none; }
-#wpbody .hs-chf-edit:focus-visible { box-shadow: 0 0 0 2px #2271b1; }
-#wpbody .hs-chf-edit img { width: 100%; height: auto; max-height: 240px; object-fit: contain; background: #1d2327; border-radius: 4px; pointer-events: none; }
-#wpbody .hs-chf-dot { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; border: 2px solid #fff; background: rgba(240, 179, 35, .9); box-shadow: 0 0 0 2px #003057, 0 2px 6px rgba(0, 0, 0, .5); pointer-events: none; }
-#wpbody .hs-chf-crop { position: relative; width: 100%; aspect-ratio: 973 / 756; overflow: hidden; border-radius: 4px; background: #1d2327; }
-#wpbody .hs-chf-crop img { display: block; width: 100%; height: 100%; object-fit: cover; }
+#wpbody .hs-chf-stage { position: relative; overflow: hidden; line-height: 0; border-radius: 4px; background: #1d2327; touch-action: none; user-select: none; outline: 0; }
+#wpbody .hs-chf-stage:focus-visible { box-shadow: 0 0 0 2px #2271b1; }
+#wpbody .hs-chf-stage img { display: block; width: 100%; height: auto; pointer-events: none; }
+#wpbody .hs-chf-frame { position: absolute; box-sizing: border-box; border: 2px solid #f0b323; box-shadow: 0 0 0 9999px rgba(15, 23, 42, .6); cursor: grab; }
+#wpbody .hs-chf-stage.is-dragging .hs-chf-frame { cursor: grabbing; }
+#wpbody .hs-chf-frame.is-fixed { cursor: default; }
+#wpbody .hs-chf-tag { position: absolute; left: 6px; top: 6px; padding: 2px 6px; border-radius: 3px; background: #f0b323; color: #003057; font: 700 10px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; }
 #wpbody .hs-chf-label { margin-top: 6px; padding: 3px 0 3px 8px; border-left: 2px solid #2271b1; font-size: 12px; line-height: 1.35; }
 #wpbody .hs-chf-label strong { display: block; color: #1d2327; }
 #wpbody .hs-chf-label span { display: block; color: #3c434a; font-size: 11.5px; }
@@ -507,78 +507,93 @@ function hs_card_preview_print_assets() {
 	 * Hero focal point (desktop). options:
 	 *   get() -> { url, focus }   focus is "X Y" (whole percentages) or '' for the centre
 	 *   set(focus)                 called with "X Y" or ''
-	 * The crop uses the hero's own CSS: object-fit cover, object-position X% Y%, in a box the
-	 * shape of the desktop hero at a 1920×1080 window (973px content column × 70vh).
+	 * Shows the whole Featured image with a frame: what the desktop hero shows. The frame is the hero's
+	 * shape at a 1920×1080 window (973px content column × 70vh) and is placed with the same maths as
+	 * object-fit: cover + object-position X% Y%, so what's inside it is what the page shows.
 	 */
+	var HERO_RATIO = 973 / 756;
 	function parseFocus(f) {
 		var m = /^\s*(\d{1,3})\s+(\d{1,3})\s*$/.exec(f || '');
 		return m && +m[1] <= 100 && +m[2] <= 100 ? { x: +m[1], y: +m[2] } : { x: 50, y: 50 };
 	}
 	function heroFocus(o) {
 		var node = el('div', { 'class': 'hs-chf' });
-		var editImg = el('img', { alt: '' }), cropImg = el('img', { alt: '' }), dot = el('span', { 'class': 'hs-chf-dot' });
-		var edit = el('div', { 'class': 'hs-chf-edit', tabindex: '0', role: 'slider', 'aria-label': 'Hero focal point: click, drag or use the arrow keys' }, [editImg, dot]);
-		var crop = el('div', { 'class': 'hs-chf-crop' }, [cropImg]);
+		var img = el('img', { alt: '' });
+		var frame = el('div', { 'class': 'hs-chf-frame' }, [el('span', { 'class': 'hs-chf-tag', text: 'Desktop hero' })]);
+		var stage = el('div', { 'class': 'hs-chf-stage', tabindex: '0', role: 'slider', 'aria-label': 'Desktop hero position: drag the frame or use the arrow keys' }, [img, frame]);
 		var where = el('span');
 		var centre = el('button', { type: 'button', 'class': 'button-link', text: 'Centre' });
-		var empty = el('p', { 'class': 'hs-chf-empty', text: 'Pick a Featured image first; then click it here to choose which part stays in view.' });
-		var grid = el('div', { 'class': 'hs-chf-grid' }, [
-			el('div', {}, [edit, el('div', { 'class': 'hs-chf-label' }, [el('strong', { text: 'Focal point' }), el('span', { text: 'Click or drag on the photo (or use the arrow keys). This part stays in view when the hero is cropped.' })]), el('div', { 'class': 'hs-chf-actions' }, [where, centre])]),
-			el('div', {}, [crop, el('div', { 'class': 'hs-chf-label' }, [el('strong', { text: 'Hero on desktop' }), el('span', { text: 'The Featured image at 70% of the window height, as at the top of the Post page.' })])])
-		]);
+		var help = el('span');
+		var empty = el('p', { 'class': 'hs-chf-empty', text: 'Pick a Featured image first; then drag the frame here to choose what the desktop hero shows.' });
+		var body = el('div', {}, [stage, el('div', { 'class': 'hs-chf-label' }, [el('strong', { text: 'Desktop hero' }), help]), el('div', { 'class': 'hs-chf-actions' }, [where, centre])]);
 		node.appendChild(el('div', { 'class': 'hs-chf-cap' }, [el('span', { text: 'Preview · Hero (top of the Post page, desktop)' })]));
 		node.appendChild(empty);
-		node.appendChild(grid);
+		node.appendChild(body);
 
-		var dragging = false;
+		// The frame's size in % of the photo, and which way it can move.
+		function geometry() {
+			var w = img.naturalWidth, h = img.naturalHeight;
+			if (!w || !h) { return null; }
+			var ratio = w / h;
+			if (Math.abs(ratio - HERO_RATIO) / HERO_RATIO < 0.01) { return { axis: '', fw: 100, fh: 100 }; }
+			return ratio > HERO_RATIO ? { axis: 'x', fw: HERO_RATIO / ratio * 100, fh: 100 } : { axis: 'y', fw: 100, fh: ratio / HERO_RATIO * 100 };
+		}
 		function apply(f) {
-			var p = parseFocus(f);
-			dot.style.left = p.x + '%';
-			dot.style.top = p.y + '%';
-			cropImg.style.objectPosition = p.x + '% ' + p.y + '%';
-			edit.setAttribute('aria-valuetext', p.x + '% across, ' + p.y + '% down');
-			where.textContent = f ? p.x + '% across, ' + p.y + '% down' : 'Centre (default)';
+			var g = geometry(), p = parseFocus(f);
+			where.textContent = !f ? 'Centred (default)' : (g && g.axis === 'y' ? p.y + '% down' : p.x + '% across');
+			if (!g) { return; }
+			frame.style.width = g.fw + '%';
+			frame.style.height = g.fh + '%';
+			frame.style.left = (100 - g.fw) * p.x / 100 + '%';
+			frame.style.top = (100 - g.fh) * p.y / 100 + '%';
+			frame.classList.toggle('is-fixed', !g.axis);
+			help.textContent = !g.axis
+				? 'This photo is already the hero’s shape, so nothing is cropped.'
+				: 'Inside the frame is what shows at the top of the Post page on desktop (70% of the window height). Drag it ' + (g.axis === 'x' ? 'left or right' : 'up or down') + ' to choose.';
+			stage.setAttribute('aria-valuetext', where.textContent);
 		}
 		function commit(x, y) {
-			x = Math.max(0, Math.min(100, Math.round(x)));
-			y = Math.max(0, Math.min(100, Math.round(y)));
-			var f = x + ' ' + y;
+			var f = Math.max(0, Math.min(100, Math.round(x))) + ' ' + Math.max(0, Math.min(100, Math.round(y)));
 			o.set(f);
 			apply(f);
 		}
+		// Put the frame's centre under the pointer, as far as the photo allows.
+		var dragging = false;
 		function fromEvent(e) {
-			var r = editImg.getBoundingClientRect();
-			// The photo is drawn with object-fit: contain, so find the drawn picture inside the box.
-			var nw = editImg.naturalWidth || r.width, nh = editImg.naturalHeight || r.height;
-			var scale = Math.min(r.width / nw, r.height / nh), w = nw * scale, h = nh * scale;
-			var left = r.left + (r.width - w) / 2, top = r.top + (r.height - h) / 2;
-			commit((e.clientX - left) / w * 100, (e.clientY - top) / h * 100);
+			var g = geometry();
+			if (!g || !g.axis) { return; }
+			var r = stage.getBoundingClientRect(), p = parseFocus(o.get().focus);
+			if (g.axis === 'x') {
+				var left = (e.clientX - r.left) / r.width * 100 - g.fw / 2;
+				commit(left / (100 - g.fw) * 100, p.y);
+			} else {
+				var top = (e.clientY - r.top) / r.height * 100 - g.fh / 2;
+				commit(p.x, top / (100 - g.fh) * 100);
+			}
 		}
-		edit.addEventListener('pointerdown', function (e) { dragging = true; edit.setPointerCapture(e.pointerId); edit.focus(); fromEvent(e); });
-		edit.addEventListener('pointermove', function (e) { if (dragging) { fromEvent(e); } });
-		edit.addEventListener('pointerup', function () { dragging = false; });
-		edit.addEventListener('pointercancel', function () { dragging = false; });
-		edit.addEventListener('keydown', function (e) {
-			var step = e.shiftKey ? 10 : 1, p = parseFocus(o.get().focus);
-			var moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
-			if (!moves[e.key]) { return; }
+		stage.addEventListener('pointerdown', function (e) { dragging = true; stage.classList.add('is-dragging'); try { stage.setPointerCapture(e.pointerId); } catch (err) { /* still drags */ } stage.focus(); fromEvent(e); });
+		stage.addEventListener('pointermove', function (e) { if (dragging) { fromEvent(e); } });
+		['pointerup', 'pointercancel'].forEach(function (t) { stage.addEventListener(t, function () { dragging = false; stage.classList.remove('is-dragging'); }); });
+		stage.addEventListener('keydown', function (e) {
+			var g = geometry(), p = parseFocus(o.get().focus), step = e.shiftKey ? 10 : 1;
+			if (!g || !g.axis) { return; }
+			var d = g.axis === 'x' ? { ArrowLeft: -step, ArrowRight: step }[e.key] : { ArrowUp: -step, ArrowDown: step }[e.key];
+			if (!d) { return; }
 			e.preventDefault();
-			commit(p.x + moves[e.key][0], p.y + moves[e.key][1]);
+			if (g.axis === 'x') { commit(p.x + d, p.y); } else { commit(p.x, p.y + d); }
 		});
 		centre.addEventListener('click', function () { o.set(''); apply(''); });
+		img.addEventListener('load', function () { apply(o.get().focus || ''); });
 
 		function draw() {
 			var cur = o.get() || {};
 			empty.style.display = cur.url ? 'none' : '';
-			grid.style.display = cur.url ? '' : 'none';
-			if (cur.url && editImg.getAttribute('src') !== cur.url) {
-				editImg.setAttribute('src', cur.url);
-				cropImg.setAttribute('src', cur.url);
-			}
+			body.style.display = cur.url ? '' : 'none';
+			if (cur.url && img.getAttribute('src') !== cur.url) { img.setAttribute('src', cur.url); }
 			apply(cur.focus || '');
 		}
 		draw();
-		return { node: node, draw: draw };
+		return { node: node, draw: draw, geometry: geometry };
 	}
 
 	window.hsCardPreview = { create: create, imagePicker: imagePicker, heroFocus: heroFocus, parseFocus: parseFocus, cardDateLabel: cardDateLabel, postDateLabel: postDateLabel };
