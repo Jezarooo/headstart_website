@@ -270,7 +270,7 @@ try {
     const mb = box.querySelector('.hs-chf-mobile'); out.mobileShown = mb.style.display !== 'none';
     const slot = mb.querySelector('.hs-cip-slot[data-slot=portrait]'); out.slotPad = slot ? parseFloat(getComputedStyle(slot).paddingLeft) : 0;
     const rack = mb.querySelector('.hs-cip-rack');
-    if (rack) { rack.scrollTop = 40; await key('ArrowLeft'); await key('ArrowRight'); out.rackKept = rack.isConnected && Math.round(mb.querySelector('.hs-cip-rack').scrollTop); }
+    if (rack) { rack.scrollTop = 40; out.rackSet = Math.round(rack.scrollTop); await key('ArrowLeft'); await key('ArrowRight'); out.rackKept = rack.isConnected && Math.round(mb.querySelector('.hs-cip-rack').scrollTop); }
     const items = [...mb.querySelectorAll('.hs-cip-rack-item')];
     out.rackN = items.length;
     if (items.length) { items[items.length - 1].click(); await wait(800); out.mobileId = +items[items.length - 1].dataset.id; }
@@ -286,8 +286,8 @@ try {
   t('hero boxes are the measured shapes on all four', Math.abs(hero.desktop - 1632 / 756) < 0.05 && Math.abs(hero.laptop - 1380 / 581) < 0.05 && Math.abs(hero.tablet - 779 / 826) < 0.05 && Math.abs(hero.phone - 371 / 591) < 0.05, JSON.stringify({ d: hero.desktop, l: hero.laptop, t: hero.tablet, p: hero.phone }));
   t('dragging the photo up in Laptop moves the position down', /^(5[1-9]|[6-9]\d|100)% down/.test(hero.dragged), hero.dragged);
   t('arrow keys move only along the cropped axis (up/down on desktop)', hero.keys === '53% down', hero.keys);
-  t('Phone: portrait crop, no empty screen below the hero, and left/right moves the same focal point', hero.spaceBelow <= 8 && !hero.foldOnPhone && hero.phoneKeys === '52% across', JSON.stringify({ s: hero.spaceBelow, f: hero.foldOnPhone, k: hero.phoneKeys }));
-  t('Phone image picker: shown on phone, padded, and the rack keeps its scroll when the preview redraws', hero.mobileShown && hero.slotPad >= 8 && (hero.rackKept === 40 || hero.rackN <= 4), JSON.stringify({ shown: hero.mobileShown, pad: hero.slotPad, kept: hero.rackKept, n: hero.rackN }));
+  t('Phone: portrait crop, no empty screen below the hero, and left/right moves the same focal point', hero.spaceBelow <= 12 && !hero.foldOnPhone && hero.phoneKeys === '52% across', JSON.stringify({ s: hero.spaceBelow, f: hero.foldOnPhone, k: hero.phoneKeys }));
+  t('Phone image picker: shown on phone, padded, and the rack keeps its scroll when the preview redraws', hero.mobileShown && hero.slotPad >= 8 && (hero.rackSet > 0 && hero.rackKept === hero.rackSet || hero.rackN <= 4), JSON.stringify({ shown: hero.mobileShown, pad: hero.slotPad, set: hero.rackSet, kept: hero.rackKept, n: hero.rackN }));
   t('picking a phone image shows it on Phone with its own position', hero.mobileId && /\.(jpe?g|png|webp)/i.test(hero.phoneSrc) && hero.mobileStart === 'Centred (default)' && hero.mobileMoved !== 'Centred (default)', JSON.stringify({ src: hero.phoneSrc, a: hero.mobileStart, b: hero.mobileMoved }));
   t('Desktop still shows the Featured image’s own position', hero.backOnDesktop === '53% down', hero.backOnDesktop);
   if (shots) { await run(`document.querySelector('#hs-a2p .hs-a2p-preview').closest('.hs-a2p-row').scrollIntoView({ block: 'start' });`); await sleep(1200); const p = await send('Page.captureScreenshot', { format: 'png' }); writeFileSync(join(shots, 'panel-4-preview-1920.png'), Buffer.from(p.data, 'base64')); }

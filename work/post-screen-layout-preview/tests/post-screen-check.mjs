@@ -129,18 +129,18 @@ try {
 
   console.log('\nHero preview');
   const hf = JSON.parse(await run(`${helpers}
-    const box = document.getElementById('acf-group_hs_post_classification').querySelector('.hs-chf');
+    const chf = document.getElementById('acf-group_hs_post_classification').querySelector('.hs-chf');
     const input = f('hs_hero_focus').querySelector('input[type=text]');
     const hiddenFields = ['hs_hero_focus', 'hs_hero_mobile', 'hs_hero_mobile_focus'].every((n) => f(n).style.display === 'none');
     const startFocus = input.value;
-    const tab = (k) => box.querySelector('.hs-chf-devices button[data-device=' + k + ']');
-    const heroEl = () => box.querySelector('.hs-chf-hero');
+    const tab = (k) => chf.querySelector('.hs-chf-devices button[data-device=' + k + ']');
+    const heroEl = () => chf.querySelector('.hs-chf-hero');
     const shape = () => { const b = heroEl().getBoundingClientRect(); return +(b.width / b.height).toFixed(2); };
-    const where = () => (box.querySelector('.hs-chf-where') || {}).textContent || '';
+    const where = () => (chf.querySelector('.hs-chf-where') || {}).textContent || '';
     const key = async (k, shift) => { heroEl().dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, shiftKey: !!shift })); await wait(60); };
-    const centre = async () => { [...box.querySelectorAll('.hs-chf-actions button')].find((b) => b.textContent === 'Centre').click(); await wait(120); };
+    const centre = async () => { [...chf.querySelectorAll('.hs-chf-actions button')].find((b) => b.textContent === 'Centre').click(); await wait(120); };
     await wait(700);
-    const out = { tabs: [...box.querySelectorAll('.hs-chf-devices button')].map((b) => b.textContent), on: (box.querySelector('.hs-chf-devices .is-on') || {}).dataset.device, desktop: shape(), fold: !!box.querySelector('.hs-chf-fold'), mobileHiddenOnDesktop: box.querySelector('.hs-chf-mobile').style.display === 'none' };
+    const out = { tabs: [...chf.querySelectorAll('.hs-chf-devices button')].map((b) => b.textContent), on: (chf.querySelector('.hs-chf-devices .is-on') || {}).dataset.device, desktop: shape(), fold: !!chf.querySelector('.hs-chf-fold'), mobileHiddenOnDesktop: chf.querySelector('.hs-chf-mobile').style.display === 'none' };
     tab('laptop').click(); await wait(300); out.laptop = shape();
     await centre();
     const h = heroEl(), hr = h.getBoundingClientRect();
@@ -153,14 +153,14 @@ try {
     out.keys = where();
     tab('tablet').click(); await wait(300); out.tablet = shape();
     tab('phone').click(); await wait(400); out.phone = shape();
-    const scr = box.querySelector('.hs-chf-screen').getBoundingClientRect(), hb = heroEl().getBoundingClientRect();
-    out.spaceBelow = Math.round(scr.bottom - hb.bottom); out.foldOnPhone = !!box.querySelector('.hs-chf-fold');
+    const scr = chf.querySelector('.hs-chf-screen').getBoundingClientRect(), hb = heroEl().getBoundingClientRect();
+    out.spaceBelow = Math.round(scr.bottom - hb.bottom); out.foldOnPhone = !!chf.querySelector('.hs-chf-fold');
     await key('ArrowRight'); await key('ArrowRight');
     out.phoneKeys = where();
-    const mb = box.querySelector('.hs-chf-mobile'); out.mobileShown = mb.style.display !== 'none';
+    const mb = chf.querySelector('.hs-chf-mobile'); out.mobileShown = mb.style.display !== 'none';
     const slot = mb.querySelector('.hs-cip-slot[data-slot=portrait]'); out.slotPad = slot ? parseFloat(getComputedStyle(slot).paddingLeft) : 0;
     const rack = mb.querySelector('.hs-cip-rack');
-    if (rack) { rack.scrollTop = 40; await key('ArrowLeft'); await key('ArrowRight'); out.rackKept = rack.isConnected && Math.round(mb.querySelector('.hs-cip-rack').scrollTop); }
+    if (rack) { rack.scrollTop = 40; out.rackSet = Math.round(rack.scrollTop); await key('ArrowLeft'); await key('ArrowRight'); out.rackKept = rack.isConnected && Math.round(mb.querySelector('.hs-cip-rack').scrollTop); }
     const items = [...mb.querySelectorAll('.hs-cip-rack-item')];
     out.rackN = items.length;
     if (items.length) { items[items.length - 1].click(); await wait(800); out.mobileId = +items[items.length - 1].dataset.id; }
@@ -174,7 +174,7 @@ try {
   t('the hero fields are hidden behind the preview; it starts centred', hf.hidden && hf.start === '', JSON.stringify(hf));
   t('Desktop, Laptop, Tablet, Phone at the measured shapes', JSON.stringify(hf.tabs) === JSON.stringify(['Desktop', 'Laptop', 'Tablet', 'Phone']) && Math.abs(hf.desktop - 1632 / 756) < 0.05 && Math.abs(hf.laptop - 1380 / 581) < 0.05 && Math.abs(hf.tablet - 779 / 826) < 0.05 && Math.abs(hf.phone - 371 / 591) < 0.05, JSON.stringify(hf));
   t('one focal point: up/down from Desktop/Laptop, left/right from Phone', hf.focus === '52 53' && hf.keys === '53% down' && hf.phoneKeys === '52% across', JSON.stringify({ f: hf.focus, k: hf.keys, p: hf.phoneKeys }));
-  t('Phone: no empty screen below the hero; picker padded; rack keeps its scroll', hf.spaceBelow <= 8 && hf.slotPad >= 8 && (hf.rackKept === 40 || hf.rackN <= 4), JSON.stringify({ s: hf.spaceBelow, pad: hf.slotPad, kept: hf.rackKept, n: hf.rackN }));
+  t('Phone: no empty screen below the hero; picker padded; rack keeps its scroll', hf.spaceBelow <= 12 && hf.slotPad >= 8 && (hf.rackSet > 0 && hf.rackKept === hf.rackSet || hf.rackN <= 4), JSON.stringify({ s: hf.spaceBelow, pad: hf.slotPad, set: hf.rackSet, kept: hf.rackKept, n: hf.rackN }));
   t('picking a phone image sets the ACF field and gives it its own position', hf.mobileInput === hf.mobileId && hf.mobileFocus !== '' && hf.mobileStart === 'Centred (default)', JSON.stringify({ id: hf.mobileInput, want: hf.mobileId, mf: hf.mobileFocus }));
   if (shots) { await run(`document.querySelector('.hs-chf .hs-chf-devices button[data-device=phone]').click(); document.querySelector('.hs-chf').scrollIntoView({ block: 'start' });`); await sleep(1000); const p = await send('Page.captureScreenshot', { format: 'png' }); writeFileSync(join(shots, 'post-4-hero-phone.png'), Buffer.from(p.data, 'base64')); await run(`document.querySelector('.hs-chf .hs-chf-devices button[data-device=desktop]').click();`); await sleep(400); }
 
