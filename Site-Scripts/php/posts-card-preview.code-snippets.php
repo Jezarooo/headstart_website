@@ -87,6 +87,25 @@ function hs_card_preview_content_images( $content ) {
 	return $out;
 }
 
+/**
+ * How many <img> tags in the content point at files that aren't in the Media Library
+ * (e.g. imported archive Posts' legacy-images). They can't be used as a featured or portrait image.
+ */
+function hs_card_preview_unlisted_image_count( $content ) {
+	$count = 0;
+	if ( preg_match_all( '/<img\b[^>]*>/i', (string) $content, $m ) ) {
+		foreach ( $m[0] as $tag ) {
+			if ( preg_match( '/\bwp-image-\d+\b/', $tag ) ) {
+				continue;
+			}
+			if ( preg_match( '/\ssrc="([^"]+)"/i', $tag, $src ) && ! attachment_url_to_postid( $src[1] ) ) {
+				$count++;
+			}
+		}
+	}
+	return $count;
+}
+
 function hs_card_preview_print_assets() {
 	static $done = false;
 	if ( $done ) {

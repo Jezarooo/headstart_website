@@ -304,7 +304,7 @@ add_action('admin_head', function () {
         "h-section h-campus" "section campus" "badge location"
         "h-event h-event" "start end"
         "h-tags h-tags" "tags tags"
-        "h-images h-images" "portrait ."
+        "h-images h-images" "images images"
         "toggle toggle" "pv pv";
 }
 @container (min-width: 1400px) {
@@ -315,7 +315,7 @@ add_action('admin_head', function () {
             "h-section h-campus pv" "section campus pv" "badge location pv"
             "h-event h-event pv" "start end pv"
             "h-tags h-tags pv" "tags tags pv"
-            "h-images h-images pv" "portrait . pv" ". . pv";
+            "h-images h-images pv" "images images pv" ". . pv";
     }
     #acf-group_hs_post_classification .hs-pc-toggle { display: none; }
     #acf-group_hs_post_classification .hs-pc-preview { display: block !important; border-top: 0; border-left: 1px solid #f0f0f1; padding: 0 0 0 16px; margin-left: 4px; }
@@ -329,7 +329,10 @@ add_action('admin_head', function () {
 #acf-group_hs_post_classification .hs-pc-event-start { grid-area: start; }
 #acf-group_hs_post_classification .hs-pc-event-end { grid-area: end; }
 #acf-group_hs_post_classification .hs-pc-tags { grid-area: tags; }
-#acf-group_hs_post_classification .hs-pc-portrait { grid-area: portrait; }
+#acf-group_hs_post_classification .hs-pc-portrait, #acf-group_hs_post_classification .hs-pc-images { grid-area: images; }
+#acf-group_hs_post_classification .hs-pc-images .hs-pc-slot { padding: 10px 12px; background: #f6f7f7; border-radius: 2px; }
+#acf-group_hs_post_classification .hs-pc-images .hs-pc-slot .hs-cip-label { display: block; font-weight: 600; margin-bottom: 4px; }
+#acf-group_hs_post_classification .hs-pc-images .hs-cip-hint { margin: 4px 0 0; font-size: 12px; color: #646970; }
 #acf-group_hs_post_classification .hs-pc-head { margin: 14px 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: #50575e; }
 #acf-group_hs_post_classification .hs-pc-toggle { grid-area: toggle; justify-self: start; margin: 12px 0 0; }
 #acf-group_hs_post_classification .hs-pc-preview { grid-area: pv; display: none; border-top: 1px solid #f0f0f1; padding-top: 12px; margin-top: 12px; align-self: start; }
@@ -355,6 +358,13 @@ add_action('admin_footer', function () {
     ?>
 <script id="hs-pc-js">
 (function () {
+    // This Post's own photos (saved content): Divi images, then galleries, then plain-HTML images.
+    var IMAGES = <?php
+        global $post;
+        echo wp_json_encode( $post && function_exists( 'hs_card_preview_content_images' ) ? hs_card_preview_content_images( $post->post_content ) : array() );
+    ?>;
+    // Photos in the content that aren't Media Library items (imported archive Posts): they can't be picked.
+    var UNLISTED = <?php echo (int) ( $post && function_exists( 'hs_card_preview_unlisted_image_count' ) ? hs_card_preview_unlisted_image_count( $post->post_content ) : 0 ); ?>;
     var BOX = '#acf-group_hs_post_classification';
     var fields, previewBox, pv, timer = null, last = '';
 
@@ -415,7 +425,59 @@ add_action('admin_footer', function () {
             tags: checkedNames('post_tag_tax')
         };
     }
+    /* ---- Image picker: Featured = WordPress's own featured image (block editor store); Portrait = the ACF field ---- */
+    var picker = null, pickState = {}, urls = {}, lastImages = '';
+    IMAGES.forEach(function (i) { urls[i.id] = i.url; });
+    function featuredNow() {
+        var id = 0;
+        if (window.wp && wp.data && wp.data.select('core/editor')) { id = wp.data.select('core/editor').getEditedPostAttribute('featured_media') || 0; }
+        return { id: id, url: id ? (urls[id] || editor().featured || '') : '' };
+    }
+    function portraitNow() {
+        var f = field('hs_portrait_image'), input = f && f.querySelector('.acf-image-uploader input[type="hidden"]');
+        var id = input ? parseInt(input.value, 10) || 0 : 0;
+        return { id: id, url: id ? (urls[id] || imageUrl('hs_portrait_image')) : '' };
+    }
+    function buildPicker() {
+        var acfField = window.acf && acf.getField ? acf.getField('field_hs_portrait_image') : null;
+        if (!window.hsCardPreview || !hsCardPreview.imagePicker || !acfField || !(window.wp && wp.data && wp.data.dispatch)) { return; } // the ACF box stays as it is
+        picker = hsCardPreview.imagePicker({
+            images: IMAGES,
+            state: pickState,
+            get: function (name) { return name === 'image' ? featuredNow() : portraitNow(); },
+            set: function (name, id, url) {
+                if (id && url) { urls[id] = url; }
+                if (name === 'image') {
+                    wp.data.dispatch('core/editor').editPost({ featured_media: id || 0 });
+                } else if (id) {
+                    acfField.render({ id: id, url: url });
+                } else if (acfField.removeAttachment) {
+                    acfField.removeAttachment();
+                } else {
+                    acfField.render({});
+                }
+                soon();
+            },
+            slots: {
+                image: { label: 'Featured image', required: true, hint: function () { return 'Required to publish. The same image as Featured image in the sidebar.'; } },
+                portrait: { label: 'Portrait (slider)', hint: function () { return 'Optional. Used by the slider; otherwise the Featured image is used.'; } }
+            },
+            source: 'Images in this Post',
+            empty: UNLISTED
+                ? 'This Post\u2019s ' + UNLISTED + ' photo' + (UNLISTED === 1 ? ' is' : 's are') + ' from the old site and not in the Media Library, so ' + (UNLISTED === 1 ? 'it' : 'they') + ' can\u2019t be picked here. Use Media Library.'
+                : 'This Post has no images of its own yet. Use Media Library, or save after adding images in the Divi Builder.',
+            classes: { slot: 'hs-pc-slot' }
+        });
+        var wrapper = el('div', 'hs-pc-images');
+        wrapper.appendChild(picker.node);
+        fields.appendChild(wrapper);
+        field('hs_portrait_image').style.display = 'none'; // its input stays in the form, so the Portrait still saves
+    }
     function refresh() {
+        if (picker) {
+            var key = JSON.stringify([featuredNow(), portraitNow()]);
+            if (key !== lastImages) { lastImages = key; picker.draw(); }
+        }
         if (!pv) { return; }
         var v = values(), key = JSON.stringify(v);
         if (key === last) { return; }
@@ -442,6 +504,7 @@ add_action('admin_footer', function () {
             image: 'The Portrait image if chosen, otherwise the Featured image (in the sidebar).',
             title: 'The Post title.'
         } });
+        buildPicker();
         previewBox = el('div', 'hs-pc-preview');
         previewBox.appendChild(pv.node);
         var toggle = el('button', 'button-link hs-pc-toggle', 'Show preview');
