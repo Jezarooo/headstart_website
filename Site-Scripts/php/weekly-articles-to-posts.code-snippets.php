@@ -1023,7 +1023,7 @@ function hs_a2p_print_assets() {
 				])
 			], 'hs-a2p-g-wide'),
 			group('Website Section', [
-				field(row, 'Website Section *', 'section', [section, custom], 'Sets the feeds, the URL and the yellow badge.'),
+				field(row, 'Website Section *', 'section', [section, custom], 'Dictates where on the site the Post is shown (its feeds and URL). Also the default yellow badge.'),
 				field(row, 'Yellow badge text', null, [text('badgeText')], 'Optional. Leave empty to show the Website Section.')
 			], 'hs-a2p-g-sub'),
 			group('Campus', [

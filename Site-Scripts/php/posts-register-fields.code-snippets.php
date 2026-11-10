@@ -27,7 +27,7 @@ function hs_register_post_acf_fields() {
                 'label' => 'Website Section',
                 'name' => 'hs_department_tax', // Internal ACF name, not highly relevant since save_terms is true
                 'type' => 'taxonomy',
-                'instructions' => 'Sets the feeds, the URL and the yellow badge.',
+                'instructions' => 'Dictates where on the site the Post is shown (its feeds and URL). Also the default yellow badge.',
                 'required' => 1,
                 'conditional_logic' => 0,
                 'wrapper' => array(

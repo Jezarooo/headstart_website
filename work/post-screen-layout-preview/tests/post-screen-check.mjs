@@ -115,7 +115,7 @@ try {
   t('order down the page: Section, badge, event dates, tags (full width), images', lay.order.every((v, i, a) => i === 0 || v > a[i - 1]) && lay.tagsWide, JSON.stringify(lay.order));
   t('preview to the right of the fields, no toggle, not sticky', lay.preview && lay.previewRight && !lay.toggle && lay.sticky !== 'sticky', JSON.stringify({ p: lay.preview, r: lay.previewRight, t: lay.toggle, s: lay.sticky }));
   t('nine labels with lines', lay.labels.length === 9 && lay.lines === 9, JSON.stringify(lay.labels));
-  t('shorter hints', /Sets the feeds, the URL and the yellow badge/.test(lay.hints.section || '') && /Leave empty to show the Website Section/.test(lay.hints.badge || ''), JSON.stringify(lay.hints));
+  t('shorter hints', /Dictates where on the site the Post is shown/.test(lay.hints.section || '') && /Leave empty to show the Website Section/.test(lay.hints.badge || ''), JSON.stringify(lay.hints));
   await shot('post-1-layout-1920.png');
 
   console.log('\nThe preview follows the saved Post');
