@@ -62,7 +62,7 @@ Data unchanged: same field keys, names, types and saving. Only presentation:
      - the block editor's data store (`core/editor`): title, publish date, featured image. A Post with no date yet counts as "today".
    - It re-renders on ACF `change`, on typing (debounced), on select2 changes and on editor store changes.
 4. **Image picker** *(user, 10 Nov)*: the Images group gets the same row as the Articles → Posts panel: a **Featured image** slot, a **Portrait** slot and one rack of **this Post's own photos**.
-   - **Rack source:** a new PHP helper reads the Post's saved content and lists the attachment IDs, in this order: Divi 5 image modules, then gallery modules, then plain-HTML `<img>` tags with a `wp-image-ID` class (so archive Posts work too), without repeats. The list is passed to the page when it loads, with thumbnail and medium URLs. Photos added in the Divi Builder appear after saving and reopening.
+   - **Rack source:** a new PHP helper reads the Post's saved content and lists the attachment IDs, in this order: Divi 5 image modules, then gallery modules, then plain-HTML `<img>` tags with a `wp-image-ID` class, without repeats. **Found while building (10 Nov):** imported archive Posts' photos are plain files in `uploads/legacy-images/`, not Media Library items (none of 1,256 sampled matched). The featured image and the Portrait can only hold Media Library items, so for those Posts the rack says how many photos are from the old site and that they can't be picked here, and Media Library still works. Making them pickable would mean adding each to the Media Library when picked; that is a separate decision, not in this task. The list is passed to the page when it loads, with thumbnail and medium URLs. Photos added in the Divi Builder appear after saving and reopening.
    - **Featured slot = WordPress's real featured image:** picking writes `featured_media` through the block editor's store (`core/editor` → `editPost`). The sidebar's Featured image panel updates at once, it saves with the Post, and the gatekeeper sees it as usual. A change made in the sidebar updates the slot. **Remove** clears it.
    - **Portrait slot = the existing ACF Portrait field:** picking sets its value through ACF's field API, so it saves as now. ACF's own picker box is hidden; its input stays in the form.
    - **Active slot, F and P tags, Media Library and Remove** work as in the panel. The rack shows 150px lazy thumbnails, scrolls, and holds about 260px.
@@ -99,7 +99,7 @@ Not changed: the Posts gatekeeper, the chip calculation, front-end output, URLs,
   - changing Section, badge override, Campus, location, event dates, tags, portrait, the title (editor) and the publish date (editor) updates the card and the strip to the expected text and image; setting a featured image updates the card when there's no portrait;
   - the gatekeeper's green and red borders are still on the right fields;
   - saving the Post keeps every value (reloaded and compared);
-  - image picker: the rack lists the Post's own photos (Divi images, then gallery); for a plain-HTML Post, its `<img>` photos; clicking fills Featured (and the sidebar's featured image), then Portrait; F/P tags; changing the featured image in the store updates the slot; Remove clears; saving stores `_thumbnail_id` and `hs_portrait_image`; with no featured image the gatekeeper still blocks publishing;
+  - image picker: the rack lists the Post's own Media Library photos (Divi images, then gallery, then `wp-image` `<img>` tags); old-site photos are counted, not listed; clicking fills Featured (and the sidebar's featured image), then Portrait; F/P tags; changing the featured image in the store updates the slot; Remove clears; saving stores `_thumbnail_id` and `hs_portrait_image`; with no featured image the gatekeeper still blocks publishing;
   - no JavaScript errors; the Post's front end and a weekly update return 200 logged out.
 
 ### UAT checklist for the user (Gate 5)
@@ -108,7 +108,8 @@ Not changed: the Posts gatekeeper, the chip calculation, front-end output, URLs,
 - [ ] The green/red checks still mark the required fields, and the Post still can't be published without them.
 - [ ] Save, reload: everything you set is still there, and the front end shows it.
 - [ ] On a narrower window the preview is under the fields behind **Show preview**.
-- [ ] Images: the Featured and Portrait slots plus a rack of this Post's own photos. Clicking a photo sets the Featured image (the sidebar's Featured image changes too), then the Portrait. Media Library and Remove work. Try one archive Post as well.
+- [ ] Images: the Featured and Portrait slots plus a rack of this Post's own photos. Clicking a photo sets the Featured image (the sidebar's Featured image changes too), then the Portrait. Media Library and Remove work.
+- [ ] On an archive Post, the rack explains its photos are from the old site; Media Library still works for both slots.
 - [ ] Save, reload: both images are kept, and the Post can't be published without a Featured image.
 - [ ] Open a weekly update's Articles → Posts panel: its preview and image picker look and work as before.
 
