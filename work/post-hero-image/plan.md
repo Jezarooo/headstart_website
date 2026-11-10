@@ -58,6 +58,14 @@ In **HSN Post STANDARD** and **HSC Posts STANDARD** (body layout titled "HSC Pos
 - The hero preview is shown under the card preview, fed from the row's Featured image.
 - On **Create Posts**, `hs_hero_focus` and its ACF key are saved on the Post when set.
 
+### Also in this pack (user, 10 Nov)
+1. **Correct the hints about the URL.** A Post's URL is `/{campus}/school-life/YYYY/MM/post-name/`, built from the **Campus**, or from the **Location override** when set (`posts-routing-engine`); the Website Section isn't in it. Earlier hints said the Section sets the URL. New wording, on the Post screen (**Posts--Register-Fields**) and in the panel (**Weekly-Update--Articles-To-Posts**):
+   - Website Section: "Dictates where on the site the Post is shown (its feeds). Also the default yellow badge."
+   - Campus: "Tick both for Both Campuses. Sets the campus in the URL."
+   - Location override / Location text: "Optional. Replaces the campus name in the chip and the URL, e.g. Bangkok Trip. Still tick a Campus."
+2. **Renaming a Website Section, Yellow badge or Campus refreshes its Posts** (**Posts--Compute-Taxonomies-From-Custom-Fields**). Each Post stores its chip text (`hs_final_section_chip`, `hs_final_location_chip`), so renaming a term (e.g. "Thai" → "Thai Department", slug kept) used to leave Posts showing the old name until each was saved. A new `edited_term` hook for `hs_department`, `hs_thematic_chip` and `hs_post_campus` recalculates the chips for every Post in that term (via `hs_compute_final_divi_chips()`, which writes only those meta keys). Thai has 93 Posts; the largest Section has a few hundred, so it runs in the same request.
+3. **The panel matches headings by slug too** (**Weekly-Update--Articles-To-Posts**): `hs_a2p_section_for_heading()` tries the exact name, then the slug (so a heading "Thai" still finds the Section after it's renamed "Thai Department"), then the aliases. The alias `thai department → Thai` becomes `thai department → thai` by slug, so it works before and after the rename.
+
 Not changed: URLs, chips, dates, the gatekeeper, page heroes, weekly updates, slider cards (Posts--Slider-Shortcode isn't touched).
 
 ## Risks & rollback
@@ -74,6 +82,9 @@ Not changed: URLs, chips, dates, the gatekeeper, page heroes, weekly updates, sl
   - `hs_hero_focus` sanitising: `"50 30"` kept; `"120 x"`, `"-5 10"` and junk cleared; empty is fine;
   - the front-end style tag is printed only for a single Post with a focus, with the right values;
   - slider card HTML is unchanged by a focal point;
+  - renaming a test Website Section and a test Campus refreshes `hs_final_section_chip` / `hs_final_location_chip` on their Posts (and a badge override still wins); Posts in other terms are untouched;
+  - heading matching: exact name, then slug, then alias; "Thai" and "Thai Department" both find the Thai Section, before and after a rename;
+  - the three hints read as above on both screens;
   - panel rows: `heroFocus` sanitised; a created Post stores it; the new ACF field keeps its key, name and type.
 - `panel-check.mjs` (all 65 still pass), plus: the hero preview appears with the frame; dragging the frame changes the row's focus along the cropped axis only; a created Post has `hs_hero_focus`.
 - `post-screen-check.mjs` (all 35 still pass), plus:
@@ -97,10 +108,12 @@ Not changed: URLs, chips, dates, the gatekeeper, page heroes, weekly updates, sl
 - [ ] Slider cards look as before.
 - [ ] Narrow the browser below 981px (or use your phone on the local site): the featured image looks as it does today.
 - [ ] Page heroes, weekly updates and archive Posts look as before.
+- [ ] The hints for Website Section, Campus and Location override read as above (no "URL" under Website Section).
+- [ ] Rename the Website Section **Thai** to **Thai Department** (Posts → Website Sections; keep the slug `thai`). Open a Thai Post: its Section heading and slider badge read "THAI DEPARTMENT" without re-saving it. A weekly-update heading "Thai" or "Thai Department" still pre-selects it in the panel.
 
 ## Deployment notes for the dev (Gate 7)
 Install **after** packs 1, 2 and 3.
-1. **Replace** the code of **Posts--Register-Fields**, **Posts--Card-Preview** and **Weekly-Update--Articles-To-Posts** with the files in `files/php/`.
+1. **Replace** the code of **Posts--Register-Fields**, **Posts--Card-Preview**, **Weekly-Update--Articles-To-Posts** and **Posts--Compute-Taxonomies-From-Custom-Fields** with the files in `files/php/`.
 2. **Jeremy** adds the CSS rule to the live global stylesheet, then adds the class `hs-post-hero` to the featured image module in the two STANDARD templates (and the Archive ones if wanted), then purges WP Super Cache and Cloudflare APO.
 - No permalinks flush.
 - Smoke: open any Post → the hero is 70% of the window tall. Open a Post's edit screen → the hero preview with the desktop frame is under the card preview.
