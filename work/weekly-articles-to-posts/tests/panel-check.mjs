@@ -240,6 +240,24 @@ try {
   t('no preview footnote', wide.footnote === false);
   t('Status hint mentions Posts, and tooltips', /Live: public once created/.test(wide.statusHint) && /from Posts/.test(wide.statusHint) && /Public as soon as/.test(wide.statusTip), JSON.stringify({ h: wide.statusHint, t: wide.statusTip }));
   t('preview uses the site heading font', /Montserrat/.test(wide.font), wide.font);
+  const hero = JSON.parse(await run(`${helpers}
+    const r = document.querySelector('#hs-a2p .hs-a2p-body').closest('.hs-a2p-row');
+    const box = r.querySelector('.hs-chf'); const stage = box.querySelector('.hs-chf-stage'), frame = box.querySelector('.hs-chf-frame');
+    const where = () => box.querySelector('.hs-chf-actions span').textContent;
+    await wait(600);
+    const sr = stage.getBoundingClientRect(), f0 = frame.getBoundingClientRect();
+    const ev = (t, x, y) => stage.dispatchEvent(new PointerEvent(t, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
+    ev('pointerdown', sr.left + 2, sr.top + sr.height / 2); ev('pointerup', sr.left + 2, sr.top + sr.height / 2); await wait(200);
+    const left = { where: where(), frameLeft: Math.round(frame.getBoundingClientRect().left - sr.left) };
+    stage.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); await wait(100);
+    const right1 = where();
+    stage.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })); await wait(100);
+    const down = where();
+    await wait(1200);
+    return JSON.stringify({ ratio: +(f0.width / f0.height).toFixed(3), fullHeight: Math.abs(f0.height - sr.height) < 2, centred: Math.abs((f0.left + f0.width / 2) - (sr.left + sr.width / 2)) < 2, left, right1, down });`));
+  t('hero preview: one image with a frame the desktop hero’s shape (973:756), centred to start', Math.abs(hero.ratio - 973 / 756) < 0.02 && hero.fullHeight && hero.centred, JSON.stringify(hero));
+  t('dragging to the edge moves the frame there', hero.left.where === '0% across' && Math.abs(hero.left.frameLeft) <= 1, JSON.stringify(hero.left));
+  t('arrow keys move it only along the cropped axis', hero.right1 === '1% across' && hero.down === '1% across', JSON.stringify({ r: hero.right1, d: hero.down }));
   if (shots) { await run(`document.querySelector('#hs-a2p .hs-a2p-preview').closest('.hs-a2p-row').scrollIntoView({ block: 'start' });`); await sleep(1200); const p = await send('Page.captureScreenshot', { format: 'png' }); writeFileSync(join(shots, 'panel-4-preview-1920.png'), Buffer.from(p.data, 'base64')); }
   await setWidth(1280);
   await sleep(1200);
@@ -313,13 +331,14 @@ try {
   t('Live Post is public (logged out)', live.status === 200, `${live.status} ${created.view}`);
   const chips = JSON.parse(evalFile(`$out = [];
 foreach (get_posts(['post_type' => 'post', 'post_status' => ['publish', 'draft'], 'numberposts' => -1, 'fields' => 'ids', 'meta_key' => '_hs_a2p_source', 'meta_compare' => 'LIKE', 'meta_value' => '${ISSUE}:']) as $id) {
-  $out[get_post_status($id)] = ['label' => get_post_meta($id, 'hs_final_date_label', true), 'chip' => get_post_meta($id, 'hs_final_section_chip', true), 'section' => wp_get_object_terms($id, 'hs_department', ['fields' => 'names'])[0] ?? '', 'badges' => wp_get_object_terms($id, 'hs_thematic_chip', ['fields' => 'names'])];
+  $out[get_post_status($id)] = ['focus' => get_post_meta($id, 'hs_hero_focus', true), 'label' => get_post_meta($id, 'hs_final_date_label', true), 'chip' => get_post_meta($id, 'hs_final_section_chip', true), 'section' => wp_get_object_terms($id, 'hs_department', ['fields' => 'names'])[0] ?? '', 'badges' => wp_get_object_terms($id, 'hs_thematic_chip', ['fields' => 'names'])];
 }
 echo wp_json_encode($out);`).trim());
   t('empty override: the Live Post shows its Section, with no badge', chips.publish && chips.publish.chip === chips.publish.section && chips.publish.chip !== '' && chips.publish.badges.length === 0, JSON.stringify(chips));
   t('typed override: the Draft shows the typed badge', chips.draft && chips.draft.chip === 'A2P UI Badge', JSON.stringify(chips));
   t('the Draft with an event range has the range label', chips.draft && chips.draft.label === '12\u201314 November 2026', JSON.stringify(chips.draft));
   t('the Live Post without event dates is labelled with its publish date', chips.publish && /^\d{1,2} [A-Z][a-z]+ \d{4}$/.test(chips.publish.label), JSON.stringify(chips.publish));
+  t('the hero position chosen in the panel is saved on the Post', chips.publish && chips.publish.focus === '1 50', JSON.stringify(chips.publish));
   t('the Section chip is in the Live Post page', (await live.clone().text()).toUpperCase().includes(chips.publish.section.toUpperCase()));
 
   console.log('\nSecurity');
