@@ -127,29 +127,34 @@ try {
   t('tag chip without its prefix', start.tags.length === 1 && start.tags[0] === setup.tag.split(':').pop().trim(), JSON.stringify(start.tags));
   t('card date and chip are the publish date (today for a new draft)', /^\d{1,2}(st|nd|rd|th) [A-Z][a-z]+ \d{4}$/.test(start.date) && /^\d{1,2} [A-Z][a-z]+ \d{4}$/.test(start.chipDate), JSON.stringify({ d: start.date, c: start.chipDate }));
 
-  console.log('\nHero position (desktop)');
+  console.log('\nHero preview');
   const hf = JSON.parse(await run(`${helpers}
-    const hbox = box.querySelector('.hs-chf'); const stage = hbox.querySelector('.hs-chf-stage'), frame = hbox.querySelector('.hs-chf-frame');
+    const hbox = box.querySelector('.hs-chf');
+    const tab = (k) => hbox.querySelector('.hs-chf-devices button[data-device=' + k + ']');
+    const heroEl = () => hbox.querySelector('.hs-chf-hero');
+    const shape = () => { const b = heroEl().getBoundingClientRect(); return +(b.width / b.height).toFixed(2); };
     const input = f('hs_hero_focus').querySelector('input[type=text]');
-    await wait(600);
-    const sr = stage.getBoundingClientRect(), f0 = frame.getBoundingClientRect();
-    const out = { hidden: f('hs_hero_focus').style.display === 'none', ratio: +(f0.width / f0.height).toFixed(3), start: input.value };
-    const axis = f0.width < sr.width - 2 ? 'x' : 'y';
-    const ev = (t, x, y) => stage.dispatchEvent(new PointerEvent(t, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
-    if (axis === 'x') { ev('pointerdown', sr.right - 2, sr.top + 5); ev('pointerup', sr.right - 2, sr.top + 5); } else { ev('pointerdown', sr.left + 5, sr.bottom - 2); ev('pointerup', sr.left + 5, sr.bottom - 2); }
-    await wait(200);
-    out.edge = input.value;
-    stage.dispatchEvent(new KeyboardEvent('keydown', { key: axis === 'x' ? 'ArrowLeft' : 'ArrowUp', bubbles: true, shiftKey: true })); await wait(100);
+    await wait(700);
+    const out = { hidden: f('hs_hero_focus').style.display === 'none' && f('hs_hero_mobile').style.display === 'none', start: input.value, desktop: shape() };
+    tab('laptop').click(); await wait(300); out.laptop = shape();
+    for (let i = 0; i < 2; i++) { heroEl().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, shiftKey: true })); await wait(40); }
     out.shift = input.value;
-    [...hbox.querySelectorAll('button')].find((b) => b.textContent === 'Centre').click(); await wait(100);
+    [...hbox.querySelectorAll('.hs-chf-actions button')].find((b) => b.textContent === 'Centre').click(); await wait(100);
     out.centred = input.value;
-    stage.dispatchEvent(new KeyboardEvent('keydown', { key: axis === 'x' ? 'ArrowRight' : 'ArrowDown', bubbles: true })); await wait(100);
-    out.kept = input.value; out.axis = axis;
+    heroEl().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })); await wait(100);
+    out.kept = input.value;
+    tab('phone').click(); await wait(400);
+    const items = [...hbox.querySelectorAll('.hs-chf-mobile .hs-cip-rack-item')];
+    out.rack = items.length;
+    if (items.length) { items[0].click(); await wait(800); }
+    out.mobileInput = +f('hs_hero_mobile').querySelector('.acf-image-uploader input[type=hidden]').value;
+    out.phoneSrc = (heroEl().querySelector('img') || {}).src || '';
+    tab('desktop').click(); await wait(200);
     return JSON.stringify(out);`));
-  t('the focal point field is hidden behind the hero preview, and starts centred', hf.hidden && hf.start === '', JSON.stringify(hf));
-  t('the frame is the desktop hero’s shape', Math.abs(hf.ratio - 973 / 756) < 0.02, String(hf.ratio));
-  t('dragging to the far edge sets 100% on the cropped axis', hf.axis === 'x' ? hf.edge === '100 50' : hf.edge === '50 100', JSON.stringify(hf));
-  t('Shift+arrow moves 10%; Centre clears it', (hf.axis === 'x' ? hf.shift === '90 50' : hf.shift === '50 90') && hf.centred === '', JSON.stringify(hf));
+  t('the focal point and phone image fields are hidden behind the hero preview; starts centred', hf.hidden && hf.start === '', JSON.stringify(hf));
+  t('hero boxes are the measured desktop and MacBook shapes', Math.abs(hf.desktop - 1632 / 756) < 0.05 && Math.abs(hf.laptop - 1380 / 581) < 0.05, JSON.stringify({ d: hf.desktop, l: hf.laptop }));
+  t('Shift+arrow moves 10% along the cropped axis; Centre clears it', hf.shift === '50 70' && hf.centred === '', JSON.stringify(hf));
+  t('Phone: picking from this Post’s images sets the Image for phones and tablets', hf.rack === setup.rackIds.length && hf.mobileInput === setup.rackIds[0] && sameImage(hf.phoneSrc, setup.rackUrls[0]), JSON.stringify({ rack: hf.rack, id: hf.mobileInput, src: hf.phoneSrc }));
 
   console.log('\nEditing fields updates the preview');
   const edited = JSON.parse(await run(`${helpers}
@@ -203,9 +208,9 @@ try {
   const saved = JSON.parse(evalFile(`$id = ${setup.id}; clean_post_cache($id); wp_cache_flush();
 echo wp_json_encode(['title' => get_the_title($id), 'section' => wp_get_object_terms($id, 'hs_department', ['fields' => 'names']), 'campus' => wp_get_object_terms($id, 'hs_post_campus', ['fields' => 'slugs']),
   'location' => get_post_meta($id, 'hs_location_override', true), 'start' => get_post_meta($id, 'hs_event_start', true), 'portrait' => get_post_meta($id, 'hs_portrait_image', true),
-  'tags' => wp_get_object_terms($id, 'post_tag', ['fields' => 'names']), 'focus' => get_post_meta($id, 'hs_hero_focus', true), 'label' => get_post_meta($id, 'hs_final_date_label', true), 'chip' => get_post_meta($id, 'hs_final_section_chip', true)]);`).trim());
+  'tags' => wp_get_object_terms($id, 'post_tag', ['fields' => 'names']), 'focus' => get_post_meta($id, 'hs_hero_focus', true), 'mobile' => (int) get_post_meta($id, 'hs_hero_mobile', true), 'label' => get_post_meta($id, 'hs_final_date_label', true), 'chip' => get_post_meta($id, 'hs_final_section_chip', true)]);`).trim());
   t('saving stores every field', saved.title === 'PS Title Edited' && saved.section.join() === 'Secondary' && saved.campus.sort().join() === 'chaofah,cherngtalay' && saved.location === 'PS Saved Place' && saved.start === '20261201' && !saved.portrait && saved.tags.length === 1, JSON.stringify(saved));
-  t('saving stores the hero position', saved.focus === (hf.axis === 'x' ? '51 50' : '50 51'), JSON.stringify(saved.focus));
+  t('saving stores the hero position and the phone image', saved.focus === '50 51' && saved.mobile === setup.rackIds[0], JSON.stringify({ f: saved.focus, m: saved.mobile }));
   t('the chips are recalculated on save', saved.chip === 'Secondary' && saved.label === '1 December 2026', JSON.stringify({ c: saved.chip, l: saved.label }));
   await open();
   const reloaded = JSON.parse(await run(`${helpers} await wait(400);

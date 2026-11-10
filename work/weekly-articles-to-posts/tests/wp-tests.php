@@ -426,10 +426,11 @@ try {
 		'field_hs_event_end'         => array( 'hs_event_end', 'date_picker', 'hs-pc-event-end' ),
 		'field_hs_portrait_image'    => array( 'hs_portrait_image', 'image', 'hs-pc-portrait' ),
 		'field_hs_hero_focus'        => array( 'hs_hero_focus', 'text', 'hs-pc-hero-focus' ),
+		'field_hs_hero_mobile'       => array( 'hs_hero_mobile', 'image', 'hs-pc-hero-mobile' ),
 	);
 	$group = acf_get_fields( 'group_hs_post_classification' );
 	$by_key = array_column( $group, null, 'key' );
-	$t( 'Post Classification has its nine fields (eight plus the hero focal point)', count( $group ) === 9 && ! array_diff( array_keys( $expect ), array_keys( $by_key ) ) );
+	$t( 'Post Classification has its ten fields (eight plus hero focal point and phone image)', count( $group ) === 10 && ! array_diff( array_keys( $expect ), array_keys( $by_key ) ) );
 	foreach ( $expect as $key => $e ) {
 		$fl = $by_key[ $key ] ?? array();
 		$t( "$key keeps its name and type, and has its layout class", ( $fl['name'] ?? '' ) === $e[0] && ( $fl['type'] ?? '' ) === $e[1] && ( $fl['wrapper']['class'] ?? '' ) === $e[2], wp_json_encode( array( $fl['name'] ?? '', $fl['type'] ?? '', $fl['wrapper']['class'] ?? '' ) ) );
@@ -462,13 +463,22 @@ try {
 	delete_post_meta( $hp, 'hs_hero_focus' );
 	$page = wp_remote_retrieve_body( wp_remote_get( add_query_arg( 'nc', time() + 1, get_permalink( $hp ) ), array( 'timeout' => 30 ) ) );
 	$t( 'a Post without one prints nothing (centred)', '' !== $page && false === strpos( $page, 'hs-hero-focus' ) );
+	$t( 'no Image for phones and tablets: nothing printed for phones', false === strpos( $page, 'hs-hero-mobile' ) );
+	$had_m = get_post_meta( $hp, 'hs_hero_mobile', true );
+	update_post_meta( $hp, 'hs_hero_mobile', $image_id );
+	$src = wp_get_attachment_image_src( $image_id, 'large' );
+	$page = wp_remote_retrieve_body( wp_remote_get( add_query_arg( 'nc', time() + 2, get_permalink( $hp ) ), array( 'timeout' => 30 ) ) );
+	$t( 'with one, the phone rule shows it below 981px at its own shape', false !== strpos( $page, '<style id="hs-hero-mobile">@media (max-width:980px){' ) && false !== strpos( $page, 'aspect-ratio:' . (int) $src[1] . '/' . (int) $src[2] ) && false !== strpos( $page, esc_url( $src[0] ) ) );
+	if ( '' !== $had_m ) { update_post_meta( $hp, 'hs_hero_mobile', $had_m ); } else { delete_post_meta( $hp, 'hs_hero_mobile' ); }
 	if ( '' !== $had ) { update_post_meta( $hp, 'hs_hero_focus', $had ); }
 	$t( 'the slider card is unchanged by a focal point', false === strpos( hs_get_post_slider_card_html( get_post( $hp ) ), 'object-position' ) );
 	$t( 'panel: the focus is sanitised and defaults to centre', '30 40' === hs_a2p_sanitize_row( $good_row( array( 'heroFocus' => '30 40' ) ) )['heroFocus'] && '' === hs_a2p_sanitize_row( $good_row( array( 'heroFocus' => '300 1' ) ) )['heroFocus'] );
-	$r = hs_a2p_create_posts( $issue4, array( 'dark-styled-article' => $good_row( array( 'title' => 'A2P Hero Focus', 'heroFocus' => '30 40', 'status' => 'draft' ) ) ) );
+	$r = hs_a2p_create_posts( $issue4, array( 'dark-styled-article' => $good_row( array( 'title' => 'A2P Hero Focus', 'heroFocus' => '30 40', 'heroMobile' => $image_id, 'status' => 'draft' ) ) ) );
 	$track( $issue4 );
 	$hid = $r['created'][0]['id'] ?? 0;
 	$t( 'panel: a created Post stores its focus, tied to the ACF field', '30 40' === get_post_meta( $hid, 'hs_hero_focus', true ) && 'field_hs_hero_focus' === get_post_meta( $hid, '_hs_hero_focus', true ), wp_json_encode( $r ) );
+	$t( 'panel: and its Image for phones and tablets', (int) $image_id === (int) get_post_meta( $hid, 'hs_hero_mobile', true ) && 'field_hs_hero_mobile' === get_post_meta( $hid, '_hs_hero_mobile', true ) );
+	$t( 'panel: a non-image phone image is ignored', 0 === hs_a2p_sanitize_row( $good_row( array( 'heroMobile' => 'abc' ) ) )['heroMobile'] );
 
 	echo "\nRenaming a Section, badge or Campus refreshes its Posts\n";
 	$rd = wp_insert_term( 'A2P Rename Dept', 'hs_department' ); $rc = wp_insert_term( 'A2P Rename Campus', 'hs_post_campus' ); $rb = wp_insert_term( 'A2P Rename Badge', 'hs_thematic_chip' );
