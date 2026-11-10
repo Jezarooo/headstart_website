@@ -3094,6 +3094,20 @@ button.mfp-close:hover, div.mfp-close:hover {
     }
 }
 
+/* Posts made from weekly-update articles: restore the card's bottom padding.
+   The weekly-update separator rule (.hs-post-content-sandbox .et_pb_group.hs-weekly-article)
+   sets padding-bottom: 0 !important on Divi article groups. Imported Posts use plain-HTML
+   <article> tags, so they aren't matched by either rule. */
+.single-post .hs-post-content-sandbox .et_pb_group.hs-weekly-article {
+    padding-bottom: 2rem !important;
+}
+
+@media (max-width: 768px) {
+    .single-post .hs-post-content-sandbox .et_pb_group.hs-weekly-article {
+        padding-bottom: 1.5rem !important;
+    }
+}
+
 /* Strip Divi's default Section and Row padding/margin (50px / 4%) from content shown through a
    Theme Builder template. Modules are left alone, so their spacing is set in the Divi builder.
    Add the class hs-keep-spacing to a section or row to keep the spacing set on it in Divi. */
