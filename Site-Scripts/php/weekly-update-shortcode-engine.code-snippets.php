@@ -262,9 +262,10 @@ function hs_ajax_load_weekly_updates_handler() {
                 $img_url = 'https://images.unsplash.com/photo-1588072432836-e10032774350?auto=format&fit=crop&w=600&q=80';
             }
 
-            // Tags (lightweight taxonomy query, usually cached natively by WP)
-            $tags = get_the_terms($post_id, 'in_this_issue');
-            $tag_names = array();
+            // In this issue: the issue's article names (Weekly-Update--Register-Fields, 10 Nov 2026);
+            // issues without Divi 5 articles fall back to their In This Issue tags.
+            $tag_names = function_exists('hs_issue_contents_names') ? array_map('esc_html', hs_issue_contents_names($post_id)) : array();
+            $tags = $tag_names ? false : get_the_terms($post_id, 'in_this_issue');
             if ($tags && !is_wp_error($tags)) {
                 foreach ($tags as $t) {
                     $tag_names[] = esc_html($t->name);

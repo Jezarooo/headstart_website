@@ -46,11 +46,12 @@ add_action('manage_weekly_update_posts_custom_column', 'hs_weekly_update_column_
 function hs_weekly_update_column_content($column_name, $post_id) {
     // BLURB (Meta Field)
     if ($column_name === 'hs_blurb_col') {
-        $blurb = get_field('hs_weekly_update_blurb', $post_id);
+        // The edit screen's Blurb field saves as 'blurb' (field_weekly_update_blurb).
+        $blurb = get_post_meta($post_id, 'blurb', true);
         
         echo '<div class="hs-blurb-wrapper" style="position:relative; width: 100%; min-width: 150px;">';
         
-        echo '<div class="hs-blurb-display" style="margin-bottom:6px; font-size:12px; color:#555; max-height:4.5em; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;">';
+        echo '<div class="hs-blurb-display" style="margin-bottom:6px; font-size:12px; line-height:1.5; color:#555;">';
         if (!empty($blurb)) {
             echo wp_kses_post($blurb);
         } else {
@@ -147,6 +148,19 @@ function hs_weekly_update_column_content($column_name, $post_id) {
     }
     // IN THIS ISSUE TAGS (Multi-Select Checkboxes)
     if ($column_name === 'hs_tags_col') {
+        // Issues with Divi 5 articles list their article names (set on the edit screen's "In this issue" box).
+        $names = function_exists('hs_issue_contents_names') ? hs_issue_contents_names($post_id) : array();
+        if ($names) {
+            echo '<div class="hs-tags-wrapper hs-issue-names">';
+            echo '<div class="hs-tags-display" style="margin-bottom:6px;">';
+            foreach ($names as $name) {
+                echo '<span style="background: #f0f6fc; border: 1px solid #c5d9ed; color: #1d2327; font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 500; display:inline-block; margin-bottom:2px; margin-right:2px;">' . esc_html($name) . '</span> ';
+            }
+            echo '</div>';
+            echo '<a href="' . esc_url(get_edit_post_link($post_id) . '#hs-issue-contents-list') . '" class="button button-small" title="Short names are set in the update\'s In this issue box">Edit</a>';
+            echo '</div>';
+            return;
+        }
         $tags = get_the_terms($post_id, 'in_this_issue');
         $current_tag_ids = array();
         
@@ -282,11 +296,10 @@ function hs_inject_weekly_update_tax_js() {
                 url: ajaxurl,
                 type: 'POST',
                 data: {
-                    action: 'hs_inline_meta_update',
-                    security: '<?php echo wp_create_nonce("hs_inline_tax_nonce"); ?>',
+                    action: 'hs_wu_save_blurb',
+                    security: '<?php echo wp_create_nonce("hs_wu_save_blurb"); ?>',
                     post_id: post_id,
-                    meta_key: 'hs_weekly_update_blurb',
-                    meta_value: val
+                    blurb: val
                 },
                 success: function(response) {
                     if (response.success) {
@@ -502,4 +515,25 @@ function hs_inject_weekly_update_tax_js() {
     });
     </script>
     <?php
+}
+
+// Blurb column's Save (10 Nov 2026): saves the edit screen's Blurb field ('blurb'), keeping safe HTML,
+// and only for someone who can edit that weekly update.
+add_action('wp_ajax_hs_wu_save_blurb', 'hs_wu_ajax_save_blurb');
+function hs_wu_ajax_save_blurb() {
+    check_ajax_referer('hs_wu_save_blurb', 'security');
+    $post_id = isset($_POST['post_id']) ? (int) $_POST['post_id'] : 0;
+    if (!$post_id || 'weekly_update' !== get_post_type($post_id) || !current_user_can('edit_post', $post_id)) {
+        wp_send_json_error('Permission denied.', 403);
+    }
+    $blurb = wp_kses_post(wp_unslash((string) ($_POST['blurb'] ?? '')));
+    if (function_exists('update_field')) {
+        update_field('field_weekly_update_blurb', $blurb, $post_id);
+    } else {
+        update_post_meta($post_id, 'blurb', wp_slash($blurb));
+    }
+    if (function_exists('hs_clear_weekly_update_transients')) {
+        hs_clear_weekly_update_transients(); // the Campus Hub list is cached
+    }
+    wp_send_json_success('Updated');
 }
