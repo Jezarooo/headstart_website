@@ -425,10 +425,11 @@ try {
 		'field_hs_event_start'       => array( 'hs_event_start', 'date_picker', 'hs-pc-event-start' ),
 		'field_hs_event_end'         => array( 'hs_event_end', 'date_picker', 'hs-pc-event-end' ),
 		'field_hs_portrait_image'    => array( 'hs_portrait_image', 'image', 'hs-pc-portrait' ),
+		'field_hs_hero_focus'        => array( 'hs_hero_focus', 'text', 'hs-pc-hero-focus' ),
 	);
 	$group = acf_get_fields( 'group_hs_post_classification' );
 	$by_key = array_column( $group, null, 'key' );
-	$t( 'Post Classification still has exactly its eight fields', count( $group ) === 8 && ! array_diff( array_keys( $expect ), array_keys( $by_key ) ) );
+	$t( 'Post Classification has its nine fields (eight plus the hero focal point)', count( $group ) === 9 && ! array_diff( array_keys( $expect ), array_keys( $by_key ) ) );
 	foreach ( $expect as $key => $e ) {
 		$fl = $by_key[ $key ] ?? array();
 		$t( "$key keeps its name and type, and has its layout class", ( $fl['name'] ?? '' ) === $e[0] && ( $fl['type'] ?? '' ) === $e[1] && ( $fl['wrapper']['class'] ?? '' ) === $e[2], wp_json_encode( array( $fl['name'] ?? '', $fl['type'] ?? '', $fl['wrapper']['class'] ?? '' ) ) );
@@ -447,6 +448,27 @@ try {
 	$legacy = '<img src="' . home_url( '/wp-content/uploads/legacy-images/x/1.jpg' ) . '"/><img src="' . home_url( '/wp-content/uploads/legacy-images/x/2.jpg' ) . '"/><img class="wp-image-' . $others[0] . '" src="a.jpg"/>';
 	$t( 'old-site photos are counted, not listed', 2 === hs_card_preview_unlisted_image_count( $legacy ) && array( $others[0] ) === array_column( hs_card_preview_content_images( $legacy ), 'id' ) );
 	$t( 'no photos: empty list, zero count', array() === hs_card_preview_content_images( '<p>none</p>' ) && 0 === hs_card_preview_unlisted_image_count( '<p>none</p>' ) );
+
+	echo "\nHero focal point (desktop)\n";
+	foreach ( array( '50 30' => '50 30', ' 0 100 ' => '0 100', '7 07' => '7 7', '120 10' => '', '-5 10' => '', '50' => '', 'x y' => '', '' => '', '50 30 10' => '' ) as $in => $want ) {
+		$t( "focus '$in' → '$want'", $want === hs_hero_focus_sanitize( $in ) && $want === hs_a2p_hero_focus( $in ) );
+	}
+	$t( 'ACF saves the focus through the sanitiser', has_filter( 'acf/update_value/key=field_hs_hero_focus', 'hs_hero_focus_sanitize' ) !== false );
+	$hp = (int) get_posts( array( 'post_type' => 'post', 'post_status' => 'publish', 'numberposts' => 1, 'fields' => 'ids', 'meta_key' => '_hs_a2p_source' ) )[0];
+	$had = get_post_meta( $hp, 'hs_hero_focus', true );
+	update_post_meta( $hp, 'hs_hero_focus', '25 70' );
+	$page = wp_remote_retrieve_body( wp_remote_get( add_query_arg( 'nc', time(), get_permalink( $hp ) ), array( 'timeout' => 30 ) ) );
+	$t( 'a Post with a focus prints it for its hero', false !== strpos( $page, '<style id="hs-hero-focus">.hs-post-hero{--hs-hero-focus:25% 70%}</style>' ) );
+	delete_post_meta( $hp, 'hs_hero_focus' );
+	$page = wp_remote_retrieve_body( wp_remote_get( add_query_arg( 'nc', time() + 1, get_permalink( $hp ) ), array( 'timeout' => 30 ) ) );
+	$t( 'a Post without one prints nothing (centred)', '' !== $page && false === strpos( $page, 'hs-hero-focus' ) );
+	if ( '' !== $had ) { update_post_meta( $hp, 'hs_hero_focus', $had ); }
+	$t( 'the slider card is unchanged by a focal point', false === strpos( hs_get_post_slider_card_html( get_post( $hp ) ), 'object-position' ) );
+	$t( 'panel: the focus is sanitised and defaults to centre', '30 40' === hs_a2p_sanitize_row( $good_row( array( 'heroFocus' => '30 40' ) ) )['heroFocus'] && '' === hs_a2p_sanitize_row( $good_row( array( 'heroFocus' => '300 1' ) ) )['heroFocus'] );
+	$r = hs_a2p_create_posts( $issue4, array( 'dark-styled-article' => $good_row( array( 'title' => 'A2P Hero Focus', 'heroFocus' => '30 40', 'status' => 'draft' ) ) ) );
+	$track( $issue4 );
+	$hid = $r['created'][0]['id'] ?? 0;
+	$t( 'panel: a created Post stores its focus, tied to the ACF field', '30 40' === get_post_meta( $hid, 'hs_hero_focus', true ) && 'field_hs_hero_focus' === get_post_meta( $hid, '_hs_hero_focus', true ), wp_json_encode( $r ) );
 
 	echo "\nPosts gatekeeper\n";
 	$gate = wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'draft', 'post_title' => 'A2P gate check' ) );

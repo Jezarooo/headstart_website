@@ -188,6 +188,10 @@ function hs_register_post_acf_fields() {
                     'class' => 'hs-pc-portrait',
                     'id' => '',
                 ),
+                'return_format' => 'url',
+                'preview_size' => 'medium',
+                'library' => 'all',
+            ),
 
             // 7. Hero focal point (desktop): which part of the Featured image stays in view in the 70vh hero.
             array(
@@ -206,10 +210,6 @@ function hs_register_post_acf_fields() {
                 'default_value' => '',
                 'placeholder' => '50 50',
                 'maxlength' => 7,
-            ),
-                'return_format' => 'url',
-                'preview_size' => 'medium',
-                'library' => 'all',
             ),
         ),
         'location' => array(
