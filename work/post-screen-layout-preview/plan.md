@@ -38,7 +38,7 @@ The preview moved out of the Articles to Posts snippet into one shared place:
 ### `Site-Scripts/php/posts-register-fields.code-snippets.php` (live "Posts--Register-Fields")
 Data unchanged: same field keys, names, types and saving. Only presentation:
 1. **Labels and instructions, shorter**, matching the panel:
-   - Website Section *: "Sets the feeds, the URL and the yellow badge."
+   - Website Section *: "Dictates where on the site the Post is shown (its feeds and URL). Also the default yellow badge." *(user, 10 Nov; the Articles → Posts panel uses the same hint)*
    - Yellow badge override: "Optional. Leave empty to show the Website Section."
    - Campus *: "Tick both for Both Campuses."
    - Location override: "Optional. Replaces the campus name in the chip, e.g. Bangkok Trip. Still tick a Campus above."
@@ -118,4 +118,5 @@ Install **after** `a2p-panel-event-date-2026-11-10.zip`.
 1. **Add** a new Code Snippet **Posts--Card-Preview** from `files/php/posts-card-preview.code-snippets.php`, set to **Only run in administration area**, and activate it.
 2. **Replace** the code of **Posts--Register-Fields** and **Weekly-Update--Articles-To-Posts** with the files in `files/php/`.
 - No permalinks flush and no cache purge (admin only; nothing public changes).
+- **Template note for Jeremy (pack 2):** only the two STANDARD templates (HSN Post STANDARD, HSC Posts STANDARD) need their Date module switched to `hs_final_date_label`. Archive Posts have no event dates, so the archive templates can stay on Post Publish Date and show the same date (user, 10 Nov).
 - Smoke: open any Post's edit screen. Post Classification is grouped with the preview on the right, and a weekly update's Articles → Posts panel still shows its preview.
