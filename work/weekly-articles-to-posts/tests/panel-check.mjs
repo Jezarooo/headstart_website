@@ -112,14 +112,14 @@ try {
       badgeLabel: fieldOf(r,'Yellow').querySelector('.hs-a2p-label').textContent, badgeSelect: !!fieldOf(r,'Yellow').querySelector('select'), badgeColour: isBad(fieldOf(r,'Yellow')) || isOk(fieldOf(r,'Yellow')),
       locColour: isBad(fieldOf(r,'Location')) || isOk(fieldOf(r,'Location')), portraitColour: isBad(fieldOf(r,'Portrait')) || isOk(fieldOf(r,'Portrait')),
       live: fieldOf(r,'Status').querySelector('input').checked, disabled: document.querySelector('#hs-a2p .button-primary').disabled,
-      summary: document.querySelector('.hs-a2p-actions .hs-a2p-saved').textContent, thumbs: r.querySelectorAll('.hs-a2p-rack img').length,
+      summary: document.querySelector('.hs-a2p-actions .hs-a2p-saved').textContent, thumbs: r.querySelectorAll('.hs-cip-rack img').length,
       groups: [...r.querySelectorAll('.hs-a2p-g > h4')].map((h) => h.textContent),
       badgeUnderSection: fieldOf(r,'Yellow').parentElement === fieldOf(r,'Website').parentElement && fieldOf(r,'Website').nextElementSibling === fieldOf(r,'Yellow'),
       locUnderCampus: fieldOf(r,'Location').parentElement === fieldOf(r,'Campus').parentElement && fieldOf(r,'Campus').nextElementSibling === fieldOf(r,'Location'),
       dateWithTitle: fieldOf(r,'Publish').closest('.hs-a2p-g') === fieldOf(r,'Title').closest('.hs-a2p-g'),
-      racks: r.querySelectorAll('.hs-a2p-rack').length, oldChoices: r.querySelectorAll('.hs-a2p-choices').length,
-      active: (r.querySelector('.hs-a2p-slot.is-active') || {}).dataset?.slot, note: (r.querySelector('.hs-a2p-rack-note') || {}).textContent,
-      rackImg: (() => { const i = r.querySelector('.hs-a2p-rack img'); return i ? { lazy: i.getAttribute('loading'), src: i.getAttribute('src') } : null; })(),
+      racks: r.querySelectorAll('.hs-cip-rack').length, oldChoices: r.querySelectorAll('.hs-a2p-choices').length,
+      active: (r.querySelector('.hs-cip-slot.is-active') || {}).dataset?.slot, note: (r.querySelector('.hs-cip-rack-note') || {}).textContent,
+      rackImg: (() => { const i = r.querySelector('.hs-cip-rack img'); return i ? { lazy: i.getAttribute('loading'), src: i.getAttribute('src') } : null; })(),
       publish: fieldOf(r,'Publish').querySelector('input[type=datetime-local]').value, eventStart: fieldOf(r,'Event start').querySelector('input').value,
       eventColour: isBad(fieldOf(r,'Event start')) || isOk(fieldOf(r,'Event start')),
       nowTicked: fieldOf(r,'Publish').querySelector('.hs-a2p-now input').checked, pickerHidden: fieldOf(r,'Publish').querySelector('input[type=datetime-local]').offsetParent === null,
@@ -147,16 +147,16 @@ try {
     const r = document.querySelector('#hs-a2p .hs-a2p-body').closest('.hs-a2p-row');
     const sec = fieldOf(r,'Website').querySelector('select'); if (sec.value === '0') { sec.value = sec.options[1].value; fire(sec,'change'); }
     fieldOf(r,'Thematic').querySelector('.hs-a2p-taglist input').click();
-    const items = () => [...r.querySelectorAll('.hs-a2p-rack-item')];
+    const items = () => [...r.querySelectorAll('.hs-cip-rack-item')];
     items()[0].click();
     await wait(100);
-    const afterFirst = { active: r.querySelector('.hs-a2p-slot.is-active').dataset.slot, f: !!items()[0].querySelector('.hs-a2p-tag.is-f') };
+    const afterFirst = { active: r.querySelector('.hs-cip-slot.is-active').dataset.slot, f: !!items()[0].querySelector('.hs-cip-tag.is-f') };
     (items()[1] || items()[0]).click();
     await wait(100);
-    const afterSecond = { p: !!(items()[1] || items()[0]).querySelector('.hs-a2p-tag.is-p'), portraitThumb: !!r.querySelector('.hs-a2p-slot[data-slot=portrait] .hs-a2p-thumb') };
-    r.querySelector('.hs-a2p-slot[data-slot=image] .hs-a2p-slot-pick').click();
+    const afterSecond = { p: !!(items()[1] || items()[0]).querySelector('.hs-cip-tag.is-p'), portraitThumb: !!r.querySelector('.hs-cip-slot[data-slot=portrait] .hs-cip-thumb') };
+    r.querySelector('.hs-cip-slot[data-slot=image] .hs-cip-slot-pick').click();
     await wait(100);
-    const backToFeatured = r.querySelector('.hs-a2p-slot.is-active').dataset.slot === 'image' && /Featured image/.test(r.querySelector('.hs-a2p-rack-note').textContent);
+    const backToFeatured = r.querySelector('.hs-cip-slot.is-active').dataset.slot === 'image' && /Featured image/.test(r.querySelector('.hs-cip-rack-note').textContent);
     const now = fieldOf(r,'Publish').querySelector('.hs-a2p-now input'); const picker = fieldOf(r,'Publish').querySelector('input[type=datetime-local]');
     now.click(); await wait(50);
     const shownWhenUnticked = picker.offsetParent !== null;
@@ -169,7 +169,7 @@ try {
     const eventBad = isBad(fieldOf(r,'Event start')) && document.querySelector('#hs-a2p .button-primary').disabled;
     end.value = ''; fire(end,'input');
     await wait(1500);
-    return JSON.stringify({ shownWhenUnticked, dateNeeded, okAgain, afterFirst, afterSecond, backToFeatured, eventBad, eventCleared: !isBad(fieldOf(r,'Event start')), tags: isOk(fieldOf(r,'Thematic')), chips: r.querySelectorAll('.hs-a2p-taglist input:checked').length, groups: r.querySelectorAll('.hs-a2p-taggroup').length, image: isOk(fieldOf(r,'Featured')), thumb: !!fieldOf(r,'Featured').querySelector('.hs-a2p-thumb'),
+    return JSON.stringify({ shownWhenUnticked, dateNeeded, okAgain, afterFirst, afterSecond, backToFeatured, eventBad, eventCleared: !isBad(fieldOf(r,'Event start')), tags: isOk(fieldOf(r,'Thematic')), chips: r.querySelectorAll('.hs-a2p-taglist input:checked').length, groups: r.querySelectorAll('.hs-a2p-taggroup').length, image: isOk(fieldOf(r,'Featured')), thumb: !!fieldOf(r,'Featured').querySelector('.hs-cip-thumb'),
       disabled: document.querySelector('#hs-a2p .button-primary').disabled, saved: document.querySelectorAll('.hs-a2p-actions .hs-a2p-saved')[1].textContent,
       dirty: wp.data.select('core/editor').isEditedPostDirty() })`));
   t('unticking Publish now shows the picker and needs a date; ticking it again hides it and clears the red', filled.shownWhenUnticked && filled.dateNeeded && filled.okAgain, JSON.stringify({ s: filled.shownWhenUnticked, d: filled.dateNeeded, o: filled.okAgain }));
@@ -191,30 +191,30 @@ try {
     const r = document.querySelector('#hs-a2p .hs-a2p-body').closest('.hs-a2p-row');
     const pv = r.querySelector('.hs-a2p-preview'), form = r.querySelector('.hs-a2p-body');
     const q = (sel) => (pv.querySelector(sel) || {}).textContent || '';
-    const before = { badge: q('.hs-badge-primary p'), place: q('.hs-badge-location p'), date: q('.hs-story-date p'), post: q('.hs-a2p-pv-chip p'), title: q('.hs-story-title p'), tags: [...pv.querySelectorAll('.hs-story-tags span')].map((x) => x.textContent), img: (pv.querySelector('.hs-story-image img') || {}).src || '' };
+    const before = { badge: q('.hs-badge-primary p'), place: q('.hs-badge-location p'), date: q('.hs-story-date p'), post: q('.hs-cpv-chip p'), title: q('.hs-story-title p'), tags: [...pv.querySelectorAll('.hs-story-tags span')].map((x) => x.textContent), img: (pv.querySelector('.hs-story-image img') || {}).src || '' };
     const set = (lbl, sel, v, ev) => { const i = fieldOf(r, lbl).querySelector(sel); i.value = v; fire(i, ev || 'input'); };
     set('Title', 'input', 'Preview Title Check');
     set('Yellow', 'input', 'Preview Badge');
     set('Location', 'input', 'Bangkok Trip');
     set('Event start', 'input', '2026-11-12'); set('Event end', 'input', '2026-11-14');
     await wait(400);
-    const after = { card: q('.hs-story-date p'), badge: q('.hs-badge-primary p'), place: q('.hs-badge-location p'), title: q('.hs-story-title p'), sec: q('.hs-a2p-pv-sec p'), post: q('.hs-a2p-pv-chip p'), chipPlace: pv.querySelectorAll('.hs-a2p-pv-chip p')[1].textContent };
+    const after = { card: q('.hs-story-date p'), badge: q('.hs-badge-primary p'), place: q('.hs-badge-location p'), title: q('.hs-story-title p'), sec: q('.hs-cpv-sec p'), post: q('.hs-cpv-chip p'), chipPlace: pv.querySelectorAll('.hs-cpv-chip p')[1].textContent };
     set('Yellow', 'input', ''); set('Location', 'input', ''); set('Event start', 'input', ''); set('Event end', 'input', '');
     await wait(400);
     const reset = { badge: q('.hs-badge-primary p'), sec: fieldOf(r,'Website').querySelector('select').selectedOptions[0].textContent };
     const pr = pv.getBoundingClientRect(), fr = form.getBoundingClientRect();
-    const labels = [...pv.querySelectorAll('.hs-a2p-pv-label strong')].map((x) => x.textContent);
+    const labels = [...pv.querySelectorAll('.hs-cpv-label strong')].map((x) => x.textContent);
     return JSON.stringify({ visible: pv.offsetParent !== null, beside: pr.left >= fr.right - 2 && Math.abs(pr.top - fr.top) < 60, toggle: (r.querySelector('.hs-a2p-pv-toggle') || {}).offsetParent !== null,
-      before, after, reset, labels, lines: pv.querySelectorAll('.hs-a2p-pv-lines polyline').length, featured: (fieldOf(r,'Portrait').querySelector('.hs-a2p-thumb') || {}).src || '',
+      before, after, reset, labels, lines: pv.querySelectorAll('.hs-cpv-lines polyline').length, featured: (fieldOf(r,'Portrait').querySelector('.hs-cip-thumb') || {}).src || '',
       font: getComputedStyle(pv.querySelector('.hs-story-title p')).fontFamily,
       card: (() => { const c = pv.querySelector('.hs-story-card').getBoundingClientRect(); return { w: Math.round(c.width), h: Math.round(c.height) }; })(),
-      caps: [...pv.querySelectorAll('.hs-a2p-pv-cap')].map((c) => { const b = c.getBoundingClientRect(); return { text: c.textContent, oneLine: b.height < 26, right: Math.abs(b.right - pv.querySelector('.hs-a2p-pv-stage').getBoundingClientRect().right) < 2 }; }),
-      overlap: (() => { const ls = [...pv.querySelectorAll('.hs-a2p-pv-label, .hs-a2p-pv-cap')].map((x) => x.getBoundingClientRect()); for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) { const a = ls[i], b = ls[j]; if (a.left < b.right && b.left < a.right && a.top < b.bottom - 1 && b.top < a.bottom - 1) return true; } return false; })(),
-      gaps: (() => { const st = pv.querySelector('.hs-a2p-pv-stage'); const caps = st.querySelectorAll('.hs-a2p-pv-cap'); const cb = st.querySelector('.hs-a2p-pv-cardbox').getBoundingClientRect(), sb = st.querySelector('.hs-a2p-pv-stripbox').getBoundingClientRect(); return { card: Math.round(cb.top - caps[0].getBoundingClientRect().bottom), strip: Math.round(sb.top - caps[1].getBoundingClientRect().bottom) }; })(),
+      caps: [...pv.querySelectorAll('.hs-cpv-cap')].map((c) => { const b = c.getBoundingClientRect(); return { text: c.textContent, oneLine: b.height < 26, right: Math.abs(b.right - pv.querySelector('.hs-cpv-stage').getBoundingClientRect().right) < 2 }; }),
+      overlap: (() => { const ls = [...pv.querySelectorAll('.hs-cpv-label, .hs-cpv-cap')].map((x) => x.getBoundingClientRect()); for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) { const a = ls[i], b = ls[j]; if (a.left < b.right && b.left < a.right && a.top < b.bottom - 1 && b.top < a.bottom - 1) return true; } return false; })(),
+      gaps: (() => { const st = pv.querySelector('.hs-cpv-stage'); const caps = st.querySelectorAll('.hs-cpv-cap'); const cb = st.querySelector('.hs-cpv-cardbox').getBoundingClientRect(), sb = st.querySelector('.hs-cpv-stripbox').getBoundingClientRect(); return { card: Math.round(cb.top - caps[0].getBoundingClientRect().bottom), strip: Math.round(sb.top - caps[1].getBoundingClientRect().bottom) }; })(),
       position: getComputedStyle(pv).position,
       footnote: /Updates as you edit/.test(pv.textContent),
-      strip: (() => { const mid = (n) => { const b = n.getBoundingClientRect(); return Math.round(b.top + b.height / 2); }; const parts = [pv.querySelector('.hs-a2p-pv-sec p'), ...pv.querySelectorAll('.hs-a2p-pv-chip')]; const ms = parts.map(mid);
-        const sb = pv.querySelector('.hs-a2p-pv-stripbox').getBoundingClientRect(), lb = [...pv.querySelectorAll('.hs-a2p-pv-striplabels .hs-a2p-pv-label')].map((l) => l.getBoundingClientRect());
+      strip: (() => { const mid = (n) => { const b = n.getBoundingClientRect(); return Math.round(b.top + b.height / 2); }; const parts = [pv.querySelector('.hs-cpv-sec p'), ...pv.querySelectorAll('.hs-cpv-chip')]; const ms = parts.map(mid);
+        const sb = pv.querySelector('.hs-cpv-stripbox').getBoundingClientRect(), lb = [...pv.querySelectorAll('.hs-cpv-striplabels .hs-cpv-label')].map((l) => l.getBoundingClientRect());
         return { oneRow: Math.max(...ms) - Math.min(...ms) <= 4, labelsBelow: lb.length === 3 && lb.every((b) => b.top >= sb.bottom), fits: sb.right <= pv.getBoundingClientRect().right + 1 }; })(),
       statusHint: (fieldOf(r,'Status').querySelector('.hs-a2p-hint') || {}).textContent || '',
       quad: (() => { const fs = ['Publish', 'Status', 'Event start', 'Event end'].map((l) => fieldOf(r, l)); const top = (f, i) => Math.round(f.children[i].getBoundingClientRect().top); const same = (i) => { const ts = fs.map((f) => top(f, i)); return Math.max(...ts) - Math.min(...ts); };
@@ -276,7 +276,7 @@ try {
   const kept = JSON.parse(await run(`${helpers}
     const r = document.querySelector('#hs-a2p .hs-a2p-body'); if (!r) return JSON.stringify({ body: false });
     const row = r.closest('.hs-a2p-row');
-    return JSON.stringify({ body: true, chips: row.querySelectorAll('.hs-a2p-taglist input:checked').length, image: !!fieldOf(row,'Featured').querySelector('.hs-a2p-thumb'), dirty: wp.data.select('core/editor').isEditedPostDirty() })`));
+    return JSON.stringify({ body: true, chips: row.querySelectorAll('.hs-a2p-taglist input:checked').length, image: !!fieldOf(row,'Featured').querySelector('.hs-cip-thumb'), dirty: wp.data.select('core/editor').isEditedPostDirty() })`));
   t('tick and fields still there, including the new tag; no unsaved changes', kept.body && kept.chips === 2 && kept.image && kept.dirty === false, JSON.stringify(kept));
 
   console.log('\nA second row as a Draft, then Create Posts');
