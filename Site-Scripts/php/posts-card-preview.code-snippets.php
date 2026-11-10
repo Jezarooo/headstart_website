@@ -47,7 +47,7 @@ add_action( 'admin_head', function () {
 /**
  * The photos in a Post's own content, for the image picker: Divi 5 image modules, then
  * gallery modules, then plain-HTML <img class="wp-image-ID"> (archive Posts), without repeats.
- * Returns [ { id, url (medium), thumb } ].
+ * Returns [ { id, url (medium), thumb, shape, w, h } ].
  */
 function hs_card_preview_content_images( $content ) {
 	$inline  = array();
@@ -81,10 +81,35 @@ function hs_card_preview_content_images( $content ) {
 	foreach ( array_values( array_unique( array_merge( $inline, $gallery, $html ) ) ) as $id ) {
 		$url = $id && wp_attachment_is_image( $id ) ? (string) wp_get_attachment_image_url( $id, 'medium' ) : '';
 		if ( $url ) {
-			$out[] = array( 'id' => $id, 'url' => $url, 'thumb' => (string) wp_get_attachment_image_url( $id, 'thumbnail' ) );
+			$out[] = array_merge( array( 'id' => $id, 'url' => $url, 'thumb' => (string) wp_get_attachment_image_url( $id, 'thumbnail' ) ), hs_card_preview_image_size( $id ) );
 		}
 	}
 	return $out;
+}
+
+/**
+ * A photo's real shape, from the width and height WordPress stored when it was uploaded,
+ * so the image rack can label its square thumbnails. Within 5% counts as square.
+ * Returns [ 'shape' => portrait|landscape|square ('' when the size isn't recorded), 'w', 'h' ].
+ */
+function hs_card_preview_image_size( $id ) {
+	$meta = wp_get_attachment_metadata( (int) $id );
+	$w    = is_array( $meta ) ? (int) ( $meta['width'] ?? 0 ) : 0;
+	$h    = is_array( $meta ) ? (int) ( $meta['height'] ?? 0 ) : 0;
+	return array( 'shape' => hs_card_preview_shape_of( $w, $h ), 'w' => $w, 'h' => $h );
+}
+function hs_card_preview_image_shape( $id ) {
+	$size = hs_card_preview_image_size( $id );
+	return $size['shape'];
+}
+function hs_card_preview_shape_of( $w, $h ) {
+	if ( $w <= 0 || $h <= 0 ) {
+		return '';
+	}
+	if ( abs( $w - $h ) <= 0.05 * max( $w, $h ) ) {
+		return 'square';
+	}
+	return $h > $w ? 'portrait' : 'landscape';
 }
 
 /**
@@ -182,6 +207,9 @@ function hs_card_preview_print_assets() {
 #wpbody .hs-cip-tag { position: absolute; top: 2px; left: 2px; min-width: 16px; padding: 0 3px; line-height: 16px; font-size: 10px; font-weight: 700; color: #fff; border-radius: 2px; }
 #wpbody .hs-cip-tag.is-f { background: #2271b1; }
 #wpbody .hs-cip-tag.is-p { background: #8a2be2; left: auto; right: 2px; }
+#wpbody .hs-cip-thumbwrap { position: relative; display: block; line-height: 0; }
+#wpbody .hs-cip-shape { position: absolute; left: 3px; bottom: 3px; box-sizing: border-box; max-width: calc(100% - 6px); overflow: hidden; text-overflow: ellipsis; padding: 0 3px; line-height: 13px; font-size: 8px; font-weight: 600; color: #fff; background: rgba(0, 0, 0, .66); border-radius: 2px; white-space: nowrap; }
+#wpbody .hs-cip-thumbwrap .hs-cip-shape { bottom: 7px; }
 #wpbody .hs-cip-rack-note { margin-top: 4px; }
 #wpbody .hs-cip-rack-label { display: block; font-weight: 600; margin-bottom: 4px; }
 /* Hero preview: a to-scale screen per device (measured on the Post template), with the hero where it really sits. */
@@ -444,6 +472,24 @@ function hs_card_preview_print_assets() {
 	 *   classes: { slot, label, hint }               extra classes so each screen keeps its own look
 	 *   onDraw(slotNodes)                            after every draw, e.g. to mark required fields
 	 */
+	// Real shapes by attachment id, from the rack lists and Media Library picks, so slots can show them too.
+	var SHAPES = {};
+	var SHAPE_NAMES = { portrait: 'Portrait', landscape: 'Landscape', square: 'Square' };
+	function shapeOf(w, h) {
+		if (!(w > 0) || !(h > 0)) { return ''; }
+		if (Math.abs(w - h) <= 0.05 * Math.max(w, h)) { return 'square'; }
+		return h > w ? 'portrait' : 'landscape';
+	}
+	function remember(image) {
+		if (image && image.id && image.shape) { SHAPES[image.id] = { shape: image.shape, w: image.w, h: image.h }; }
+	}
+	function shapeChip(id) {
+		var s = SHAPES[id];
+		if (!s || !SHAPE_NAMES[s.shape]) { return null; }
+		var name = SHAPE_NAMES[s.shape];
+		return el('span', { 'class': 'hs-cip-shape is-' + s.shape, title: name + (s.w ? ' \u00b7 ' + s.w + ' \u00d7 ' + s.h + ' px' : ''), text: name });
+	}
+
 	function imagePicker(o) {
 		var state = o.state || {};
 		var cls = o.classes || {};
@@ -464,7 +510,7 @@ function hs_card_preview_print_assets() {
 			var spec = o.slots[name] || {};
 			var pickBtn = el('button', { type: 'button', 'class': 'hs-cip-slot-pick', 'aria-pressed': active ? 'true' : 'false' }, [
 				el('span', { 'class': (cls.label || '') + ' hs-cip-label', text: spec.label + (spec.required ? ' *' : '') }),
-				cur.url ? el('img', { 'class': 'hs-cip-thumb', src: cur.url, alt: '' }) : el('span', { 'class': 'hs-cip-empty', text: 'No image yet' }),
+				cur.url ? el('span', { 'class': 'hs-cip-thumbwrap' }, [el('img', { 'class': 'hs-cip-thumb', src: cur.url, alt: '' }), shapeChip(cur.id)]) : el('span', { 'class': 'hs-cip-empty', text: 'No image yet' }),
 				el('span', { 'class': 'hs-cip-picking', text: active ? '◀ picking now' : 'Click to pick' })
 			]);
 			pickBtn.addEventListener('click', function () { state.active = name; draw(); });
@@ -473,6 +519,7 @@ function hs_card_preview_print_assets() {
 				frame.on('select', function () {
 					var a = frame.state().get('selection').first().toJSON();
 					var size = a.sizes && (a.sizes.medium || a.sizes.full);
+					remember({ id: a.id, shape: shapeOf(a.width, a.height), w: a.width, h: a.height });
 					state.active = name;
 					pick(name, a.id, size ? size.url : a.url);
 				});
@@ -490,12 +537,14 @@ function hs_card_preview_print_assets() {
 			if (!images.length) {
 				return el('div', { 'class': 'hs-cip-rack-wrap' }, [el('p', { 'class': (cls.hint || '') + ' hs-cip-hint', text: o.empty || 'No images of its own. Use Media Library.' })]);
 			}
+			images.forEach(remember);
 			var f = o.get('image').id, p = o.get('portrait').id;
 			var grid = el('div', { 'class': 'hs-cip-rack', role: 'list' }, images.map(function (image) {
 				var b = el('button', { type: 'button', role: 'listitem', 'class': 'hs-cip-rack-item', title: 'Use as ' + label(state.active), 'data-id': String(image.id) }, [
 					el('img', { src: image.thumb || image.url, alt: '', loading: 'lazy', width: '150', height: '150' }),
 					image.id === f ? el('span', { 'class': 'hs-cip-tag is-f', text: 'F', title: label('image') }) : null,
-					image.id === p ? el('span', { 'class': 'hs-cip-tag is-p', text: 'P', title: label('portrait') }) : null
+					image.id === p ? el('span', { 'class': 'hs-cip-tag is-p', text: 'P', title: label('portrait') }) : null,
+					shapeChip(image.id)
 				]);
 				b.addEventListener('click', function () { pick(state.active, image.id, image.url); });
 				return b;
@@ -507,6 +556,7 @@ function hs_card_preview_print_assets() {
 			]);
 		}
 		function draw() {
+			(o.images || []).forEach(remember);
 			if (!state.active) { state.active = o.get('image').id && !o.get('portrait').id ? 'portrait' : 'image'; }
 			var scroll = node.querySelector('.hs-cip-rack');
 			var top = scroll ? scroll.scrollTop : 0;

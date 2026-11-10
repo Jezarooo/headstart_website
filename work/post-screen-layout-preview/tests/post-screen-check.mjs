@@ -251,6 +251,12 @@ echo wp_json_encode(['title' => get_the_title($id), 'section' => wp_get_object_t
     items()[1].click(); await wait(800);
     out.portrait = +f('hs_portrait_image').querySelector('.acf-image-uploader input[type=hidden]').value; out.pTag = !!items()[1].querySelector('.hs-cip-tag.is-p');
     out.previewImg = card().img;
+    const chipInfo = (root) => { const its = [...root.querySelectorAll('.hs-cip-rack-item')].filter((x) => !x.closest('.hs-chf-mobile')); const chip = (b) => b.querySelector('.hs-cip-shape'); return { n: its.length, withChip: its.filter((b) => b.querySelectorAll('.hs-cip-shape').length === 1).length,
+      match: its.every((b) => { const c = chip(b); if (!c) { return true; } const m = /(\\d+) × (\\d+)/.exec(c.title); if (!m) { return false; } const w = +m[1], h = +m[2]; const want = Math.abs(w - h) <= 0.05 * Math.max(w, h) ? 'square' : h > w ? 'portrait' : 'landscape'; return c.classList.contains('is-' + want) && c.textContent === { portrait: 'Portrait', landscape: 'Landscape', square: 'Square' }[want]; }),
+      corner: its.every((b) => { const c = chip(b); if (!c) { return true; } const a = c.getBoundingClientRect(), z = b.getBoundingClientRect(); return a.left - z.left < 8 && z.bottom - a.bottom < 8 && a.right <= z.right - 2 && c.scrollWidth <= c.clientWidth && !c.querySelector('i'); }),
+      apart: its.every((b) => [...b.querySelectorAll('.hs-cip-tag')].every((tg) => { const c = chip(b); if (!c) { return true; } const a = c.getBoundingClientRect(), z = tg.getBoundingClientRect(); return a.top >= z.bottom || a.right <= z.left || a.left >= z.right; })),
+      slots: [...root.querySelectorAll('.hs-cip-slot .hs-cip-thumbwrap')].filter((w) => !w.closest('.hs-chf-mobile')).map((w) => !!w.querySelector('.hs-cip-shape')) }; };
+    out.chips = chipInfo(box);
     wp.data.dispatch('core/editor').editPost({ featured_media: ${setup.featuredId} }); await wait(2000);
     out.slotAfterSidebar = (box.querySelector('.hs-cip-slot[data-slot=image] .hs-cip-thumb') || {}).src || '';
     out.fTagGone = !items()[0].querySelector('.hs-cip-tag.is-f');
@@ -259,6 +265,7 @@ echo wp_json_encode(['title' => get_the_title($id), 'section' => wp_get_object_t
     return JSON.stringify(out);`));
   t('the rack lists this Post\'s Media Library photos in order (not the old-site one)', JSON.stringify(pk.rack) === JSON.stringify(setup.rackIds) && pk.picker, JSON.stringify(pk.rack));
   t('ACF\'s own Portrait box is hidden behind the picker', pk.acfHidden);
+  t('every rack photo has one Portrait / Landscape / Square chip, bottom-left, matching its real size and clear of the F/P tags; chosen photos show it too', pk.chips.n > 0 && pk.chips.withChip === pk.chips.n && pk.chips.match && pk.chips.corner && pk.chips.apart && pk.chips.slots.length === 2 && pk.chips.slots.every(Boolean), JSON.stringify(pk.chips));
   t('clicking a photo sets the real featured image (editor store), tags it F, then picks the Portrait', pk.featured === setup.rackIds[0] && pk.fTag && pk.activeAfter === 'portrait', JSON.stringify(pk));
   t('a new Featured image starts the hero centred', pk.focusAfterNewPhoto === '', JSON.stringify(pk.focusAfterNewPhoto));
   t('the next click sets the ACF Portrait, tags it P, and the preview shows it', pk.portrait === setup.rackIds[1] && pk.pTag && sameImage(pk.previewImg, setup.rackUrls[1]), JSON.stringify({ p: pk.portrait, tag: pk.pTag, img: pk.previewImg }));
