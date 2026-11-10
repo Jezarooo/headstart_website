@@ -66,7 +66,7 @@ Two new ACF fields in the existing **Post Classification** group, after Display 
    - The two separate per-field rows of choices are removed.
 3. **Event date in rows:** new row fields `eventStart`, `eventEnd` (`Y-m-d`), sanitised; end before start, or end without start, is a missing-field error in the panel. On create, saved as `hs_event_start` / `hs_event_end` (`Ymd`) with their ACF key meta, **before** terms are set, so the chip hook writes the label.
 4. **Defaults:** Event start defaults to the weekly update's date; Event end empty; **Publish now ticked** (new row field `publishNow`, boolean), with the hidden date picker pre-set to now in case it's unticked. A new Post therefore publishes today and its URL uses this month unless a date is chosen. Rows saved before this change have no `publishNow` and keep their stored date (treated as unticked). The date is only required when Publish now is unticked; on create, Publish now uses the current time at that moment (Live) or leaves the date floating (Draft).
-5. **Re-copy** is unchanged (content only).
+5. **Re-copy is removed** *(user, 10 Nov)*: the row's Re-copy button, the AJAX action `hs_a2p_recopy` and the function `hs_a2p_recopy()`. Each Post stays a one-off copy; to change a Post's content after it's made, edit the Post itself. A row with a Post keeps its Live/Draft state and its View and Edit links, and still can't be created twice.
 
 ### Theme Builder templates (database, done by the user, not code)
 Five templates show the date with a Text module labelled **Date**, using dynamic content **Post Publish Date**: `HSN Post STANDARD`, `HSC Posts STANDARD`, `HSN Post Archive`, `HSC Posts Archive`, `Both Campus Posts Archive`. Each is switched to the custom field `hs_final_date_label`, the same kind of dynamic content the Section chip uses for `hs_final_section_chip`. Steps (local first, then live after the snippets are in and the fill has run):
@@ -100,10 +100,12 @@ Not changed: URLs, slider cards and order, search results, RSS, Yoast dates (the
   - setting/clearing event meta directly (quick-edit path) recalculates the label;
   - the fill writes a label for every Post, changes no `post_date`/`post_modified`, sets its option, and does nothing on the next run;
   - panel rows: defaults (event start = issue date, Publish now ticked), sanitising, invalid ranges reported as missing; a created Post has the event meta and the right label;
+  - Re-copy gone: `hs_a2p_recopy` no longer exists and no `wp_ajax_hs_a2p_recopy` handler is registered; the old Re-copy tests are removed;
   - Publish now: no date needed; Live → published with a date within a minute of creation; Draft → `post_date_gmt` is the floating `0000-00-00`, so it dates itself when published; unticked with no date → reported missing; an old saved row without the field keeps its date;
   - everything from the badge task still passes.
 - `panel-check.mjs` (headless Chrome), adding:
   - group headings and order as above; one rack per row, no per-field choices;
+  - a row whose Post exists shows its state with View and Edit, and no Re-copy button;
   - Publish now ticked by default with the date picker hidden; unticking shows it; Create is allowed with Publish now and no date;
   - Website Section and Campus fields start on the same line, and Yellow badge text and Location text start on the same line (within 2px);
   - Featured active first; clicking a rack image fills Featured, then Portrait becomes active; F/P tags; clicking a slot changes the active slot; Media Library and Remove still work;
@@ -123,6 +125,7 @@ Not changed: URLs, slider cards and order, search results, RSS, Yoast dates (the
 - [ ] The three Posts show the range, the single date, and the publish date.
 - [ ] An imported Post still shows its original date (also after switching an Archive template).
 - [ ] On a normal Post edit screen, Event start / Event end are under the location override; end before start is refused.
+- [ ] Rows that already have a Post show Live/Draft with View and Edit, and no Re-copy.
 - [ ] Weekly updates, sliders and search look as before.
 
 ## Deployment notes for the dev (Gate 7)
