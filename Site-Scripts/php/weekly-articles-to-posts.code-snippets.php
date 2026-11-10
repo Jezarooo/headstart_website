@@ -696,9 +696,13 @@ function hs_a2p_print_assets() {
 	#hs-a2p .hs-a2p-preview { display: block; grid-column: 2; grid-row: 1; border-top: 0; border-left: 1px solid #f0f0f1; }
 }
 #hs-a2p .hs-a2p-pv-stage { position: relative; display: grid; grid-template-columns: 216px minmax(0, 1fr); column-gap: 44px; align-items: start; align-content: start; }
-#hs-a2p .hs-a2p-pv-labels { position: relative; grid-column: 2; grid-row: 1 / 5; align-self: stretch; }
+#hs-a2p .hs-a2p-pv-labels { position: relative; grid-column: 2; grid-row: 2; align-self: stretch; }
+#hs-a2p .hs-a2p-pv-striplabels { grid-column: 1 / -1; grid-row: 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
+#hs-a2p .hs-a2p-pv-striplabels .hs-a2p-pv-label { position: static; }
 /* The card and the strip are shown at 80% with zoom, so every part keeps its proportions. */
-#hs-a2p .hs-a2p-pv-cardbox, #hs-a2p .hs-a2p-pv-stripbox { grid-column: 1; zoom: .8; width: 270px; }
+#hs-a2p .hs-a2p-pv-cardbox, #hs-a2p .hs-a2p-pv-stripbox { zoom: .8; }
+#hs-a2p .hs-a2p-pv-cardbox { grid-column: 1; width: 270px; }
+#hs-a2p .hs-a2p-pv-stripbox { grid-column: 1 / -1; justify-self: start; }
 #hs-a2p .hs-a2p-pv-cardbox { grid-row: 2; padding-top: 18px; }
 #hs-a2p .hs-a2p-pv-stripbox { grid-row: 4; }
 #hs-a2p .hs-a2p-pv-cap { grid-column: 1 / -1; justify-self: end; position: relative; z-index: 2; display: inline-flex; align-items: center; white-space: nowrap; margin: 0 0 8px; padding: 3px 10px; border-radius: 999px; background: #f0f0f1; color: #50575e; font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; }
@@ -734,11 +738,11 @@ function hs_a2p_print_assets() {
 #hs-a2p .hs-a2p-preview .hs-story-tags span { display: inline-flex; align-items: center; padding: 5px 8px; border-radius: 6px; background: rgba(240, 179, 35, .15); border: 1px solid rgba(240, 179, 35, .3); color: var(--hs-gold); font-family: var(--hs-font-head); font-size: .55rem; font-weight: 700; line-height: 1; text-transform: uppercase; }
 
 /* Top of the Post page: the Section, date and campus chips from the Post templates (measured on a live Post). */
-#hs-a2p .hs-a2p-pv-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 4px 0 16px; border-bottom: 1px solid #f0b323; font-family: 'Open Sans', sans-serif; }
+#hs-a2p .hs-a2p-pv-strip { display: flex; flex-wrap: nowrap; white-space: nowrap; align-items: center; gap: 16px; padding: 4px 0 16px; border-bottom: 1px solid #f0b323; font-family: 'Open Sans', sans-serif; }
 #hs-a2p .hs-a2p-pv-strip p { margin: 0; }
 #hs-a2p .hs-a2p-pv-sec { padding-right: 16px; border-right: 1px solid rgba(71, 85, 105, .2); }
-#hs-a2p .hs-a2p-pv-sec p { color: #003057; font-size: 26px; font-weight: 700; line-height: 1.05; text-transform: uppercase; }
-#hs-a2p .hs-a2p-pv-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+#hs-a2p .hs-a2p-pv-sec p { color: #003057; font-size: 32px; font-weight: 700; line-height: 1.05; text-transform: uppercase; }
+#hs-a2p .hs-a2p-pv-chips { display: flex; flex-wrap: nowrap; gap: 8px; }
 #hs-a2p .hs-a2p-pv-chip { padding: 2px 8px; border-radius: 5px; background: #003057; box-shadow: 0 2px 18px rgba(0, 0, 0, .3); }
 #hs-a2p .hs-a2p-pv-chip p { color: #fff; font-size: 11.2px; font-weight: 700; line-height: 27.2px; white-space: nowrap; }
 #hs-a2p .hs-a2p-intro { color: #50575e; margin: 0 0 12px; }
@@ -1225,6 +1229,7 @@ function hs_a2p_print_assets() {
 		lines.setAttribute('class', 'hs-a2p-pv-lines');
 		lines.setAttribute('aria-hidden', 'true');
 		var labels = el('div', { 'class': 'hs-a2p-pv-labels' });
+		var stripLabels = el('div', { 'class': 'hs-a2p-pv-striplabels' });
 		var capCard = el('span', { 'class': 'hs-a2p-pv-cap', text: 'Preview \u00b7 Slider card' });
 		var capStrip = el('span', { 'class': 'hs-a2p-pv-cap', text: 'Preview \u00b7 Top of the Post page' });
 		var stage = el('div', { 'class': 'hs-a2p-pv-stage' }, [
@@ -1232,12 +1237,13 @@ function hs_a2p_print_assets() {
 			el('div', { 'class': 'hs-a2p-pv-cardbox' }, [card]),
 			capStrip,
 			el('div', { 'class': 'hs-a2p-pv-stripbox' }, [strip]),
+			stripLabels,
 			labels, lines
 		]);
 		var box = el('div', { 'class': 'hs-a2p-preview' }, [
 			stage
 		]);
-		row.dom.preview = { box: box, stage: stage, labels: labels, lines: lines, t: t, caps: { card: capCard, strip: capStrip } };
+		row.dom.preview = { box: box, stage: stage, labels: labels, stripLabels: stripLabels, lines: lines, t: t, caps: { card: capCard, strip: capStrip } };
 		updatePreview(row);
 		return box;
 	}
@@ -1270,44 +1276,66 @@ function hs_a2p_print_assets() {
 		drawCallouts(row);
 	}
 
-	// Each label sits in the right-hand column, level with its target where it can, joined by a line.
+	// Card labels sit in the right-hand column, level with their target where they can.
+	// Strip labels sit in a row under the strip, each joined by a line from below its target.
 	function drawCallouts(row) {
 		var pv = row.dom && row.dom.preview;
 		if (!pv || !pv.stage.isConnected) { return; }
 		window.requestAnimationFrame(function () {
 			var base = pv.stage.getBoundingClientRect();
 			if (!base.width) { return; }
-			var labelsBox = pv.labels.getBoundingClientRect();
-			var lx = labelsBox.left - base.left;
+			var svg = function (tag, attrs) { var n = document.createElementNS('http://www.w3.org/2000/svg', tag); Object.keys(attrs).forEach(function (k) { n.setAttribute(k, attrs[k]); }); pv.lines.appendChild(n); };
+			var labelNode = function (c) { return el('div', { 'class': 'hs-a2p-pv-label' }, [el('strong', { text: c[2] }), c[3] ? el('span', { text: c[3] }) : null]); };
+			var shown = function (c) { var t = pv.t[c[1]]; return t && t.style.display !== 'none' ? t : null; };
 			pv.labels.textContent = '';
+			pv.stripLabels.textContent = '';
+			pv.labels.style.minHeight = '';
 			while (pv.lines.firstChild) { pv.lines.removeChild(pv.lines.firstChild); }
-			pv.lines.setAttribute('width', base.width);
-			pv.lines.setAttribute('height', base.height);
-			var below = function (node) { return node.getBoundingClientRect().bottom - base.top + 6; };
-			var next = below(pv.caps.card), stripStarted = false;
-			CALLOUTS.forEach(function (c) {
-				if (c[0] === 'strip' && !stripStarted) { stripStarted = true; next = Math.max(next, below(pv.caps.strip)); }
-				var target = pv.t[c[1]];
-				if (!target || target.style.display === 'none') { return; }
+
+			// Card: right-hand column.
+			var lx = pv.labels.getBoundingClientRect().left - base.left;
+			var next = pv.caps.card.getBoundingClientRect().bottom - base.top + 6;
+			var placed = [];
+			CALLOUTS.filter(function (c) { return c[0] === 'card'; }).forEach(function (c) {
+				var target = shown(c);
+				if (!target) { return; }
 				var r = (c[1] === 'image' ? target : (target.querySelector('p') || target)).getBoundingClientRect();
 				if (!r.width) { return; }
 				var ty = c[1] === 'image' ? r.top - base.top + r.height * 0.42 : r.top - base.top + r.height / 2;
 				var tx = c[1] === 'image' ? r.right - base.left - 14 : r.right - base.left + 4;
-				var label = el('div', { 'class': 'hs-a2p-pv-label' }, [el('strong', { text: c[2] }), c[3] ? el('span', { text: c[3] }) : null]);
+				var label = labelNode(c);
 				pv.labels.appendChild(label);
 				var h = label.offsetHeight;
 				var top = Math.max(ty - h / 2, next);
-				label.style.top = top + 'px';
 				next = top + h + 6;
-				var ly = top + Math.min(h / 2, 10);
-				var line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-				line.setAttribute('points', tx + ',' + ty + ' ' + (lx - 16) + ',' + ty + ' ' + (lx - 4) + ',' + ly);
-				pv.lines.appendChild(line);
-				var dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-				dot.setAttribute('cx', tx); dot.setAttribute('cy', ty); dot.setAttribute('r', 3);
-				pv.lines.appendChild(dot);
+				placed.push({ label: label, top: top, h: h, tx: tx, ty: ty });
 			});
-			pv.stage.style.minHeight = next + 'px';
+			var labelsTop = pv.labels.getBoundingClientRect().top - base.top;
+			placed.forEach(function (p) { p.label.style.top = (p.top - labelsTop) + 'px'; });
+			pv.labels.style.minHeight = Math.max(0, next - labelsTop) + 'px'; // pushes the strip down if the labels run long
+
+			// Strip: labels in a row underneath; lines go down from each target, then across to its label.
+			var stripCallouts = CALLOUTS.filter(function (c) { return c[0] === 'strip' && shown(c); });
+			stripCallouts.forEach(function (c) { pv.stripLabels.appendChild(labelNode(c)); });
+			var sx = pv.stripLabels.getBoundingClientRect();
+			var stripBottom = pv.stage.querySelector('.hs-a2p-pv-stripbox').getBoundingClientRect().bottom - base.top;
+			var midY = stripBottom + (sx.top - base.top - stripBottom) / 2;
+
+			pv.lines.setAttribute('width', base.width);
+			pv.lines.setAttribute('height', base.height);
+			placed.forEach(function (p) {
+				var ly = p.top + Math.min(p.h / 2, 10);
+				svg('polyline', { points: p.tx + ',' + p.ty + ' ' + (lx - 16) + ',' + p.ty + ' ' + (lx - 4) + ',' + ly });
+				svg('circle', { cx: p.tx, cy: p.ty, r: 3 });
+			});
+			stripCallouts.forEach(function (c, i) {
+				var r = (pv.t[c[1]].querySelector('p') || pv.t[c[1]]).getBoundingClientRect();
+				var l = pv.stripLabels.children[i].getBoundingClientRect();
+				var tx = r.left - base.left + r.width / 2, ty = r.bottom - base.top + 2;
+				var x2 = l.left - base.left + 10, y2 = l.top - base.top;
+				svg('polyline', { points: tx + ',' + ty + ' ' + tx + ',' + midY + ' ' + x2 + ',' + midY + ' ' + x2 + ',' + y2 });
+				svg('circle', { cx: tx, cy: ty, r: 3 });
+			});
 		});
 	}
 

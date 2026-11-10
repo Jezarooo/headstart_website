@@ -213,6 +213,9 @@ try {
       gaps: (() => { const st = pv.querySelector('.hs-a2p-pv-stage'); const caps = st.querySelectorAll('.hs-a2p-pv-cap'); const cb = st.querySelector('.hs-a2p-pv-cardbox').getBoundingClientRect(), sb = st.querySelector('.hs-a2p-pv-stripbox').getBoundingClientRect(); return { card: Math.round(cb.top - caps[0].getBoundingClientRect().bottom), strip: Math.round(sb.top - caps[1].getBoundingClientRect().bottom) }; })(),
       position: getComputedStyle(pv).position,
       footnote: /Updates as you edit/.test(pv.textContent),
+      strip: (() => { const mid = (n) => { const b = n.getBoundingClientRect(); return Math.round(b.top + b.height / 2); }; const parts = [pv.querySelector('.hs-a2p-pv-sec p'), ...pv.querySelectorAll('.hs-a2p-pv-chip')]; const ms = parts.map(mid);
+        const sb = pv.querySelector('.hs-a2p-pv-stripbox').getBoundingClientRect(), lb = [...pv.querySelectorAll('.hs-a2p-pv-striplabels .hs-a2p-pv-label')].map((l) => l.getBoundingClientRect());
+        return { oneRow: Math.max(...ms) - Math.min(...ms) <= 4, labelsBelow: lb.length === 3 && lb.every((b) => b.top >= sb.bottom), fits: sb.right <= pv.getBoundingClientRect().right + 1 }; })(),
       statusHint: (fieldOf(r,'Status').querySelector('.hs-a2p-hint') || {}).textContent || '',
       quad: (() => { const fs = ['Publish', 'Status', 'Event start', 'Event end'].map((l) => fieldOf(r, l)); const top = (f, i) => Math.round(f.children[i].getBoundingClientRect().top); const same = (i) => { const ts = fs.map((f) => top(f, i)); return Math.max(...ts) - Math.min(...ts); };
         const t = fieldOf(r,'Title').getBoundingClientRect(), q = r.querySelector('.hs-a2p-quad').getBoundingClientRect();
@@ -229,6 +232,7 @@ try {
   t('card shown at 80% in proportion (216 × 384)', Math.abs(wide.card.w - 216) <= 1 && Math.abs(wide.card.h - 384) <= 1, JSON.stringify(wide.card));
   t('caption chips sit on the right, each on one line', wide.caps.length === 2 && wide.caps.every((c) => c.oneLine && c.right) && /Preview · Slider card/.test(wide.caps[0].text), JSON.stringify(wide.caps));
   t('labels and chips do not overlap', wide.overlap === false);
+  t('Post-top strip on one row, its three labels below it, inside the preview', wide.strip.oneRow && wide.strip.labelsBelow && wide.strip.fits, JSON.stringify(wide.strip));
   t('preview scrolls with the page (not sticky)', wide.position !== 'sticky' && wide.position !== 'fixed', wide.position);
   t('card and strip sit just under their chips', wide.gaps.card <= 16 && wide.gaps.strip <= 16, JSON.stringify(wide.gaps));
   t('Title spans the Post group above the four date and status fields', wide.quad.titleSpans && wide.quad.titleAbove, JSON.stringify(wide.quad));
