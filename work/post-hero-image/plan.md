@@ -48,8 +48,8 @@ In **HSN Post STANDARD** and **HSC Posts STANDARD** (body layout titled "HSC Pos
 
 ### New in `Site-Scripts/php/posts-card-preview.code-snippets.php` (Posts--Card-Preview)
 `hsCardPreview.heroFocus({ image, get, set })`, a third labelled preview, **"Preview · Hero (top of the Post page)"**:
-- The whole Featured image with a dot on the focal point. Click or drag to move it, or use the arrow keys (1% per press, 10% with Shift). A **Centre** button resets it.
-- Beside it, the **desktop** crop: the hero box at a 1920×1080 window (the 973px content column × 70vh, about 1.29:1), drawn with the same `object-fit: cover` and `object-position` as the site, so what you see is what the page does. No phone crop (phones are unchanged).
+- **One image with a desktop frame** *(user, 10 Nov)*: the whole Featured image, with a frame on top showing exactly what the desktop hero shows. The frame is the hero's shape at a 1920×1080 window: the 973px content column × 70vh, about 1.29:1. Outside it is dimmed. Drag the frame to move it, use the arrow keys (1% per press, 10% with Shift), or click **Centre**. It slides only along the axis that gets cropped: left/right for photos wider than the hero (most landscape photos), up/down for taller ones. Its position is the `object-position` the site uses, so what's in the frame is what the page shows.
+- No separate crop box and no dot: the frame is the crop. No phone frame (phones are unchanged).
 - Label lines as in the other previews: "Hero: the Featured image at 70% of the window height", "Focal point: stays in view when cropped".
 - With no Featured image it says to pick one first.
 
@@ -75,10 +75,10 @@ Not changed: URLs, chips, dates, the gatekeeper, page heroes, weekly updates, sl
   - the front-end style tag is printed only for a single Post with a focus, with the right values;
   - slider card HTML is unchanged by a focal point;
   - panel rows: `heroFocus` sanitised; a created Post stores it; the new ACF field keeps its key, name and type.
-- `panel-check.mjs` (all 65 still pass), plus: the hero preview appears with the desktop crop; clicking the photo moves the dot and the crop's `object-position`; a created Post has `hs_hero_focus`.
+- `panel-check.mjs` (all 65 still pass), plus: the hero preview appears with the frame; dragging the frame changes the row's focus along the cropped axis only; a created Post has `hs_hero_focus`.
 - `post-screen-check.mjs` (all 35 still pass), plus:
   - the hero preview follows the Featured image;
-  - clicking, dragging and arrow keys move the focal point;
+  - the frame matches the desktop hero's shape over the image; dragging it and the arrow keys move the focus along the cropped axis only;
   - Centre resets it;
   - the hidden field holds the value, and saving stores it;
   - changing the Featured image resets it.
@@ -92,7 +92,7 @@ Not changed: URLs, chips, dates, the gatekeeper, page heroes, weekly updates, sl
 ### UAT checklist for the user (Gate 5)
 - [ ] Add `hs-post-hero` to the featured image module in your local **HSN Post STANDARD** and **HSC Posts STANDARD** templates.
 - [ ] Open a Post on your 1920 screen: the hero is the same height as a page hero (70% of the window), with no scrolling needed to see all of it.
-- [ ] On the Post edit screen, the hero preview shows the Featured image with a dot and the desktop crop. Drag the dot: the crop follows. Save, then view the Post: the hero is positioned the same way.
+- [ ] On the Post edit screen, the hero preview shows the Featured image with the desktop frame. Drag the frame to the best part. Save, then view the Post on desktop: the hero shows what was in the frame.
 - [ ] The same in a weekly update's Articles → Posts panel: set a focal point, create a Draft, view it.
 - [ ] Slider cards look as before.
 - [ ] Narrow the browser below 981px (or use your phone on the local site): the featured image looks as it does today.
@@ -103,4 +103,4 @@ Install **after** packs 1, 2 and 3.
 1. **Replace** the code of **Posts--Register-Fields**, **Posts--Card-Preview** and **Weekly-Update--Articles-To-Posts** with the files in `files/php/`.
 2. **Jeremy** adds the CSS rule to the live global stylesheet, then adds the class `hs-post-hero` to the featured image module in the two STANDARD templates (and the Archive ones if wanted), then purges WP Super Cache and Cloudflare APO.
 - No permalinks flush.
-- Smoke: open any Post → the hero is 70% of the window tall. Open a Post's edit screen → the hero preview with the dot is under the card preview.
+- Smoke: open any Post → the hero is 70% of the window tall. Open a Post's edit screen → the hero preview with the desktop frame is under the card preview.
