@@ -110,16 +110,31 @@ try {
       title: isOk(fieldOf(r,'Title')), section: fieldOf(r,'Website').querySelector('select').selectedOptions[0].textContent, sectionOk: isOk(fieldOf(r,'Website')), campusOk: isOk(fieldOf(r,'Campus')),
       tags: isBad(fieldOf(r,'Thematic')), image: isBad(fieldOf(r,'Featured')),
       badgeLabel: fieldOf(r,'Yellow').querySelector('.hs-a2p-label').textContent, badgeSelect: !!fieldOf(r,'Yellow').querySelector('select'), badgeColour: isBad(fieldOf(r,'Yellow')) || isOk(fieldOf(r,'Yellow')),
-      locColour: isBad(fieldOf(r,'Display')) || isOk(fieldOf(r,'Display')), portraitColour: isBad(fieldOf(r,'Portrait')) || isOk(fieldOf(r,'Portrait')),
+      locColour: isBad(fieldOf(r,'Location')) || isOk(fieldOf(r,'Location')), portraitColour: isBad(fieldOf(r,'Portrait')) || isOk(fieldOf(r,'Portrait')),
       live: fieldOf(r,'Status').querySelector('input').checked, disabled: document.querySelector('#hs-a2p .button-primary').disabled,
-      summary: document.querySelector('.hs-a2p-actions .hs-a2p-saved').textContent, thumbs: r.querySelectorAll('.hs-a2p-choices img').length })`));
+      summary: document.querySelector('.hs-a2p-actions .hs-a2p-saved').textContent, thumbs: r.querySelectorAll('.hs-a2p-rack img').length,
+      groups: [...r.querySelectorAll('.hs-a2p-g > h4')].map((h) => h.textContent),
+      badgeUnderSection: fieldOf(r,'Yellow').parentElement === fieldOf(r,'Website').parentElement && fieldOf(r,'Website').nextElementSibling === fieldOf(r,'Yellow'),
+      locUnderCampus: fieldOf(r,'Location').parentElement === fieldOf(r,'Campus').parentElement && fieldOf(r,'Campus').nextElementSibling === fieldOf(r,'Location'),
+      dateWithTitle: fieldOf(r,'Publish').closest('.hs-a2p-g') === fieldOf(r,'Title').closest('.hs-a2p-g'),
+      racks: r.querySelectorAll('.hs-a2p-rack').length, oldChoices: r.querySelectorAll('.hs-a2p-choices').length,
+      active: (r.querySelector('.hs-a2p-slot.is-active') || {}).dataset?.slot, note: (r.querySelector('.hs-a2p-rack-note') || {}).textContent,
+      rackImg: (() => { const i = r.querySelector('.hs-a2p-rack img'); return i ? { lazy: i.getAttribute('loading'), src: i.getAttribute('src') } : null; })(),
+      publish: fieldOf(r,'Publish').querySelector('input').value, eventStart: fieldOf(r,'Start').querySelector('input').value,
+      eventColour: isBad(fieldOf(r,'Start')) || isOk(fieldOf(r,'Start')) })`));
   t('pre-filled fields are green', ticked.title && ticked.campusOk);
   t('tags and featured image are red', ticked.tags && ticked.image);
-  t('badge is an optional override box with no list', ticked.badgeLabel === 'Yellow Badge Override' && !ticked.badgeSelect, JSON.stringify(ticked));
+  t('badge is an optional override box with no list', ticked.badgeLabel === 'Yellow badge text' && !ticked.badgeSelect, JSON.stringify(ticked));
   t('badge override, location override and portrait have no colour', !ticked.badgeColour && !ticked.locColour && !ticked.portraitColour);
   t('defaults to Live', ticked.live);
   t('Create stays disabled while required fields are missing', ticked.disabled === true);
-  t('article images offered as choices', ticked.thumbs > 0, String(ticked.thumbs));
+  t('one rack of article images, no per-field choices', ticked.thumbs > 0 && ticked.racks === 1 && ticked.oldChoices === 0, JSON.stringify({ thumbs: ticked.thumbs, racks: ticked.racks, old: ticked.oldChoices }));
+  t('groups in order: Post, Event date, Website Section, Campus, Images', JSON.stringify(ticked.groups) === JSON.stringify(['Post', 'Event date (shown to readers)', 'Website Section', 'Campus', 'Images']), JSON.stringify(ticked.groups));
+  t('badge text sits under the Section, location text under Campus, publish date with the title', ticked.badgeUnderSection && ticked.locUnderCampus && ticked.dateWithTitle);
+  t('Featured is the slot being picked, and the note says so', ticked.active === 'image' && /Featured image/.test(ticked.note || ''), JSON.stringify({ a: ticked.active, n: ticked.note }));
+  t('rack uses small lazy thumbnails', ticked.rackImg && ticked.rackImg.lazy === 'lazy' && /-150x150\./.test(ticked.rackImg.src), JSON.stringify(ticked.rackImg));
+  const today = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+  t('publish date defaults to today; event start is filled; event box has no colour', ticked.publish.slice(0, 10) === today && /^\d{4}-\d{2}-\d{2}$/.test(ticked.eventStart) && !ticked.eventColour, JSON.stringify({ p: ticked.publish, e: ticked.eventStart, today }));
   console.log(`        Section pre-filled: ${ticked.section}. ${ticked.summary}`);
   await shot('panel-2-ticked.png');
 
@@ -128,11 +143,28 @@ try {
     const r = document.querySelector('#hs-a2p .hs-a2p-body').closest('.hs-a2p-row');
     const sec = fieldOf(r,'Website').querySelector('select'); if (sec.value === '0') { sec.value = sec.options[1].value; fire(sec,'change'); }
     fieldOf(r,'Thematic').querySelector('.hs-a2p-taglist input').click();
-    r.querySelector('.hs-a2p-choices button').click();
+    const items = () => [...r.querySelectorAll('.hs-a2p-rack-item')];
+    items()[0].click();
+    await wait(100);
+    const afterFirst = { active: r.querySelector('.hs-a2p-slot.is-active').dataset.slot, f: !!items()[0].querySelector('.hs-a2p-tag.is-f') };
+    (items()[1] || items()[0]).click();
+    await wait(100);
+    const afterSecond = { p: !!(items()[1] || items()[0]).querySelector('.hs-a2p-tag.is-p'), portraitThumb: !!r.querySelector('.hs-a2p-slot[data-slot=portrait] .hs-a2p-thumb') };
+    r.querySelector('.hs-a2p-slot[data-slot=image] .hs-a2p-slot-pick').click();
+    await wait(100);
+    const backToFeatured = r.querySelector('.hs-a2p-slot.is-active').dataset.slot === 'image' && /Featured image/.test(r.querySelector('.hs-a2p-rack-note').textContent);
+    const end = fieldOf(r,'End').querySelector('input'); end.value = '2000-01-01'; fire(end,'input');
+    await wait(100);
+    const eventBad = isBad(fieldOf(r,'Start')) && document.querySelector('#hs-a2p .button-primary').disabled;
+    end.value = ''; fire(end,'input');
     await wait(1500);
-    return JSON.stringify({ tags: isOk(fieldOf(r,'Thematic')), chips: r.querySelectorAll('.hs-a2p-taglist input:checked').length, groups: r.querySelectorAll('.hs-a2p-taggroup').length, image: isOk(fieldOf(r,'Featured')), thumb: !!fieldOf(r,'Featured').querySelector('.hs-a2p-thumb'),
+    return JSON.stringify({ afterFirst, afterSecond, backToFeatured, eventBad, eventCleared: !isBad(fieldOf(r,'Start')), tags: isOk(fieldOf(r,'Thematic')), chips: r.querySelectorAll('.hs-a2p-taglist input:checked').length, groups: r.querySelectorAll('.hs-a2p-taggroup').length, image: isOk(fieldOf(r,'Featured')), thumb: !!fieldOf(r,'Featured').querySelector('.hs-a2p-thumb'),
       disabled: document.querySelector('#hs-a2p .button-primary').disabled, saved: document.querySelectorAll('.hs-a2p-actions .hs-a2p-saved')[1].textContent,
       dirty: wp.data.select('core/editor').isEditedPostDirty() })`));
+  t('clicking a rack image fills Featured, tags it F, and moves picking to Portrait', filled.afterFirst.active === 'portrait' && filled.afterFirst.f, JSON.stringify(filled.afterFirst));
+  t('the next click fills Portrait and tags it P', filled.afterSecond.p && filled.afterSecond.portraitThumb, JSON.stringify(filled.afterSecond));
+  t('clicking a slot makes it the one being picked', filled.backToFeatured);
+  t('an event end before the start turns red and holds back Create; clearing it fixes that', filled.eventBad && filled.eventCleared);
   t('filled fields turn green', filled.tags && filled.image && filled.thumb, JSON.stringify(filled));
   t('Create is enabled with the badge override empty', filled.disabled === false);
   t('panel saves itself', filled.saved === 'Saved', filled.saved);
@@ -173,6 +205,8 @@ try {
     const sec = fieldOf(r,'Website').querySelector('select'); if (sec.value === '0') { sec.value = sec.options[1].value; fire(sec,'change'); }
     fieldOf(r,'Thematic').querySelector('.hs-a2p-taglist input').click();
     const badge = fieldOf(r,'Yellow').querySelector('input'); badge.value = 'A2P UI Badge'; fire(badge,'input');
+    const es = fieldOf(r,'Start').querySelector('input'); es.value = '2026-11-12'; fire(es,'input');
+    const ee = fieldOf(r,'End').querySelector('input'); ee.value = '2026-11-14'; fire(ee,'input');
     fieldOf(r,'Status').querySelectorAll('input')[1].click();
     await wait(200);
     document.querySelector('#hs-a2p .button-primary').click();`);
@@ -192,11 +226,13 @@ try {
   t('Live Post is public (logged out)', live.status === 200, `${live.status} ${created.view}`);
   const chips = JSON.parse(evalFile(`$out = [];
 foreach (get_posts(['post_type' => 'post', 'post_status' => ['publish', 'draft'], 'numberposts' => -1, 'fields' => 'ids', 'meta_key' => '_hs_a2p_source', 'meta_compare' => 'LIKE', 'meta_value' => '${ISSUE}:']) as $id) {
-  $out[get_post_status($id)] = ['chip' => get_post_meta($id, 'hs_final_section_chip', true), 'section' => wp_get_object_terms($id, 'hs_department', ['fields' => 'names'])[0] ?? '', 'badges' => wp_get_object_terms($id, 'hs_thematic_chip', ['fields' => 'names'])];
+  $out[get_post_status($id)] = ['label' => get_post_meta($id, 'hs_final_date_label', true), 'chip' => get_post_meta($id, 'hs_final_section_chip', true), 'section' => wp_get_object_terms($id, 'hs_department', ['fields' => 'names'])[0] ?? '', 'badges' => wp_get_object_terms($id, 'hs_thematic_chip', ['fields' => 'names'])];
 }
 echo wp_json_encode($out);`).trim());
   t('empty override: the Live Post shows its Section, with no badge', chips.publish && chips.publish.chip === chips.publish.section && chips.publish.chip !== '' && chips.publish.badges.length === 0, JSON.stringify(chips));
   t('typed override: the Draft shows the typed badge', chips.draft && chips.draft.chip === 'A2P UI Badge', JSON.stringify(chips));
+  t('the Draft with an event range has the range label', chips.draft && chips.draft.label === '12\u201314 November 2026', JSON.stringify(chips.draft));
+  t('the Live Post without event dates is labelled with its publish date', chips.publish && /^\d{1,2} [A-Z][a-z]+ \d{4}$/.test(chips.publish.label), JSON.stringify(chips.publish));
   t('the Section chip is in the Live Post page', (await live.clone().text()).toUpperCase().includes(chips.publish.section.toUpperCase()));
 
   console.log('\nSecurity');
