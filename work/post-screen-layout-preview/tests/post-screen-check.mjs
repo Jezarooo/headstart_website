@@ -129,32 +129,54 @@ try {
 
   console.log('\nHero preview');
   const hf = JSON.parse(await run(`${helpers}
-    const hbox = box.querySelector('.hs-chf');
-    const tab = (k) => hbox.querySelector('.hs-chf-devices button[data-device=' + k + ']');
-    const heroEl = () => hbox.querySelector('.hs-chf-hero');
-    const shape = () => { const b = heroEl().getBoundingClientRect(); return +(b.width / b.height).toFixed(2); };
+    const box = document.getElementById('acf-group_hs_post_classification').querySelector('.hs-chf');
     const input = f('hs_hero_focus').querySelector('input[type=text]');
+    const hiddenFields = ['hs_hero_focus', 'hs_hero_mobile', 'hs_hero_mobile_focus'].every((n) => f(n).style.display === 'none');
+    const startFocus = input.value;
+    const tab = (k) => box.querySelector('.hs-chf-devices button[data-device=' + k + ']');
+    const heroEl = () => box.querySelector('.hs-chf-hero');
+    const shape = () => { const b = heroEl().getBoundingClientRect(); return +(b.width / b.height).toFixed(2); };
+    const where = () => (box.querySelector('.hs-chf-where') || {}).textContent || '';
+    const key = async (k, shift) => { heroEl().dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, shiftKey: !!shift })); await wait(60); };
+    const centre = async () => { [...box.querySelectorAll('.hs-chf-actions button')].find((b) => b.textContent === 'Centre').click(); await wait(120); };
     await wait(700);
-    const out = { hidden: f('hs_hero_focus').style.display === 'none' && f('hs_hero_mobile').style.display === 'none', start: input.value, desktop: shape() };
+    const out = { tabs: [...box.querySelectorAll('.hs-chf-devices button')].map((b) => b.textContent), on: (box.querySelector('.hs-chf-devices .is-on') || {}).dataset.device, desktop: shape(), fold: !!box.querySelector('.hs-chf-fold'), mobileHiddenOnDesktop: box.querySelector('.hs-chf-mobile').style.display === 'none' };
     tab('laptop').click(); await wait(300); out.laptop = shape();
-    for (let i = 0; i < 2; i++) { heroEl().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, shiftKey: true })); await wait(40); }
-    out.shift = input.value;
-    [...hbox.querySelectorAll('.hs-chf-actions button')].find((b) => b.textContent === 'Centre').click(); await wait(100);
-    out.centred = input.value;
-    heroEl().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })); await wait(100);
-    out.kept = input.value;
-    tab('phone').click(); await wait(400);
-    const items = [...hbox.querySelectorAll('.hs-chf-mobile .hs-cip-rack-item')];
-    out.rack = items.length;
-    if (items.length) { items[0].click(); await wait(800); }
-    out.mobileInput = +f('hs_hero_mobile').querySelector('.acf-image-uploader input[type=hidden]').value;
+    await centre();
+    const h = heroEl(), hr = h.getBoundingClientRect();
+    const ev = (t, x, y) => h.dispatchEvent(new PointerEvent(t, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
+    ev('pointerdown', hr.left + hr.width / 2, hr.top + hr.height / 2); ev('pointermove', hr.left + hr.width / 2, hr.top + hr.height / 2 - 20); ev('pointerup', hr.left + hr.width / 2, hr.top + hr.height / 2 - 20); await wait(100);
+    out.dragged = where();
+    await centre();
+    for (let i = 0; i < 3; i++) { await key('ArrowDown'); }
+    await key('ArrowRight');
+    out.keys = where();
+    tab('tablet').click(); await wait(300); out.tablet = shape();
+    tab('phone').click(); await wait(400); out.phone = shape();
+    const scr = box.querySelector('.hs-chf-screen').getBoundingClientRect(), hb = heroEl().getBoundingClientRect();
+    out.spaceBelow = Math.round(scr.bottom - hb.bottom); out.foldOnPhone = !!box.querySelector('.hs-chf-fold');
+    await key('ArrowRight'); await key('ArrowRight');
+    out.phoneKeys = where();
+    const mb = box.querySelector('.hs-chf-mobile'); out.mobileShown = mb.style.display !== 'none';
+    const slot = mb.querySelector('.hs-cip-slot[data-slot=portrait]'); out.slotPad = slot ? parseFloat(getComputedStyle(slot).paddingLeft) : 0;
+    const rack = mb.querySelector('.hs-cip-rack');
+    if (rack) { rack.scrollTop = 40; await key('ArrowLeft'); await key('ArrowRight'); out.rackKept = rack.isConnected && Math.round(mb.querySelector('.hs-cip-rack').scrollTop); }
+    const items = [...mb.querySelectorAll('.hs-cip-rack-item')];
+    out.rackN = items.length;
+    if (items.length) { items[items.length - 1].click(); await wait(800); out.mobileId = +items[items.length - 1].dataset.id; }
     out.phoneSrc = (heroEl().querySelector('img') || {}).src || '';
-    tab('desktop').click(); await wait(200);
+    out.mobileStart = where();
+    await key('ArrowLeft', true); await key('ArrowUp', true);
+    out.mobileMoved = where();
+    tab('desktop').click(); await wait(800);
+    out.backOnDesktop = where(); out.hidden = hiddenFields; out.start = startFocus; out.focus = input.value; out.mobileInput = +f('hs_hero_mobile').querySelector('.acf-image-uploader input[type=hidden]').value; out.mobileFocus = f('hs_hero_mobile_focus').querySelector('input[type=text]').value;
     return JSON.stringify(out);`));
-  t('the focal point and phone image fields are hidden behind the hero preview; starts centred', hf.hidden && hf.start === '', JSON.stringify(hf));
-  t('hero boxes are the measured desktop and MacBook shapes', Math.abs(hf.desktop - 1632 / 756) < 0.05 && Math.abs(hf.laptop - 1380 / 581) < 0.05, JSON.stringify({ d: hf.desktop, l: hf.laptop }));
-  t('Shift+arrow moves 10% along the cropped axis; Centre clears it', hf.shift === '50 70' && hf.centred === '', JSON.stringify(hf));
-  t('Phone: picking from this Post’s images sets the Image for phones and tablets', hf.rack === setup.rackIds.length && hf.mobileInput === setup.rackIds[0] && sameImage(hf.phoneSrc, setup.rackUrls[0]), JSON.stringify({ rack: hf.rack, id: hf.mobileInput, src: hf.phoneSrc }));
+  t('the hero fields are hidden behind the preview; it starts centred', hf.hidden && hf.start === '', JSON.stringify(hf));
+  t('Desktop, Laptop, Tablet, Phone at the measured shapes', JSON.stringify(hf.tabs) === JSON.stringify(['Desktop', 'Laptop', 'Tablet', 'Phone']) && Math.abs(hf.desktop - 1632 / 756) < 0.05 && Math.abs(hf.laptop - 1380 / 581) < 0.05 && Math.abs(hf.tablet - 779 / 826) < 0.05 && Math.abs(hf.phone - 371 / 591) < 0.05, JSON.stringify(hf));
+  t('one focal point: up/down from Desktop/Laptop, left/right from Phone', hf.focus === '52 53' && hf.keys === '53% down' && hf.phoneKeys === '52% across', JSON.stringify({ f: hf.focus, k: hf.keys, p: hf.phoneKeys }));
+  t('Phone: no empty screen below the hero; picker padded; rack keeps its scroll', hf.spaceBelow <= 8 && hf.slotPad >= 8 && (hf.rackKept === 40 || hf.rackN <= 4), JSON.stringify({ s: hf.spaceBelow, pad: hf.slotPad, kept: hf.rackKept, n: hf.rackN }));
+  t('picking a phone image sets the ACF field and gives it its own position', hf.mobileInput === hf.mobileId && hf.mobileFocus !== '' && hf.mobileStart === 'Centred (default)', JSON.stringify({ id: hf.mobileInput, want: hf.mobileId, mf: hf.mobileFocus }));
+  if (shots) { await run(`document.querySelector('.hs-chf .hs-chf-devices button[data-device=phone]').click(); document.querySelector('.hs-chf').scrollIntoView({ block: 'start' });`); await sleep(1000); const p = await send('Page.captureScreenshot', { format: 'png' }); writeFileSync(join(shots, 'post-4-hero-phone.png'), Buffer.from(p.data, 'base64')); await run(`document.querySelector('.hs-chf .hs-chf-devices button[data-device=desktop]').click();`); await sleep(400); }
 
   console.log('\nEditing fields updates the preview');
   const edited = JSON.parse(await run(`${helpers}
@@ -208,9 +230,9 @@ try {
   const saved = JSON.parse(evalFile(`$id = ${setup.id}; clean_post_cache($id); wp_cache_flush();
 echo wp_json_encode(['title' => get_the_title($id), 'section' => wp_get_object_terms($id, 'hs_department', ['fields' => 'names']), 'campus' => wp_get_object_terms($id, 'hs_post_campus', ['fields' => 'slugs']),
   'location' => get_post_meta($id, 'hs_location_override', true), 'start' => get_post_meta($id, 'hs_event_start', true), 'portrait' => get_post_meta($id, 'hs_portrait_image', true),
-  'tags' => wp_get_object_terms($id, 'post_tag', ['fields' => 'names']), 'focus' => get_post_meta($id, 'hs_hero_focus', true), 'mobile' => (int) get_post_meta($id, 'hs_hero_mobile', true), 'label' => get_post_meta($id, 'hs_final_date_label', true), 'chip' => get_post_meta($id, 'hs_final_section_chip', true)]);`).trim());
+  'tags' => wp_get_object_terms($id, 'post_tag', ['fields' => 'names']), 'focus' => get_post_meta($id, 'hs_hero_focus', true), 'mobile' => (int) get_post_meta($id, 'hs_hero_mobile', true), 'mfocus' => get_post_meta($id, 'hs_hero_mobile_focus', true), 'label' => get_post_meta($id, 'hs_final_date_label', true), 'chip' => get_post_meta($id, 'hs_final_section_chip', true)]);`).trim());
   t('saving stores every field', saved.title === 'PS Title Edited' && saved.section.join() === 'Secondary' && saved.campus.sort().join() === 'chaofah,cherngtalay' && saved.location === 'PS Saved Place' && saved.start === '20261201' && !saved.portrait && saved.tags.length === 1, JSON.stringify(saved));
-  t('saving stores the hero position and the phone image', saved.focus === '50 51' && saved.mobile === setup.rackIds[0], JSON.stringify({ f: saved.focus, m: saved.mobile }));
+  t('saving stores the hero position, the phone image and its position', saved.focus === '52 53' && saved.mobile === hf.mobileId && saved.mfocus === hf.mobileFocus && saved.mfocus !== '', JSON.stringify({ f: saved.focus, m: saved.mobile, mf: saved.mfocus }));
   t('the chips are recalculated on save', saved.chip === 'Secondary' && saved.label === '1 December 2026', JSON.stringify({ c: saved.chip, l: saved.label }));
   await open();
   const reloaded = JSON.parse(await run(`${helpers} await wait(400);

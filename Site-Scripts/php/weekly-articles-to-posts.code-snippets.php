@@ -214,6 +214,7 @@ function hs_a2p_row_defaults( $article, $issue_id ) {
 		'eventEnd'      => '',
 		'heroFocus'     => '',
 		'heroMobile'    => 0,
+		'heroMobileFocus' => '',
 		'image'         => 0,
 		'portrait'      => 0,
 		'status'        => $article['dark'] ? 'draft' : 'live',
@@ -245,6 +246,7 @@ function hs_a2p_sanitize_row( $raw ) {
 		'eventEnd'      => $ymd( $raw['eventEnd'] ?? '' ),
 		'heroFocus'     => hs_a2p_hero_focus( $raw['heroFocus'] ?? '' ),
 		'heroMobile'    => absint( $raw['heroMobile'] ?? 0 ),
+		'heroMobileFocus' => hs_a2p_hero_focus( $raw['heroMobileFocus'] ?? '' ),
 		'image'         => absint( $raw['image'] ?? 0 ),
 		'portrait'      => absint( $raw['portrait'] ?? 0 ),
 		'status'        => 'draft' === ( $raw['status'] ?? '' ) ? 'draft' : 'live',
@@ -446,6 +448,10 @@ function hs_a2p_create_post( $issue_id, $article, $row ) {
 	if ( ! empty( $row['heroMobile'] ) && wp_attachment_is_image( $row['heroMobile'] ) ) {
 		update_post_meta( $id, 'hs_hero_mobile', (int) $row['heroMobile'] );
 		update_post_meta( $id, '_hs_hero_mobile', 'field_hs_hero_mobile' );
+		if ( '' !== ( $row['heroMobileFocus'] ?? '' ) ) {
+			update_post_meta( $id, 'hs_hero_mobile_focus', $row['heroMobileFocus'] );
+			update_post_meta( $id, '_hs_hero_mobile_focus', 'field_hs_hero_mobile_focus' );
+		}
 	}
 	if ( '' !== ( $row['heroFocus'] ?? '' ) ) {
 		update_post_meta( $id, 'hs_hero_focus', $row['heroFocus'] );
@@ -1102,8 +1108,9 @@ function hs_a2p_print_assets() {
 		row.dom.preview = pv;
 		pv.update(previewValues(row));
 		var hero = window.hsCardPreview.heroFocus ? window.hsCardPreview.heroFocus({
-			get: function () { return { url: row.imageUrl || '', focus: row.fields.heroFocus || '', mobile: { id: row.fields.heroMobile || 0, url: row.heroMobileUrl || '' } }; },
+			get: function () { return { url: row.imageUrl || '', focus: row.fields.heroFocus || '', mobile: { id: row.fields.heroMobile || 0, url: row.heroMobileUrl || '', focus: row.fields.heroMobileFocus || '' } }; },
 			set: function (focus) { row.fields.heroFocus = focus; queueSave(); },
+			setMobileFocus: function (focus) { row.fields.heroMobileFocus = focus; queueSave(); },
 			images: row.images,
 			setMobile: function (id, url) { row.fields.heroMobile = id || 0; row.heroMobileUrl = url || ''; queueSave(); }
 		}) : null;

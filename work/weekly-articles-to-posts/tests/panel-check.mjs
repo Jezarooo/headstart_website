@@ -247,30 +247,49 @@ try {
     const heroEl = () => box.querySelector('.hs-chf-hero');
     const shape = () => { const b = heroEl().getBoundingClientRect(); return +(b.width / b.height).toFixed(2); };
     const where = () => (box.querySelector('.hs-chf-where') || {}).textContent || '';
+    const key = async (k, shift) => { heroEl().dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, shiftKey: !!shift })); await wait(60); };
+    const centre = async () => { [...box.querySelectorAll('.hs-chf-actions button')].find((b) => b.textContent === 'Centre').click(); await wait(120); };
     await wait(700);
-    const out = { tabs: [...box.querySelectorAll('.hs-chf-devices button')].map((b) => b.textContent), on: (box.querySelector('.hs-chf-devices .is-on') || {}).dataset.device, desktop: shape(), fold: !!box.querySelector('.hs-chf-fold'), header: !!box.querySelector('.hs-chf-header') };
+    const out = { tabs: [...box.querySelectorAll('.hs-chf-devices button')].map((b) => b.textContent), on: (box.querySelector('.hs-chf-devices .is-on') || {}).dataset.device, desktop: shape(), fold: !!box.querySelector('.hs-chf-fold'), mobileHiddenOnDesktop: box.querySelector('.hs-chf-mobile').style.display === 'none' };
     tab('laptop').click(); await wait(300); out.laptop = shape();
-    [...box.querySelectorAll('.hs-chf-actions button')].find((b) => b.textContent === 'Centre').click(); await wait(100);
-    const h = heroEl(); const hr = h.getBoundingClientRect();
+    await centre();
+    const h = heroEl(), hr = h.getBoundingClientRect();
     const ev = (t, x, y) => h.dispatchEvent(new PointerEvent(t, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
     ev('pointerdown', hr.left + hr.width / 2, hr.top + hr.height / 2); ev('pointermove', hr.left + hr.width / 2, hr.top + hr.height / 2 - 20); ev('pointerup', hr.left + hr.width / 2, hr.top + hr.height / 2 - 20); await wait(100);
-    out.dragged = where(); out.pos = h.querySelector('img').style.objectPosition;
-    [...box.querySelectorAll('.hs-chf-actions button')].find((b) => b.textContent === 'Centre').click(); await wait(100);
-    for (let i = 0; i < 3; i++) { heroEl().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })); await wait(40); }
-    heroEl().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); await wait(40);
+    out.dragged = where();
+    await centre();
+    for (let i = 0; i < 3; i++) { await key('ArrowDown'); }
+    await key('ArrowRight');
     out.keys = where();
-    tab('phone').click(); await wait(400);
-    const items = [...box.querySelectorAll('.hs-chf-mobile .hs-cip-rack-item')];
-    out.phoneRack = items.length;
-    if (items.length) { items[items.length - 1].click(); await wait(600); }
-    out.phoneSrc = (heroEl().querySelector('img') || {}).src || ''; out.mobileId = items.length ? +items[items.length - 1].dataset.id : 0;
-    tab('desktop').click(); await wait(1200);
+    tab('tablet').click(); await wait(300); out.tablet = shape();
+    tab('phone').click(); await wait(400); out.phone = shape();
+    const scr = box.querySelector('.hs-chf-screen').getBoundingClientRect(), hb = heroEl().getBoundingClientRect();
+    out.spaceBelow = Math.round(scr.bottom - hb.bottom); out.foldOnPhone = !!box.querySelector('.hs-chf-fold');
+    await key('ArrowRight'); await key('ArrowRight');
+    out.phoneKeys = where();
+    const mb = box.querySelector('.hs-chf-mobile'); out.mobileShown = mb.style.display !== 'none';
+    const slot = mb.querySelector('.hs-cip-slot[data-slot=portrait]'); out.slotPad = slot ? parseFloat(getComputedStyle(slot).paddingLeft) : 0;
+    const rack = mb.querySelector('.hs-cip-rack');
+    if (rack) { rack.scrollTop = 40; await key('ArrowLeft'); await key('ArrowRight'); out.rackKept = rack.isConnected && Math.round(mb.querySelector('.hs-cip-rack').scrollTop); }
+    const items = [...mb.querySelectorAll('.hs-cip-rack-item')];
+    out.rackN = items.length;
+    if (items.length) { items[items.length - 1].click(); await wait(800); out.mobileId = +items[items.length - 1].dataset.id; }
+    out.phoneSrc = (heroEl().querySelector('img') || {}).src || '';
+    out.mobileStart = where();
+    await key('ArrowLeft', true); await key('ArrowUp', true);
+    out.mobileMoved = where();
+    tab('desktop').click(); await wait(800);
+    out.backOnDesktop = where();
+    await wait(1200);
     return JSON.stringify(out);`));
-  t('hero preview: three device buttons, Desktop first, with header and fold line', JSON.stringify(hero.tabs) === JSON.stringify(['Desktop 1920×1080', 'MacBook Air 13″', 'Phone']) && hero.on === 'desktop' && hero.fold && hero.header, JSON.stringify(hero));
-  t('the hero box is the measured shape: 1632×756 on desktop, 1380×581 on the MacBook', Math.abs(hero.desktop - 1632 / 756) < 0.05 && Math.abs(hero.laptop - 1380 / 581) < 0.05, JSON.stringify({ d: hero.desktop, l: hero.laptop }));
-  t('dragging the photo up moves the position down and updates the crop', /^5[1-9]% down|^[6-9]\d% down|^100% down/.test(hero.dragged) && /5[1-9]%|[6-9]\d%|100%/.test(hero.pos), JSON.stringify({ w: hero.dragged, p: hero.pos }));
-  t('arrow keys move it only along the cropped axis', hero.keys === '53% down', hero.keys);
-  t('Phone: pick an image for phones and tablets from the article images', hero.phoneRack > 0 && hero.mobileId && /\.(jpe?g|png|webp)/i.test(hero.phoneSrc), JSON.stringify({ n: hero.phoneRack, src: hero.phoneSrc }));
+  t('hero preview: Desktop, Laptop, Tablet and Phone toggles, Desktop first, fold line on desktop', JSON.stringify(hero.tabs) === JSON.stringify(['Desktop', 'Laptop', 'Tablet', 'Phone']) && hero.on === 'desktop' && hero.fold && hero.mobileHiddenOnDesktop, JSON.stringify(hero));
+  t('hero boxes are the measured shapes on all four', Math.abs(hero.desktop - 1632 / 756) < 0.05 && Math.abs(hero.laptop - 1380 / 581) < 0.05 && Math.abs(hero.tablet - 779 / 826) < 0.05 && Math.abs(hero.phone - 371 / 591) < 0.05, JSON.stringify({ d: hero.desktop, l: hero.laptop, t: hero.tablet, p: hero.phone }));
+  t('dragging the photo up in Laptop moves the position down', /^(5[1-9]|[6-9]\d|100)% down/.test(hero.dragged), hero.dragged);
+  t('arrow keys move only along the cropped axis (up/down on desktop)', hero.keys === '53% down', hero.keys);
+  t('Phone: portrait crop, no empty screen below the hero, and left/right moves the same focal point', hero.spaceBelow <= 8 && !hero.foldOnPhone && hero.phoneKeys === '52% across', JSON.stringify({ s: hero.spaceBelow, f: hero.foldOnPhone, k: hero.phoneKeys }));
+  t('Phone image picker: shown on phone, padded, and the rack keeps its scroll when the preview redraws', hero.mobileShown && hero.slotPad >= 8 && (hero.rackKept === 40 || hero.rackN <= 4), JSON.stringify({ shown: hero.mobileShown, pad: hero.slotPad, kept: hero.rackKept, n: hero.rackN }));
+  t('picking a phone image shows it on Phone with its own position', hero.mobileId && /\.(jpe?g|png|webp)/i.test(hero.phoneSrc) && hero.mobileStart === 'Centred (default)' && hero.mobileMoved !== 'Centred (default)', JSON.stringify({ src: hero.phoneSrc, a: hero.mobileStart, b: hero.mobileMoved }));
+  t('Desktop still shows the Featured image’s own position', hero.backOnDesktop === '53% down', hero.backOnDesktop);
   if (shots) { await run(`document.querySelector('#hs-a2p .hs-a2p-preview').closest('.hs-a2p-row').scrollIntoView({ block: 'start' });`); await sleep(1200); const p = await send('Page.captureScreenshot', { format: 'png' }); writeFileSync(join(shots, 'panel-4-preview-1920.png'), Buffer.from(p.data, 'base64')); }
   await setWidth(1280);
   await sleep(1200);
@@ -344,14 +363,14 @@ try {
   t('Live Post is public (logged out)', live.status === 200, `${live.status} ${created.view}`);
   const chips = JSON.parse(evalFile(`$out = [];
 foreach (get_posts(['post_type' => 'post', 'post_status' => ['publish', 'draft'], 'numberposts' => -1, 'fields' => 'ids', 'meta_key' => '_hs_a2p_source', 'meta_compare' => 'LIKE', 'meta_value' => '${ISSUE}:']) as $id) {
-  $out[get_post_status($id)] = ['mobile' => (int) get_post_meta($id, 'hs_hero_mobile', true), 'focus' => get_post_meta($id, 'hs_hero_focus', true), 'label' => get_post_meta($id, 'hs_final_date_label', true), 'chip' => get_post_meta($id, 'hs_final_section_chip', true), 'section' => wp_get_object_terms($id, 'hs_department', ['fields' => 'names'])[0] ?? '', 'badges' => wp_get_object_terms($id, 'hs_thematic_chip', ['fields' => 'names'])];
+  $out[get_post_status($id)] = ['mfocus' => get_post_meta($id, 'hs_hero_mobile_focus', true), 'mobile' => (int) get_post_meta($id, 'hs_hero_mobile', true), 'focus' => get_post_meta($id, 'hs_hero_focus', true), 'label' => get_post_meta($id, 'hs_final_date_label', true), 'chip' => get_post_meta($id, 'hs_final_section_chip', true), 'section' => wp_get_object_terms($id, 'hs_department', ['fields' => 'names'])[0] ?? '', 'badges' => wp_get_object_terms($id, 'hs_thematic_chip', ['fields' => 'names'])];
 }
 echo wp_json_encode($out);`).trim());
   t('empty override: the Live Post shows its Section, with no badge', chips.publish && chips.publish.chip === chips.publish.section && chips.publish.chip !== '' && chips.publish.badges.length === 0, JSON.stringify(chips));
   t('typed override: the Draft shows the typed badge', chips.draft && chips.draft.chip === 'A2P UI Badge', JSON.stringify(chips));
   t('the Draft with an event range has the range label', chips.draft && chips.draft.label === '12\u201314 November 2026', JSON.stringify(chips.draft));
   t('the Live Post without event dates is labelled with its publish date', chips.publish && /^\d{1,2} [A-Z][a-z]+ \d{4}$/.test(chips.publish.label), JSON.stringify(chips.publish));
-  t('the hero position and phone image chosen in the panel are saved on the Post', chips.publish && chips.publish.focus === '50 53' && chips.publish.mobile === hero.mobileId, JSON.stringify(chips.publish));
+  t('the hero position and phone image chosen in the panel are saved on the Post', chips.publish && chips.publish.focus === '52 53' && chips.publish.mobile === hero.mobileId && chips.publish.mfocus !== '', JSON.stringify(chips.publish));
   t('the Section chip is in the Live Post page', (await live.clone().text()).toUpperCase().includes(chips.publish.section.toUpperCase()));
 
   console.log('\nSecurity');
