@@ -63,7 +63,7 @@ One line in `hs_get_post_slider_card_html()`: the card date becomes `hs_card_dat
      - Draft + Publish now: saved with no fixed date, so it takes its date when someone publishes it later.
      - Draft + a date: a draft with that date.
      Hint: "Untick to choose a date: a future date schedules it. The publish date sets the URL."
-   - **Event date (shown to readers):** Start, End. Hint: "Leave End empty for a single day. Leave both empty to show the publish date."
+   - **Layout of the Post group** *(user, 10 Nov)*: the Post and Event date groups become one **Post** group across the full width. Row 1: **Title** across both columns. Row 2: four equal columns, **Publish date** (with Publish now), **Status**, **Event start**, **Event end**. They share row lines (CSS `subgrid`), so the four labels line up, the four controls line up and the four hints line up, however long each hint is. Every hint sits under its control, including Status's, which reads: "Live: public once created. Draft: not public; finish and publish it from Posts (or Edit here)." Event start hint: "Shown to readers instead of the publish date. Leave empty to use the publish date." Event end hint: "Only for events over several days." On narrow screens the four become two columns.
    - **Website Section:** Website Section * (hint: "Sets the feeds, the URL and the yellow badge"), then **Yellow badge text** (optional; hint: "Leave empty to show the Website Section").
    - **Campus:** Campus * (checkboxes, Both hint as now), then **Location text** (optional; hint: "Replaces the campus name in the chip, e.g. Bangkok Trip").
    - **Images** (full width, own row): see 2.
@@ -124,7 +124,7 @@ Not changed: URLs, slider order, search results, RSS, Yoast dates (they keep the
   - Publish now: no date needed; Live → published with a date within a minute of creation; Draft → `post_date_gmt` is the floating `0000-00-00`, so it dates itself when published; unticked with no date → reported missing; an old saved row without the field keeps its date;
   - everything from the badge task still passes.
 - `panel-check.mjs` (headless Chrome), adding:
-  - group headings and order as above; one rack per row, no per-field choices;
+  - group headings and order as above; Title spans the Post group; Publish date, Status, Event start and Event end labels, controls and hints each start on the same line; one rack per row, no per-field choices;
   - a row whose Post exists shows its state with View and Edit, and no Re-copy button;
   - preview: on a 1920px-wide window it sits to the right of the form; at 1280px it's under the form behind the toggle; changing the title, Section, badge text, campus, location text, tags, Portrait/Featured and event dates updates the card and Post-top strip to the expected text and image; each callout and its line are present; typing in the preview saves nothing new;
   - Publish now ticked by default with the date picker hidden; unticking shows it; Create is allowed with Publish now and no date;
@@ -136,7 +136,7 @@ Not changed: URLs, slider order, search results, RSS, Yoast dates (they keep the
 - `tools/hs drift`: only the three snippets differ, as expected.
 
 ### UAT checklist for the user (Gate 5)
-- [ ] Tick an article: fields sit in the groups described (Post / Event date / Website Section / Campus / Images / Tags), with the badge text under the Section and the location text under Campus.
+- [ ] Tick an article: fields sit in the groups described (Post / Website Section / Campus / Images / Tags); in Post, Title spans the full width and Publish date, Status, Event start and Event end line up on the next row, with the badge text under the Section and the location text under Campus.
 - [ ] **Publish now** is ticked and the date picker hidden; untick it and the picker appears. Event start defaults to the weekly update's date.
 - [ ] Website Section lines up with Campus, and Yellow badge text lines up with Location text.
 - [ ] A Live Post made with Publish now is dated today; a Draft made with Publish now takes its date when you publish it.
