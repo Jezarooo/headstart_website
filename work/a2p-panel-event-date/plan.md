@@ -45,12 +45,18 @@ Two new ACF fields in the existing **Post Classification** group, after Display 
 
 ### `Site-Scripts/php/weekly-articles-to-posts.code-snippets.php` (live "Weekly-Update--Articles-To-Posts", new in the badge package)
 1. **Layout:** the row body becomes labelled groups (CSS grid, two columns on wide screens, one on narrow):
-   - **Post:** Title *, Publish date * with Live / Draft beside it. Hint: "Live publishes now; a future date schedules it. Sets the URL."
+   - **Post:** Title *, then **Publish now** (checkbox, ticked by default) beside the Publish date picker, then Live / Draft. While Publish now is ticked the date picker is hidden and not required. *(Added 10 Nov after first UAT look.)*
+     - Live + Publish now: published when Create Posts is clicked, dated that moment.
+     - Live + a date: a future date schedules it; a past date backdates it.
+     - Draft + Publish now: saved with no fixed date, so it takes its date when someone publishes it later.
+     - Draft + a date: a draft with that date.
+     Hint: "Untick to choose a date: a future date schedules it. The publish date sets the URL."
    - **Event date (shown to readers):** Start, End. Hint: "Leave End empty for a single day. Leave both empty to show the publish date."
    - **Website Section:** Website Section * (hint: "Sets the feeds, the URL and the yellow badge"), then **Yellow badge text** (optional; hint: "Leave empty to show the Website Section").
    - **Campus:** Campus * (checkboxes, Both hint as now), then **Location text** (optional; hint: "Replaces the campus name in the chip, e.g. Bangkok Trip").
    - **Images** (full width, own row): see 2.
    - **Thematic Tags *** (full width, as now).
+   - **Alignment:** the Website Section and Campus groups sit side by side and share row lines (CSS `subgrid`), so Campus lines up with Website Section and **Location text lines up with Yellow badge text**. Campus gets a matching one-line hint ("Tick both for Both Campuses.").
    Required fields keep their own red/green markers. Spacing and hints are tightened (smaller gaps, shorter text).
 2. **Images row:** column 1 **Featured image** slot (required for Live), column 2 **Portrait** slot (optional), column 3 **Article images** rack, scrollable, max ~260px high.
    - One slot is **active** (thick outline, "picking now"); it starts on Featured. Clicking a rack image puts it in the active slot. After Featured is filled, the active slot moves to Portrait if Portrait is empty. Clicking a slot makes it active.
@@ -59,7 +65,7 @@ Two new ACF fields in the existing **Post Classification** group, after Display 
    - Rack buttons are real `<button>`s, so keyboard and touch work.
    - The two separate per-field rows of choices are removed.
 3. **Event date in rows:** new row fields `eventStart`, `eventEnd` (`Y-m-d`), sanitised; end before start, or end without start, is a missing-field error in the panel. On create, saved as `hs_event_start` / `hs_event_end` (`Ymd`) with their ACF key meta, **before** terms are set, so the chip hook writes the label.
-4. **Defaults:** Event start defaults to the weekly update's date; Event end empty; **Publish date defaults to now** (was the weekly update's date), so a new Post publishes today and its URL uses this month unless changed. Rows already saved keep their stored values.
+4. **Defaults:** Event start defaults to the weekly update's date; Event end empty; **Publish now ticked** (new row field `publishNow`, boolean), with the hidden date picker pre-set to now in case it's unticked. A new Post therefore publishes today and its URL uses this month unless a date is chosen. Rows saved before this change have no `publishNow` and keep their stored date (treated as unticked). The date is only required when Publish now is unticked; on create, Publish now uses the current time at that moment (Live) or leaves the date floating (Draft).
 5. **Re-copy** is unchanged (content only).
 
 ### Theme Builder templates (database, done by the user, not code)
@@ -93,10 +99,13 @@ Not changed: URLs, slider cards and order, search results, RSS, Yoast dates (the
   - ACF validation refuses end-before-start and end-without-start;
   - setting/clearing event meta directly (quick-edit path) recalculates the label;
   - the fill writes a label for every Post, changes no `post_date`/`post_modified`, sets its option, and does nothing on the next run;
-  - panel rows: defaults (event start = issue date, publish = now), sanitising, invalid ranges reported as missing; a created Post has the event meta and the right label;
+  - panel rows: defaults (event start = issue date, Publish now ticked), sanitising, invalid ranges reported as missing; a created Post has the event meta and the right label;
+  - Publish now: no date needed; Live → published with a date within a minute of creation; Draft → `post_date_gmt` is the floating `0000-00-00`, so it dates itself when published; unticked with no date → reported missing; an old saved row without the field keeps its date;
   - everything from the badge task still passes.
 - `panel-check.mjs` (headless Chrome), adding:
   - group headings and order as above; one rack per row, no per-field choices;
+  - Publish now ticked by default with the date picker hidden; unticking shows it; Create is allowed with Publish now and no date;
+  - Website Section and Campus fields start on the same line, and Yellow badge text and Location text start on the same line (within 2px);
   - Featured active first; clicking a rack image fills Featured, then Portrait becomes active; F/P tags; clicking a slot changes the active slot; Media Library and Remove still work;
   - rack thumbnails are `thumbnail` size and lazy;
   - a created Live Post with a range shows the range in `hs_final_date_label`; no JS errors; weekly update unchanged.
@@ -105,7 +114,9 @@ Not changed: URLs, slider cards and order, search results, RSS, Yoast dates (the
 
 ### UAT checklist for the user (Gate 5)
 - [ ] Tick an article: fields sit in the groups described (Post / Event date / Website Section / Campus / Images / Tags), with the badge text under the Section and the location text under Campus.
-- [ ] Publish date defaults to now; Event start defaults to the weekly update's date.
+- [ ] **Publish now** is ticked and the date picker hidden; untick it and the picker appears. Event start defaults to the weekly update's date.
+- [ ] Website Section lines up with Campus, and Yellow badge text lines up with Location text.
+- [ ] A Live Post made with Publish now is dated today; a Draft made with Publish now takes its date when you publish it.
 - [ ] Images: one rack of the article's photos. Click one: it becomes the Featured image, and Portrait is now the one being picked. Click another: it becomes the Portrait. Click Featured and pick a different photo. F and P tags show which is which. Media Library and Remove work.
 - [ ] Create a Post with a range across two days, one with a single event date, and one with none.
 - [ ] Switch the date module in the local `HSN Post STANDARD` and `HSC Posts STANDARD` templates (steps above).
