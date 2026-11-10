@@ -116,7 +116,13 @@ try {
 	$t( 'campus comes from the weekly update', array( 'chaofah' ) === hs_a2p_campus_for_issue( $issue ) );
 	$by = array_column( hs_a2p_panel_data( $issue )['rows'], null, 'key' );
 	$d  = $by['first-article-headline']['fields'];
-	$t( 'row defaults: unticked, Live, headline, Section, date; tags, badge override, image empty', false === $d['tick'] && 'live' === $d['status'] && 'First Article Headline' === $d['title'] && $d['section'] === $primary && '2026-10-30T09:00' === $d['date'] && array() === $d['tags'] && '' === $d['badgeText'] && 0 === $d['image'] );
+	$t( 'row defaults: unticked, Live, headline, Section; tags, badge override, image empty', false === $d['tick'] && 'live' === $d['status'] && 'First Article Headline' === $d['title'] && $d['section'] === $primary && array() === $d['tags'] && '' === $d['badgeText'] && 0 === $d['image'] );
+	$t( 'Publish now is ticked by default, with the picker pre-set to now', true === $d['publishNow'] && 0 === strpos( $d['date'], current_time( 'Y-m-d' ) ), $d['date'] );
+	update_post_meta( $issue, HS_A2P_ROWS_META, array( 'sports-article' => array( 'tick' => false, 'title' => 'Old saved row', 'date' => '2026-10-30T09:00' ) ) );
+	$old = array_column( hs_a2p_panel_data( $issue )['rows'], null, 'key' )['sports-article']['fields'];
+	$t( 'a row saved before Publish now existed keeps its date, unticked', false === $old['publishNow'] && '2026-10-30T09:00' === $old['date'], wp_json_encode( array( $old['publishNow'], $old['date'] ) ) );
+	delete_post_meta( $issue, HS_A2P_ROWS_META );
+	$t( 'event start defaults to the weekly update date, end empty', get_post_time( 'Y-m-d', false, $issue ) === $d['eventStart'] && '' === $d['eventEnd'], $d['eventStart'] . '|' . $d['eventEnd'] );
 	$t( 'dark article defaults to Draft', 'draft' === $by['dark-styled-article']['fields']['status'] );
 
 	echo "\nRequired fields\n";
@@ -173,14 +179,11 @@ try {
 	$http = wp_remote_get( get_permalink( $live ), array( 'timeout' => 30, 'redirection' => 3 ) );
 	$t( 'Live Post is public (logged out): 200 with its title', 200 === wp_remote_retrieve_response_code( $http ) && false !== stripos( wp_remote_retrieve_body( $http ), 'A2P Test Post' ), (string) wp_remote_retrieve_response_code( $http ) );
 
-	echo "\nRe-copy\n";
+	echo "\nOne-off copy (Re-copy removed)\n";
 	wp_update_post( wp_slash( array( 'ID' => $issue, 'post_content' => $fixture( '', 'Edited article body.' ) ) ) );
 	$t( 'editing the weekly update does not change the Post', false !== strpos( get_post_field( 'post_content', $live ), 'First body text.' ) );
-	$before_title = get_post_field( 'post_title', $live );
-	$done = hs_a2p_recopy( $live );
-	$t( 'Re-copy replaces the content', ! is_wp_error( $done ) && false !== strpos( get_post_field( 'post_content', $live ), 'Edited article body.' ) );
-	$t( 'Re-copy keeps title, status and date', $before_title === get_post_field( 'post_title', $live ) && 'publish' === get_post_status( $live ) && '2026-10-30 09:00:00' === get_post_field( 'post_date', $live ) );
-	$t( 'Re-copy keeps escaped angle brackets', false !== strpos( get_post_field( 'post_content', $live ), '\\u003cp\\u003e' ) );
+	$t( 'the copied content keeps escaped angle brackets', false !== strpos( get_post_field( 'post_content', $live ), '\\u003cp\\u003e' ) );
+	$t( 'Re-copy is gone: no function and no AJAX handler', ! function_exists( 'hs_a2p_recopy' ) && ! has_action( 'wp_ajax_hs_a2p_recopy' ) );
 
 	echo "\nCreate: Draft, future date, overrides, Both Campuses\n";
 	$r = hs_a2p_create_posts( $issue, array(
@@ -291,6 +294,127 @@ try {
 	$t( 'Author typing an existing badge is allowed', 1 === count( $r['created'] ) && has_term( 'A2P New Badge', 'hs_thematic_chip', $r['created'][0]['id'] ), wp_json_encode( $r ) );
 	wp_set_current_user( $admin->ID );
 
+	echo "\nEvent dates\n";
+	$ev = wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'draft', 'post_title' => 'A2P event label', 'post_date' => '2026-10-30 09:00:00' ) );
+	$made[] = $ev;
+	$label = function ( $start, $end ) use ( $ev ) {
+		delete_post_meta( $ev, 'hs_event_start' );
+		delete_post_meta( $ev, 'hs_event_end' );
+		if ( '' !== $start ) { update_post_meta( $ev, 'hs_event_start', $start ); }
+		if ( '' !== $end ) { update_post_meta( $ev, 'hs_event_end', $end ); }
+		return get_post_meta( $ev, 'hs_final_date_label', true );
+	};
+	$dash = "\u{2013}";
+	foreach ( array(
+		'no event fields → publish date'      => array( '', '', '30 October 2026' ),
+		'start only'                           => array( '20261112', '', '12 November 2026' ),
+		'end equal to start → one day'         => array( '20261112', '20261112', '12 November 2026' ),
+		'same month range'                     => array( '20261112', '20261114', "12{$dash}14 November 2026" ),
+		'range across months'                  => array( '20261030', '20261102', "30 October {$dash} 2 November 2026" ),
+		'range across years'                   => array( '20261230', '20270102', "30 December 2026 {$dash} 2 January 2027" ),
+		'end before start → start only'        => array( '20261114', '20261112', '14 November 2026' ),
+		'end without start → publish date'     => array( '', '20261114', '30 October 2026' ),
+		'not a real date → publish date'       => array( '20261340', '', '30 October 2026' ),
+	) as $name => $case ) {
+		$got = $label( $case[0], $case[1] );
+		$t( "label: $name", $case[2] === $got, $got );
+	}
+	foreach ( array(
+		'card: no event fields → publish date as before' => array( '', '', get_the_date( 'jS F Y', $ev ) ),
+		'card: one day'                                  => array( '20261112', '', '12th November 2026' ),
+		'card: end equal to start'                       => array( '20261112', '20261112', '12th November 2026' ),
+		'card: same month'                               => array( '20261112', '20261114', "12{$dash}14 Nov 2026" ),
+		'card: across months'                            => array( '20261030', '20261102', "30 Oct {$dash} 2 Nov 2026" ),
+		'card: across years'                             => array( '20261230', '20270102', "30 Dec 2026 {$dash} 2 Jan 2027" ),
+	) as $name => $case ) {
+		$label( $case[0], $case[1] );
+		$got = hs_card_date_label( $ev );
+		$t( $name, $case[2] === $got, $got );
+	}
+	$t( 'card: the longest range fits in 24 characters', mb_strlen( "30 Dec 2026 {$dash} 2 Jan 2027" ) <= 24 );
+	$label( '20261112', '20261114' );
+	$t( 'the slider card HTML shows the short range', false !== strpos( hs_get_post_slider_card_html( get_post( $ev ) ), "12{$dash}14 Nov 2026" ) );
+	$label( '', '' );
+	$t( 'the slider card HTML for a Post without event dates is unchanged', false !== strpos( hs_get_post_slider_card_html( get_post( $ev ) ), get_the_date( 'jS F Y', $ev ) ) );
+	$label( '20261112', '20261114' );
+	delete_post_meta( $ev, 'hs_event_end' );
+	$t( 'clearing the end recalculates (deleted meta)', '12 November 2026' === get_post_meta( $ev, 'hs_final_date_label', true ) );
+	$label( '', '' );
+	wp_update_post( array( 'ID' => $ev, 'edit_date' => true, 'post_date' => '2026-09-05 10:00:00', 'post_date_gmt' => get_gmt_from_date( '2026-09-05 10:00:00' ) ) );
+	$t( 'changing the publish date and saving updates the label', '5 September 2026' === get_post_meta( $ev, 'hs_final_date_label', true ) );
+
+	$_POST['acf'] = array( 'field_hs_event_start' => '20261114' );
+	$t( 'ACF: end before start is refused', true !== hs_validate_event_end( true, '20261112', array(), 'acf[field_hs_event_end]' ) );
+	$t( 'ACF: end after start is fine', true === hs_validate_event_end( true, '20261116', array(), 'acf[field_hs_event_end]' ) );
+	$_POST['acf'] = array( 'field_hs_event_start' => '' );
+	$t( 'ACF: end without start is refused', true !== hs_validate_event_end( true, '20261116', array(), 'acf[field_hs_event_end]' ) );
+	$t( 'ACF: no end is fine', true === hs_validate_event_end( true, '', array(), 'acf[field_hs_event_end]' ) );
+	unset( $_POST['acf'] );
+
+	$t( 'panel: end without start is reported', in_array( 'Event date (the end needs a start, on or before it)', hs_a2p_missing_fields( hs_a2p_sanitize_row( $good_row( array( 'eventStart' => '', 'eventEnd' => '2026-11-14' ) ) ) ), true ) );
+	$t( 'panel: end before start is reported', in_array( 'Event date (the end needs a start, on or before it)', hs_a2p_missing_fields( hs_a2p_sanitize_row( $good_row( array( 'eventStart' => '2026-11-14', 'eventEnd' => '2026-11-12' ) ) ) ), true ) );
+	$t( 'panel: event dates are optional', array() === hs_a2p_missing_fields( hs_a2p_sanitize_row( $good_row( array( 'eventStart' => '', 'eventEnd' => '' ) ) ) ) );
+	$t( 'panel: a bad event date is dropped', '' === hs_a2p_sanitize_row( $good_row( array( 'eventStart' => '14/11/2026' ) ) )['eventStart'] );
+
+	$issue4 = wp_insert_post( wp_slash( array( 'post_type' => 'weekly_update', 'post_status' => 'publish', 'post_title' => 'A2P issue 4', 'post_content' => $fixture(), 'post_date' => '2026-10-30 09:00:00' ) ) );
+	wp_set_object_terms( $issue4, 'chaofah', 'hs_campus' );
+	$made[] = $issue4;
+	$r = hs_a2p_create_posts( $issue4, array( 'first-article-headline' => $good_row( array( 'title' => 'A2P Range', 'eventStart' => '2026-11-12', 'eventEnd' => '2026-11-14' ) ) ) );
+	$track( $issue4 );
+	$rid = $r['created'][0]['id'] ?? 0;
+	$t( 'panel: created Post stores the event dates as Ymd', '20261112' === get_post_meta( $rid, 'hs_event_start', true ) && '20261114' === get_post_meta( $rid, 'hs_event_end', true ), wp_json_encode( $r ) );
+	$t( 'panel: created Post has the range label', "12{$dash}14 November 2026" === get_post_meta( $rid, 'hs_final_date_label', true ), get_post_meta( $rid, 'hs_final_date_label', true ) );
+	$t( 'panel: event fields are tied to their ACF fields', 'field_hs_event_start' === get_post_meta( $rid, '_hs_event_start', true ) && 'field_hs_event_end' === get_post_meta( $rid, '_hs_event_end', true ) );
+	$t( 'panel: rack images carry a thumbnail', ( $d_img = hs_a2p_panel_data( $issue4 )['rows'][0]['images'][0] ?? null ) && '' !== $d_img['thumb'] && $d_img['thumb'] !== $d_img['url'] );
+
+	echo "\nPublish now\n";
+	$t( 'Publish now needs no date', array() === hs_a2p_missing_fields( hs_a2p_sanitize_row( $good_row( array( 'publishNow' => true, 'date' => '' ) ) ) ) );
+	$t( 'unticked with no date is reported', in_array( 'Publish date', hs_a2p_missing_fields( hs_a2p_sanitize_row( $good_row( array( 'publishNow' => false, 'date' => '' ) ) ) ), true ) );
+	$t( "the panel's JSON 'false' counts as unticked", false === hs_a2p_sanitize_row( $good_row( array( 'publishNow' => 'false' ) ) )['publishNow'] );
+	$r = hs_a2p_create_posts( $issue4, array(
+		'sports-article'  => $good_row( array( 'title' => 'A2P Now Live', 'publishNow' => true, 'date' => '2020-01-01T09:00' ) ),
+		'repeat-headline' => $good_row( array( 'title' => 'A2P Now Draft', 'publishNow' => true, 'date' => '2020-01-01T09:00', 'status' => 'draft' ) ),
+	) );
+	$track( $issue4 );
+	$by_title = array();
+	foreach ( $r['created'] as $c ) { $by_title[ get_the_title( $c['id'] ) ] = get_post( $c['id'] ); }
+	$nl = $by_title['A2P Now Live'] ?? null; $nd = $by_title['A2P Now Draft'] ?? null;
+	$t( 'Live + Publish now: published, dated within a minute of now (the picker date is ignored)', $nl && 'publish' === $nl->post_status && abs( strtotime( $nl->post_date_gmt . ' UTC' ) - time() ) < 60, $nl ? $nl->post_status . ' ' . $nl->post_date_gmt : wp_json_encode( $r ) );
+	$t( 'Draft + Publish now: no fixed date, so it dates itself when published', $nd && 'draft' === $nd->post_status && '0000-00-00 00:00:00' === $nd->post_date_gmt, $nd ? $nd->post_date_gmt : wp_json_encode( $r ) );
+	if ( $nd ) {
+		wp_update_post( array( 'ID' => $nd->ID, 'post_status' => 'publish' ) );
+		$t( '…and publishing that draft dates it now', abs( strtotime( get_post( $nd->ID )->post_date_gmt . ' UTC' ) - time() ) < 60 );
+	}
+
+	echo "\nOne-off date label fill\n";
+	global $wpdb;
+	$sample = $wpdb->get_col( "SELECT ID FROM $wpdb->posts WHERE post_type = 'post' AND post_status = 'publish' ORDER BY ID LIMIT 5" );
+	$before_rows = array();
+	foreach ( $sample as $id ) {
+		$before_rows[ $id ] = $wpdb->get_row( $wpdb->prepare( "SELECT post_date, post_modified FROM $wpdb->posts WHERE ID = %d", $id ), ARRAY_A );
+		delete_post_meta( $id, 'hs_final_date_label' );
+	}
+	$had_flag = get_option( 'hs_date_label_fill_v1' );
+	delete_option( 'hs_date_label_fill_v1' );
+	for ( $i = 0; $i < 20 && ! get_option( 'hs_date_label_fill_v1' ); $i++ ) {
+		hs_fill_date_labels_v1();
+	}
+	$ok = true; $unchanged = true;
+	foreach ( $sample as $id ) {
+		$ok        = $ok && hs_date_label_for_post( $id ) === get_post_meta( $id, 'hs_final_date_label', true ) && '' !== get_post_meta( $id, 'hs_final_date_label', true );
+		$unchanged = $unchanged && $before_rows[ $id ] == $wpdb->get_row( $wpdb->prepare( "SELECT post_date, post_modified FROM $wpdb->posts WHERE ID = %d", $id ), ARRAY_A );
+	}
+	$t( 'the fill gives cleared Posts their label back', $ok );
+	$t( 'the fill changes no publish or modified date', $unchanged );
+	$missing_after = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $wpdb->posts p LEFT JOIN $wpdb->postmeta m ON m.post_id = p.ID AND m.meta_key = 'hs_final_date_label' WHERE p.post_type = 'post' AND p.post_status NOT IN ('trash','auto-draft','inherit') AND m.meta_id IS NULL" );
+	$t( 'after the fill no Post is without a label', 0 === $missing_after, "$missing_after missing" );
+	$t( 'the fill sets its flag', (bool) get_option( 'hs_date_label_fill_v1' ) );
+	delete_post_meta( $sample[0], 'hs_final_date_label' );
+	hs_fill_date_labels_v1();
+	$t( 'with the flag set the fill does nothing', '' === get_post_meta( $sample[0], 'hs_final_date_label', true ) );
+	update_post_meta( $sample[0], 'hs_final_date_label', hs_date_label_for_post( $sample[0] ) );
+	if ( $had_flag ) { update_option( 'hs_date_label_fill_v1', $had_flag, false ); }
+
 	echo "\nPosts gatekeeper\n";
 	$gate = wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'draft', 'post_title' => 'A2P gate check' ) );
 	$made[] = $gate;
@@ -300,7 +424,7 @@ try {
 	$t( 'test run finished', false, $e->getMessage() . ' at line ' . $e->getLine() );
 } finally {
 	wp_set_current_user( $admin->ID );
-	foreach ( array( $issue, $issue2 ?? 0, $issue3 ?? 0 ) as $i ) {
+	foreach ( array( $issue, $issue2 ?? 0, $issue3 ?? 0, $issue4 ?? 0 ) as $i ) {
 		if ( $i ) { $track( $i ); }
 	}
 	foreach ( array_unique( array_filter( $made ) ) as $id ) {

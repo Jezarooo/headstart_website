@@ -190,7 +190,10 @@ function hs_a2p_row_defaults( $article, $issue_id ) {
 		'tags'          => array(),
 		'badgeText'     => '',
 		'location'      => '',
-		'date'          => get_post_time( 'Y-m-d\TH:i', false, $issue_id ),
+		'publishNow'    => true,
+		'date'          => current_time( 'Y-m-d\TH:i' ),
+		'eventStart'    => get_post_time( 'Y-m-d', false, $issue_id ),
+		'eventEnd'      => '',
 		'image'         => 0,
 		'portrait'      => 0,
 		'status'        => $article['dark'] ? 'draft' : 'live',
@@ -206,6 +209,7 @@ function hs_a2p_sanitize_row( $raw ) {
 	$section = $raw['section'] ?? 0;
 	$campus  = array_values( array_intersect( array_map( 'sanitize_key', (array) ( $raw['campus'] ?? array() ) ), array( 'chaofah', 'cherngtalay' ) ) );
 	$date    = (string) ( $raw['date'] ?? '' );
+	$ymd     = function ( $v ) { $v = (string) $v; return preg_match( '/^\d{4}-\d{2}-\d{2}$/', $v ) ? $v : ''; };
 	return array(
 		'tick'          => ! empty( $raw['tick'] ),
 		'title'         => sanitize_text_field( (string) ( $raw['title'] ?? '' ) ),
@@ -215,7 +219,10 @@ function hs_a2p_sanitize_row( $raw ) {
 		'tags'          => array_values( array_filter( array_map( 'sanitize_text_field', (array) ( $raw['tags'] ?? array() ) ) ) ),
 		'badgeText'     => sanitize_text_field( (string) ( $raw['badgeText'] ?? '' ) ),
 		'location'      => sanitize_text_field( (string) ( $raw['location'] ?? '' ) ),
+		'publishNow'    => ! empty( $raw['publishNow'] ) && 'false' !== $raw['publishNow'],
 		'date'          => preg_match( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $date ) ? $date : '',
+		'eventStart'    => $ymd( $raw['eventStart'] ?? '' ),
+		'eventEnd'      => $ymd( $raw['eventEnd'] ?? '' ),
 		'image'         => absint( $raw['image'] ?? 0 ),
 		'portrait'      => absint( $raw['portrait'] ?? 0 ),
 		'status'        => 'draft' === ( $raw['status'] ?? '' ) ? 'draft' : 'live',
@@ -237,8 +244,12 @@ function hs_a2p_missing_fields( $row ) {
 	if ( ! $row['tags'] ) {
 		$missing[] = 'Thematic Tags';
 	}
-	if ( '' === $row['date'] ) {
+	if ( empty( $row['publishNow'] ) && '' === $row['date'] ) {
 		$missing[] = 'Publish date';
+	}
+	$end = $row['eventEnd'] ?? '';
+	if ( '' !== $end && ( '' === ( $row['eventStart'] ?? '' ) || $end < $row['eventStart'] ) ) {
+		$missing[] = 'Event date (the end needs a start, on or before it)';
 	}
 	if ( 'live' === $row['status'] && ! wp_attachment_is_image( $row['image'] ) ) {
 		$missing[] = 'Featured image';
@@ -376,15 +387,23 @@ function hs_a2p_create_post( $issue_id, $article, $row ) {
 		}
 	}
 
-	$local = str_replace( 'T', ' ', $row['date'] ) . ':00';
-	$id    = wp_insert_post( wp_slash( array(
-		'post_type'     => 'post',
-		'post_status'   => 'draft',
-		'post_title'    => $row['title'],
-		'post_content'  => hs_a2p_build_content( $article['block'] ),
-		'post_date'     => $local,
-		'post_date_gmt' => get_gmt_from_date( $local ),
-	) ), true );
+	$insert = array(
+		'post_type'    => 'post',
+		'post_status'  => 'draft',
+		'post_title'   => $row['title'],
+		'post_content' => hs_a2p_build_content( $article['block'] ),
+	);
+	if ( ! empty( $row['publishNow'] ) ) {
+		if ( 'live' === $row['status'] ) { // Dated the moment it is created.
+			$insert['post_date']     = current_time( 'mysql' );
+			$insert['post_date_gmt'] = current_time( 'mysql', true );
+		} // A Draft gets no fixed date, so WordPress dates it when it is published.
+	} else {
+		$local                   = str_replace( 'T', ' ', $row['date'] ) . ':00';
+		$insert['post_date']     = $local;
+		$insert['post_date_gmt'] = get_gmt_from_date( $local );
+	}
+	$id = wp_insert_post( wp_slash( $insert ), true );
 	if ( is_wp_error( $id ) ) {
 		return $id;
 	}
@@ -398,7 +417,13 @@ function hs_a2p_create_post( $issue_id, $article, $row ) {
 		update_post_meta( $id, 'hs_portrait_image', $row['portrait'] );
 		update_post_meta( $id, '_hs_portrait_image', 'field_hs_portrait_image' );
 	}
-	// Before the terms: the chip hook fires when a term is set, not when this meta is first added.
+	// Before the terms, so the chip hook sees them. Ymd, as ACF stores date pickers.
+	foreach ( array( 'eventStart' => 'hs_event_start', 'eventEnd' => 'hs_event_end' ) as $from => $meta ) {
+		if ( '' !== ( $row[ $from ] ?? '' ) ) {
+			update_post_meta( $id, $meta, str_replace( '-', '', $row[ $from ] ) );
+			update_post_meta( $id, '_' . $meta, 'field_' . $meta );
+		}
+	}
 	if ( '' !== $row['location'] ) {
 		update_post_meta( $id, 'hs_location_override', $row['location'] );
 		update_post_meta( $id, '_hs_location_override', 'field_hs_location_override' );
@@ -452,22 +477,6 @@ function hs_a2p_create_posts( $issue_id, $incoming ) {
 	return $result;
 }
 
-/** Overwrites a Post's content from its article. Its fields stay as they are. */
-function hs_a2p_recopy( $post_id ) {
-	$source = (string) get_post_meta( $post_id, HS_A2P_SOURCE_META, true );
-	if ( ! preg_match( '/^(\d+):(.+)$/', $source, $m ) ) {
-		return new WP_Error( 'hs_a2p_no_source', 'This Post was not made from a weekly update article' );
-	}
-	$found = hs_a2p_articles( (int) $m[1] );
-	if ( empty( $found['articles'][ $m[2] ] ) ) {
-		return new WP_Error( 'hs_a2p_not_found', 'The article can no longer be found in the weekly update' );
-	}
-	return wp_update_post( wp_slash( array(
-		'ID'           => $post_id,
-		'post_content' => hs_a2p_build_content( $found['articles'][ $m[2] ]['block'] ),
-	) ), true );
-}
-
 /* ---------------------------------------------------------------------------
  * Saved rows and what the panel shows
  * ------------------------------------------------------------------------ */
@@ -517,13 +526,13 @@ function hs_a2p_panel_data( $issue_id ) {
 	$saved = hs_a2p_get_rows( $issue_id );
 	$rows  = array();
 	foreach ( $found['articles'] as $key => $article ) {
-		$fields = isset( $saved[ $key ] ) ? array_merge( hs_a2p_row_defaults( $article, $issue_id ), $saved[ $key ] ) : hs_a2p_row_defaults( $article, $issue_id );
+		$fields = isset( $saved[ $key ] ) ? array_merge( hs_a2p_row_defaults( $article, $issue_id ), array( 'publishNow' => false ), $saved[ $key ] ) : hs_a2p_row_defaults( $article, $issue_id );
 		$post   = hs_a2p_find_post( $issue_id, $key );
 		$images = array();
 		foreach ( hs_a2p_article_image_ids( $article['block'] ) as $image_id ) {
 			$url = hs_a2p_image_url( $image_id );
 			if ( $url ) {
-				$images[] = array( 'id' => $image_id, 'url' => $url );
+				$images[] = array( 'id' => $image_id, 'url' => $url, 'thumb' => (string) wp_get_attachment_image_url( $image_id, 'thumbnail' ) );
 			}
 		}
 		$rows[] = array(
@@ -566,6 +575,7 @@ function hs_a2p_panel_data( $issue_id ) {
 		'canPublish' => current_user_can( 'publish_posts' ),
 		'canSection' => current_user_can( 'manage_categories' ),
 		'canTag'     => current_user_can( get_taxonomy( 'post_tag' )->cap->manage_terms ),
+		'today'      => current_time( 'Y-m-d' ),
 	);
 }
 
@@ -613,19 +623,6 @@ add_action( 'wp_ajax_hs_a2p_add_term', function () {
 	wp_send_json_success( $term );
 } );
 
-add_action( 'wp_ajax_hs_a2p_recopy', function () {
-	$issue_id = hs_a2p_ajax_issue();
-	$post_id  = absint( $_POST['post'] ?? 0 );
-	if ( ! $post_id || 0 !== strpos( (string) get_post_meta( $post_id, HS_A2P_SOURCE_META, true ), $issue_id . ':' ) || ! current_user_can( 'edit_post', $post_id ) ) {
-		wp_send_json_error( array( 'message' => 'You do not have permission to change this Post.' ), 403 );
-	}
-	$done = hs_a2p_recopy( $post_id );
-	if ( is_wp_error( $done ) ) {
-		wp_send_json_error( array( 'message' => $done->get_error_message() ) );
-	}
-	wp_send_json_success();
-} );
-
 /* ---------------------------------------------------------------------------
  * Screens
  * ------------------------------------------------------------------------ */
@@ -641,6 +638,8 @@ add_action( 'admin_enqueue_scripts', function () {
 	$screen = get_current_screen();
 	if ( $screen && 'weekly_update' === $screen->post_type && 'post' === $screen->base ) {
 		wp_enqueue_media();
+		// The preview uses the site's own heading and body fonts (the same Google Fonts link the front end loads).
+		wp_enqueue_style( 'hs-a2p-fonts', 'https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;700&display=swap', array(), null );
 	}
 } );
 
@@ -678,7 +677,74 @@ add_action( 'add_meta_boxes_post', function ( $post ) {
 function hs_a2p_print_assets() {
 	?>
 <style id="hs-a2p-css">
-#hs-a2p { max-width: 1100px; }
+/* Layout: the preview sits beside the form when the meta box is wide (e.g. a 1920 screen), else under it behind a toggle. */
+#hs-a2p { container-type: inline-size; }
+#hs-a2p .hs-a2p-intro, #hs-a2p .hs-a2p-row, #hs-a2p .hs-a2p-actions, #hs-a2p .hs-a2p-message { max-width: 1100px; }
+#hs-a2p .hs-a2p-preview { display: none; padding: 10px 12px 12px; border-top: 1px solid #f0f0f1; }
+#hs-a2p .hs-a2p-preview.is-open { display: block; }
+#hs-a2p .hs-a2p-quad { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+#hs-a2p .hs-a2p-quad > .hs-a2p-f { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 4px; align-content: start; }
+#hs-a2p .hs-a2p-quad > .hs-a2p-f > * { margin: 0; }
+#hs-a2p .hs-a2p-quad > .hs-a2p-f > :nth-child(2) { align-self: center; }
+#hs-a2p .hs-a2p-quad .hs-a2p-now, #hs-a2p .hs-a2p-quad .hs-a2p-switch { min-height: 0; }
+@media (max-width: 960px) { #hs-a2p .hs-a2p-quad { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+#hs-a2p .hs-a2p-pv-toggle { margin: 0 12px 10px; }
+@container (min-width: 1400px) {
+	#hs-a2p .hs-a2p-row { max-width: 1720px; }
+	#hs-a2p .hs-a2p-rowgrid { display: grid; grid-template-columns: minmax(0, 1fr) 560px; align-items: start; }
+	#hs-a2p .hs-a2p-pv-toggle { display: none; }
+	#hs-a2p .hs-a2p-preview { display: block; grid-column: 2; grid-row: 1; border-top: 0; border-left: 1px solid #f0f0f1; }
+}
+#hs-a2p .hs-a2p-pv-stage { position: relative; display: grid; grid-template-columns: 216px minmax(0, 1fr); column-gap: 44px; align-items: start; align-content: start; }
+#hs-a2p .hs-a2p-pv-labels { position: relative; grid-column: 2; grid-row: 2; align-self: stretch; }
+#hs-a2p .hs-a2p-pv-striplabels { grid-column: 1 / -1; grid-row: 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 22px; }
+#hs-a2p .hs-a2p-pv-striplabels .hs-a2p-pv-label { position: static; }
+/* The card and the strip are shown at 80% with zoom, so every part keeps its proportions. */
+#hs-a2p .hs-a2p-pv-cardbox, #hs-a2p .hs-a2p-pv-stripbox { zoom: .8; }
+#hs-a2p .hs-a2p-pv-cardbox { grid-column: 1; width: 270px; }
+#hs-a2p .hs-a2p-pv-stripbox { grid-column: 1 / -1; justify-self: start; }
+#hs-a2p .hs-a2p-pv-cardbox { grid-row: 2; padding-top: 18px; }
+#hs-a2p .hs-a2p-pv-stripbox { grid-row: 4; }
+#hs-a2p .hs-a2p-pv-cap { grid-column: 1 / -1; justify-self: end; position: relative; z-index: 2; display: inline-flex; align-items: center; white-space: nowrap; margin: 0 0 8px; padding: 3px 10px; border-radius: 999px; background: #f0f0f1; color: #50575e; font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; }
+#hs-a2p .hs-a2p-pv-cap:first-child { grid-row: 1; }
+#hs-a2p .hs-a2p-pv-cap:nth-child(3) { grid-row: 3; margin-top: 18px; }
+#hs-a2p .hs-a2p-pv-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+#hs-a2p .hs-a2p-pv-lines polyline { fill: none; stroke: #2271b1; stroke-width: 1; }
+#hs-a2p .hs-a2p-pv-lines circle { fill: #2271b1; }
+#hs-a2p .hs-a2p-pv-label { position: absolute; left: 0; right: 0; padding: 3px 0 3px 8px; border-left: 2px solid #2271b1; background: #fff; font-size: 12px; line-height: 1.35; }
+#hs-a2p .hs-a2p-pv-label strong { display: block; color: #1d2327; font-size: 12px; }
+#hs-a2p .hs-a2p-pv-label span { display: block; color: #3c434a; font-size: 11.5px; line-height: 1.4; }
+
+/* Slider card: copied from core.css (.hs-story-*, .hs-shortcode-slider-wrapper) and the slider snippet's inline styles. */
+#hs-a2p .hs-a2p-preview { --hs-dark: #003057; --hs-gold: #f0b323; --hs-font-head: 'Montserrat', sans-serif; }
+#hs-a2p .hs-a2p-preview .hs-story-card { container-type: inline-size; box-sizing: border-box; position: relative; display: flex; flex-direction: column; justify-content: space-between; width: 270px; aspect-ratio: 9 / 16; padding: 15px 0 20px; background-color: var(--hs-dark); color: #fff; border-radius: 12px; overflow: visible; box-shadow: 0 10px 25px rgba(0, 0, 0, .15); }
+#hs-a2p .hs-a2p-preview .hs-story-card p { margin: 0; padding: 0; }
+#hs-a2p .hs-a2p-preview .hs-story-image { position: absolute; inset: 0; z-index: 1; border-radius: 12px; overflow: hidden; background: #1d4466; }
+#hs-a2p .hs-a2p-preview .hs-story-image::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0, 48, 87, .3) 0%, rgba(0, 48, 87, .8) 100%); z-index: 2; }
+#hs-a2p .hs-a2p-preview .hs-story-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+#hs-a2p .hs-a2p-preview .hs-badge-primary { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); z-index: 30; display: inline-flex; max-width: 90%; }
+#hs-a2p .hs-a2p-preview .hs-badge-primary-inner { display: inline-flex; align-items: center; justify-content: center; padding: 4px; border-radius: 50px; background: rgba(255, 255, 255, .15); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, .2); box-shadow: 0 4px 15px rgba(0, 0, 0, .15); }
+#hs-a2p .hs-a2p-preview .hs-badge-primary p { display: block; padding: 6px 16px; border-radius: 50px; background: var(--hs-gold); color: var(--hs-dark); font-family: var(--hs-font-head); font-weight: 800; font-size: clamp(.3rem, 4.5cqw, .8rem); line-height: 1.2; letter-spacing: .5px; text-transform: uppercase; white-space: nowrap; }
+#hs-a2p .hs-a2p-preview .hs-story-top-group { position: relative; z-index: 20; display: flex; flex-direction: column; align-items: center; width: 100%; padding-top: 5px; }
+#hs-a2p .hs-a2p-preview .hs-badge-location p { display: inline-flex; align-items: center; color: #fff; font-family: var(--hs-font-head); font-size: .75rem; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; text-shadow: 0 2px 4px rgba(0, 0, 0, .6); white-space: nowrap; }
+#hs-a2p .hs-a2p-preview .hs-badge-location p::before { content: ''; width: 9px; height: 12px; margin-right: 6px; background: var(--hs-gold); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath d='M172 501C27 291 0 269 0 192 0 86 86 0 192 0s192 86 192 192c0 77-27 99-172 309a24 24 0 0 1-40 0zm20-229a80 80 0 1 0 0-160 80 80 0 0 0 0 160z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'%3E%3Cpath d='M172 501C27 291 0 269 0 192 0 86 86 0 192 0s192 86 192 192c0 77-27 99-172 309a24 24 0 0 1-40 0zm20-229a80 80 0 1 0 0-160 80 80 0 0 0 0 160z'/%3E%3C/svg%3E") center / contain no-repeat; }
+#hs-a2p .hs-a2p-preview .hs-story-date { display: flex; justify-content: center; width: 100%; margin-top: 4px; padding: 4px 0; background: rgba(255, 255, 255, .2); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+#hs-a2p .hs-a2p-preview .hs-story-date p { color: #fff; font-family: var(--hs-font-head); font-size: .65rem; font-weight: 700; line-height: 1; letter-spacing: .5px; text-transform: uppercase; text-shadow: 0 1px 4px rgba(0, 0, 0, .8); }
+#hs-a2p .hs-a2p-preview .hs-story-bottom-group { position: relative; z-index: 20; display: flex; flex-direction: column; align-items: center; width: 100%; }
+#hs-a2p .hs-a2p-preview .hs-story-title { box-sizing: border-box; display: flex; justify-content: center; width: 100%; margin: 0 0 12px; padding: 0 25px; text-align: center; }
+#hs-a2p .hs-a2p-preview .hs-story-title p { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; color: #fff; font-family: var(--hs-font-head); font-weight: 800; font-size: 1.3rem; line-height: 1.1; text-shadow: 0 2px 5px rgba(0, 0, 0, .4); }
+#hs-a2p .hs-a2p-preview .hs-story-tags { display: flex; justify-content: center; padding: 0 15px; }
+#hs-a2p .hs-a2p-preview .hs-story-tags p { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+#hs-a2p .hs-a2p-preview .hs-story-tags span { display: inline-flex; align-items: center; padding: 5px 8px; border-radius: 6px; background: rgba(240, 179, 35, .15); border: 1px solid rgba(240, 179, 35, .3); color: var(--hs-gold); font-family: var(--hs-font-head); font-size: .55rem; font-weight: 700; line-height: 1; text-transform: uppercase; }
+
+/* Top of the Post page: the Section, date and campus chips from the Post templates (measured on a live Post). */
+#hs-a2p .hs-a2p-pv-strip { display: flex; flex-wrap: nowrap; white-space: nowrap; align-items: center; gap: 16px; padding: 4px 0 16px; border-bottom: 1px solid #f0b323; font-family: 'Open Sans', sans-serif; }
+#hs-a2p .hs-a2p-pv-strip p { margin: 0; }
+#hs-a2p .hs-a2p-pv-sec { padding-right: 16px; border-right: 1px solid rgba(71, 85, 105, .2); }
+#hs-a2p .hs-a2p-pv-sec p { color: #003057; font-size: 32px; font-weight: 700; line-height: 1.05; text-transform: uppercase; }
+#hs-a2p .hs-a2p-pv-chips { display: flex; flex-wrap: nowrap; gap: 8px; }
+#hs-a2p .hs-a2p-pv-chip { padding: 2px 8px; border-radius: 5px; background: #003057; box-shadow: 0 2px 18px rgba(0, 0, 0, .3); }
+#hs-a2p .hs-a2p-pv-chip p { color: #fff; font-size: 11.2px; font-weight: 700; line-height: 27.2px; white-space: nowrap; }
 #hs-a2p .hs-a2p-intro { color: #50575e; margin: 0 0 12px; }
 #hs-a2p .hs-a2p-row { border: 1px solid #dcdcde; border-radius: 4px; margin-bottom: 8px; background: #fff; }
 #hs-a2p .hs-a2p-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; flex-wrap: wrap; }
@@ -687,12 +753,23 @@ function hs_a2p_print_assets() {
 #hs-a2p .hs-a2p-state { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #f0f0f1; }
 #hs-a2p .hs-a2p-state.is-live { background: #d1f0d8; color: #0a5c1f; }
 #hs-a2p .hs-a2p-state.is-missing { background: #fcf0d1; color: #6e4b00; }
-#hs-a2p .hs-a2p-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; padding: 4px 12px 12px; border-top: 1px solid #f0f0f1; }
-#hs-a2p .hs-a2p-f { padding: 8px 10px; border-left: 3px solid transparent; background: #f6f7f7; border-radius: 2px; min-width: 0; }
+#hs-a2p .hs-a2p-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 10px 12px 12px; border-top: 1px solid #f0f0f1; align-items: start; }
+@media (max-width: 960px) { #hs-a2p .hs-a2p-body { grid-template-columns: minmax(0, 1fr); } }
+#hs-a2p .hs-a2p-g { border: 1px solid #e2e4e7; border-radius: 4px; padding: 8px; background: #fbfbfc; min-width: 0; display: grid; gap: 6px; }
+#hs-a2p .hs-a2p-g > h4 { margin: 0 0 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #50575e; }
+#hs-a2p .hs-a2p-g > .hs-a2p-hint { margin: 0 2px; }
+#hs-a2p .hs-a2p-g-wide, #hs-a2p .hs-a2p-body > .hs-a2p-wide { grid-column: 1 / -1; }
+/* Website Section and Campus share row lines, so their second fields line up. */
+#hs-a2p .hs-a2p-g-sub { grid-row: span 3; grid-template-rows: subgrid; row-gap: 6px; }
+#hs-a2p .hs-a2p-campuses { display: flex; flex-wrap: wrap; align-items: center; min-height: 30px; }
+#hs-a2p .hs-a2p-when { display: grid; gap: 4px; }
+#hs-a2p .hs-a2p-now { display: flex; align-items: center; gap: 4px; min-height: 30px; }
+#hs-a2p .hs-a2p-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+#hs-a2p .hs-a2p-f { padding: 6px 8px; border-left: 3px solid transparent; background: #f0f0f1; border-radius: 2px; min-width: 0; }
 #hs-a2p .hs-a2p-f.hs-a2p-ok { border-left-color: #00a32a; }
 #hs-a2p .hs-a2p-f.hs-a2p-bad { border-left-color: #d63638; background: #fcf0f1; }
 #hs-a2p .hs-a2p-f > .hs-a2p-label { display: block; font-weight: 600; margin-bottom: 4px; }
-#hs-a2p .hs-a2p-f input[type="text"], #hs-a2p .hs-a2p-f input[type="datetime-local"], #hs-a2p .hs-a2p-f select { width: 100%; max-width: 100%; }
+#hs-a2p .hs-a2p-f input[type="text"], #hs-a2p .hs-a2p-f input[type="datetime-local"], #hs-a2p .hs-a2p-f input[type="date"], #hs-a2p .hs-a2p-f select { width: 100%; max-width: 100%; }
 #hs-a2p .hs-a2p-hint { color: #646970; font-size: 12px; margin: 4px 0 0; }
 #hs-a2p .hs-a2p-warn { grid-column: 1 / -1; background: #fcf0d1; color: #6e4b00; padding: 8px 10px; border-radius: 2px; margin: 8px 0 0; }
 #hs-a2p .hs-a2p-f.hs-a2p-wide { grid-column: 1 / -1; }
@@ -703,11 +780,24 @@ function hs_a2p_print_assets() {
 #hs-a2p .hs-a2p-add { display: flex; gap: 6px; margin-top: 6px; }
 #hs-a2p .hs-a2p-add input[type="text"] { flex: 1 1 auto; min-width: 0; }
 #hs-a2p .hs-a2p-add-error { color: #b32d2e; font-size: 12px; margin: 4px 0 0; }
-#hs-a2p .hs-a2p-thumb { display: block; width: 100%; max-height: 140px; object-fit: cover; border-radius: 2px; margin-bottom: 6px; }
-#hs-a2p .hs-a2p-choices { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-#hs-a2p .hs-a2p-choices button { padding: 0; border: 2px solid transparent; background: none; cursor: pointer; line-height: 0; border-radius: 2px; }
-#hs-a2p .hs-a2p-choices button:focus { border-color: #2271b1; outline: 0; }
-#hs-a2p .hs-a2p-choices img { width: 48px; height: 48px; object-fit: cover; }
+#hs-a2p .hs-a2p-images-grid { display: grid; grid-template-columns: 210px 170px minmax(0, 1fr); gap: 8px; align-items: start; }
+@media (max-width: 960px) { #hs-a2p .hs-a2p-images-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } #hs-a2p .hs-a2p-rack-wrap { grid-column: 1 / -1; } }
+#hs-a2p .hs-a2p-slot { outline: 2px solid transparent; outline-offset: -2px; }
+#hs-a2p .hs-a2p-slot.is-active { outline-color: #2271b1; background: #f0f6fc; }
+#hs-a2p .hs-a2p-slot-pick { display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
+#hs-a2p .hs-a2p-thumb { display: block; width: 100%; height: 120px; object-fit: cover; border-radius: 2px; margin: 2px 0 4px; }
+#hs-a2p .hs-a2p-empty { display: flex; align-items: center; justify-content: center; height: 120px; margin: 2px 0 4px; border: 1px dashed #c3c4c7; border-radius: 2px; color: #8c8f94; font-size: 12px; }
+#hs-a2p .hs-a2p-picking { display: block; font-size: 11px; color: #646970; }
+#hs-a2p .hs-a2p-slot.is-active .hs-a2p-picking { color: #2271b1; font-weight: 600; }
+#hs-a2p .hs-a2p-slot-actions { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+#hs-a2p .hs-a2p-rack { display: grid; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 4px; max-height: 260px; overflow-y: auto; padding: 4px; background: #fff; border: 1px solid #dcdcde; border-radius: 2px; }
+#hs-a2p .hs-a2p-rack-item { position: relative; padding: 0; border: 2px solid transparent; background: #f0f0f1; cursor: pointer; line-height: 0; border-radius: 2px; aspect-ratio: 1; }
+#hs-a2p .hs-a2p-rack-item:hover, #hs-a2p .hs-a2p-rack-item:focus { border-color: #2271b1; outline: 0; }
+#hs-a2p .hs-a2p-rack-item img { width: 100%; height: 100%; object-fit: cover; }
+#hs-a2p .hs-a2p-tag { position: absolute; top: 2px; left: 2px; min-width: 16px; padding: 0 3px; line-height: 16px; font-size: 10px; font-weight: 700; color: #fff; border-radius: 2px; }
+#hs-a2p .hs-a2p-tag.is-f { background: #2271b1; }
+#hs-a2p .hs-a2p-tag.is-p { background: #8a2be2; left: auto; right: 2px; }
+#hs-a2p .hs-a2p-rack-note { margin-top: 4px; }
 #hs-a2p .hs-a2p-switch label { margin-right: 12px; }
 #hs-a2p .hs-a2p-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
 #hs-a2p .hs-a2p-saved { color: #646970; font-size: 12px; }
@@ -778,12 +868,13 @@ function hs_a2p_print_assets() {
 		if (f.section === 'custom' ? !String(f.customSection || '').trim() : !f.section) { m.push('section'); }
 		if (!f.campus || !f.campus.length) { m.push('campus'); }
 		if (!f.tags || !f.tags.length) { m.push('tags'); }
-		if (!f.date) { m.push('date'); }
+		if (!f.publishNow && !f.date) { m.push('date'); }
+		if (f.eventEnd && (!f.eventStart || f.eventEnd < f.eventStart)) { m.push('event'); }
 		if (f.status === 'live' && !f.image) { m.push('image'); }
 		return m;
 	}
 
-	var NAMES = { title: 'Title', section: 'Website Section', campus: 'Campus', tags: 'Thematic Tags', date: 'Publish date', image: 'Featured image' };
+	var NAMES = { title: 'Title', section: 'Website Section', campus: 'Campus', tags: 'Thematic Tags', date: 'Publish date', event: 'Event date (end needs a start, on or before it)', image: 'Featured image' };
 
 	function mark(row) {
 		if (!row.dom) { return; }
@@ -791,7 +882,8 @@ function hs_a2p_print_assets() {
 		Object.keys(row.dom.fields).forEach(function (name) {
 			var box = row.dom.fields[name];
 			var needed = !(name === 'image' && row.fields.status !== 'live');
-			box.classList.toggle('hs-a2p-ok', needed && gaps.indexOf(name) === -1);
+			var optional = name === 'event'; // only ever red, never green
+			box.classList.toggle('hs-a2p-ok', needed && !optional && gaps.indexOf(name) === -1);
 			box.classList.toggle('hs-a2p-bad', needed && gaps.indexOf(name) !== -1);
 		});
 		if (row.dom.bothHint) {
@@ -801,6 +893,7 @@ function hs_a2p_print_assets() {
 
 	function changed(row) {
 		mark(row);
+		updatePreview(row);
 		updateActions();
 		queueSave();
 	}
@@ -873,39 +966,86 @@ function hs_a2p_print_assets() {
 		return box;
 	}
 
-	function imageField(row, label, name, urlKey, hint) {
-		var preview = el('div');
-		function setImage(id, url) {
-			row.fields[name] = id;
-			row[urlKey] = url;
+	// One rack of the article's images. Clicking an image fills the active slot (Featured, then Portrait).
+	var SLOTS = { image: { label: 'Featured image', url: 'imageUrl', tag: 'F' }, portrait: { label: 'Portrait (slider)', url: 'portraitUrl', tag: 'P' } };
+
+	function imagesRow(row) {
+		var f = row.fields;
+		if (!row.active) { row.active = f.image && !f.portrait ? 'portrait' : 'image'; }
+		var wrap = el('div', { 'class': 'hs-a2p-g hs-a2p-g-wide hs-a2p-images' });
+
+		function setImage(name, id, url) {
+			f[name] = id;
+			row[SLOTS[name].url] = url;
+			if (name === 'image' && id && !f.portrait) { row.active = 'portrait'; }
 			draw();
 			changed(row);
 		}
-		function draw() {
-			preview.textContent = '';
-			remove.style.display = row[urlKey] ? '' : 'none';
-			if (row[urlKey]) {
-				preview.appendChild(el('img', { 'class': 'hs-a2p-thumb', src: row[urlKey], alt: '' }));
+		function slot(name) {
+			var s = SLOTS[name];
+			var active = row.active === name;
+			var url = row[s.url];
+			var hint = name === 'image'
+				? (f.status === 'live' ? 'Required for Live.' : 'Needed before it can go Live.')
+				: 'Optional. Used by the slider.';
+			var box = el('div', { 'class': 'hs-a2p-f hs-a2p-slot' + (active ? ' is-active' : ''), 'data-slot': name }, [
+				el('button', { type: 'button', 'class': 'hs-a2p-slot-pick', 'aria-pressed': active ? 'true' : 'false', on: { click: function () { row.active = name; draw(); } } }, [
+					el('span', { 'class': 'hs-a2p-label', text: s.label + (name === 'image' ? ' *' : '') }),
+					url ? el('img', { 'class': 'hs-a2p-thumb', src: url, alt: '' }) : el('span', { 'class': 'hs-a2p-empty', text: 'No image yet' }),
+					el('span', { 'class': 'hs-a2p-picking', text: active ? '◀ picking now' : 'Click to pick' })
+				]),
+				el('div', { 'class': 'hs-a2p-slot-actions' }, [
+					el('button', { type: 'button', 'class': 'button button-small', text: 'Media Library', on: { click: function () {
+						var frame = wp.media({ title: s.label, multiple: false, library: { type: 'image' } });
+						frame.on('select', function () {
+							var a = frame.state().get('selection').first().toJSON();
+							var size = a.sizes && (a.sizes.medium || a.sizes.full);
+							setImage(name, a.id, size ? size.url : a.url);
+						});
+						frame.open();
+					} } }),
+					url ? el('button', { type: 'button', 'class': 'button-link', text: 'Remove', on: { click: function () { row.active = name; setImage(name, 0, ''); } } }) : null
+				]),
+				el('p', { 'class': 'hs-a2p-hint', text: hint })
+			]);
+			if (name === 'image') { row.dom.fields.image = box; }
+			return box;
+		}
+		function rack() {
+			if (!row.images || !row.images.length) {
+				return el('div', { 'class': 'hs-a2p-rack-wrap' }, [el('p', { 'class': 'hs-a2p-hint', text: 'This article has no images of its own. Use Media Library.' })]);
 			}
-		}
-		var choose = el('button', { type: 'button', 'class': 'button', text: 'Media Library', on: { click: function () {
-			var frame = wp.media({ title: label, multiple: false, library: { type: 'image' } });
-			frame.on('select', function () {
-				var a = frame.state().get('selection').first().toJSON();
-				var size = a.sizes && (a.sizes.medium || a.sizes.full);
-				setImage(a.id, size ? size.url : a.url);
-			});
-			frame.open();
-		} } });
-		var remove = el('button', { type: 'button', 'class': 'button-link', text: 'Remove', style: 'margin-left:8px', on: { click: function () { setImage(0, ''); } } });
-		var choices = null;
-		if (row.images && row.images.length) {
-			choices = el('div', { 'class': 'hs-a2p-choices' }, row.images.map(function (image) {
-				return el('button', { type: 'button', title: 'Use this image', on: { click: function () { setImage(image.id, image.url); } } }, [el('img', { src: image.url, alt: '', loading: 'lazy' })]);
+			var grid = el('div', { 'class': 'hs-a2p-rack', role: 'list' }, row.images.map(function (image) {
+				var tags = [];
+				if (image.id === f.image) { tags.push(el('span', { 'class': 'hs-a2p-tag is-f', text: 'F', title: 'Featured image' })); }
+				if (image.id === f.portrait) { tags.push(el('span', { 'class': 'hs-a2p-tag is-p', text: 'P', title: 'Portrait' })); }
+				return el('button', { type: 'button', role: 'listitem', 'class': 'hs-a2p-rack-item', title: 'Use as ' + SLOTS[row.active].label, 'data-id': String(image.id), on: { click: function () {
+					setImage(row.active, image.id, image.url);
+				} } }, [el('img', { src: image.thumb || image.url, alt: '', loading: 'lazy', width: '150', height: '150' })].concat(tags));
 			}));
+			return el('div', { 'class': 'hs-a2p-rack-wrap' }, [
+				el('span', { 'class': 'hs-a2p-label', text: 'Article images (' + row.images.length + ')' }),
+				grid,
+				el('p', { 'class': 'hs-a2p-hint hs-a2p-rack-note', text: 'Click an image to set it as the ' + SLOTS[row.active].label + '.' })
+			]);
 		}
+		function draw() {
+			var scroll = wrap.querySelector('.hs-a2p-rack');
+			var top = scroll ? scroll.scrollTop : 0;
+			wrap.textContent = '';
+			wrap.appendChild(el('h4', { text: 'Images' }));
+			wrap.appendChild(el('div', { 'class': 'hs-a2p-images-grid' }, [slot('image'), slot('portrait'), rack()]));
+			var again = wrap.querySelector('.hs-a2p-rack');
+			if (again) { again.scrollTop = top; }
+			mark(row);
+		}
+		row.dom.redrawImages = draw;
 		draw();
-		return field(row, label, name === 'image' ? 'image' : null, [preview, choose, remove, choices], hint);
+		return wrap;
+	}
+
+	function group(title, children, extra) {
+		return el('div', { 'class': 'hs-a2p-g' + (extra ? ' ' + extra : '') }, [el('h4', { text: title })].concat(children));
 	}
 
 	function rowBody(row) {
@@ -937,29 +1077,281 @@ function hs_a2p_print_assets() {
 		});
 		row.dom.bothHint = el('p', { 'class': 'hs-a2p-hint', text: 'Both Campuses: one Post. Its sidebar opens on one campus, and readers can switch.' });
 
+		var STATUS_TIPS = {
+			live: 'Public as soon as you click Create Posts, or on the publish date if that is in the future.',
+			draft: 'Saved but not public. Open it in Posts to finish it, then publish it yourself.'
+		};
 		var status = el('div', { 'class': 'hs-a2p-switch' }, ['live', 'draft'].map(function (value) {
-			return el('label', {}, [
-				el('input', { type: 'radio', name: 'hs-a2p-status-' + row.key, disabled: value === 'live' && !panel.canPublish, checked: f.status === value, on: { change: function () { f.status = value; changed(row); } } }),
+			return el('label', { title: STATUS_TIPS[value] }, [
+				el('input', { type: 'radio', name: 'hs-a2p-status-' + row.key, disabled: value === 'live' && !panel.canPublish, checked: f.status === value, on: { change: function () {
+					f.status = value;
+					changed(row);
+					if (row.dom.redrawImages) { row.dom.redrawImages(); }
+				} } }),
 				document.createTextNode(value === 'live' ? ' Live' : ' Draft')
 			]);
 		}));
 		if (!panel.canPublish) { f.status = 'draft'; }
 
+		function text(name, placeholder) {
+			return el('input', { type: 'text', value: f[name] || '', placeholder: placeholder || '', on: { input: function (e) { f[name] = e.target.value; changed(row); } } });
+		}
+		function dateInput(name, type) {
+			return el('input', { type: type, value: f[name] || '', on: { input: function (e) { f[name] = e.target.value; changed(row); } } });
+		}
+
+		var picker = dateInput('date', 'datetime-local');
+		var publishWhen = el('div', { 'class': 'hs-a2p-when' }, [
+			el('label', { 'class': 'hs-a2p-now' }, [
+				el('input', { type: 'checkbox', checked: !!f.publishNow, on: { change: function (e) {
+					f.publishNow = e.target.checked;
+					picker.style.display = f.publishNow ? 'none' : '';
+					changed(row);
+				} } }),
+				document.createTextNode(' Publish now')
+			]),
+			picker
+		]);
+		picker.style.display = f.publishNow ? 'none' : '';
+
 		var body = el('div', { 'class': 'hs-a2p-body' }, [
 			row.dark ? el('p', { 'class': 'hs-a2p-warn', text: 'Styled for a dark background: check the text colours on the Post.' }) : null,
-			field(row, 'Title *', 'title', [el('input', { type: 'text', value: f.title, on: { input: function (e) { f.title = e.target.value; changed(row); } } })]),
-			field(row, 'Website Section *', 'section', [section, custom]),
-			field(row, 'Campus *', 'campus', campusBoxes.concat([row.dom.bothHint])),
-			field(row, 'Yellow Badge Override', null, [el('input', { type: 'text', value: f.badgeText || '', on: { input: function (e) { f.badgeText = e.target.value; changed(row); } } })], 'Optional. Leave empty to show the Website Section. Type your own to replace it.'),
-			field(row, 'Display Location Override', null, [el('input', { type: 'text', value: f.location, placeholder: 'e.g. Bangkok Trip', on: { input: function (e) { f.location = e.target.value; changed(row); } } })], 'Optional. Replaces the campus chip and changes the Post’s URL.'),
-			field(row, 'Publish date *', 'date', [el('input', { type: 'datetime-local', value: f.date, on: { input: function (e) { f.date = e.target.value; changed(row); } } })]),
-			imageField(row, 'Featured image (required for Live)', 'image', 'imageUrl'),
-			imageField(row, 'Portrait image', 'portrait', 'portraitUrl', 'Optional. Used by the slider.'),
-			field(row, 'Status', null, [status], 'Live publishes it straight away. A future date schedules it.'),
+			group('Post', [
+				field(row, 'Title *', 'title', [text('title')]),
+				// Four fields that share row lines: labels, controls and hints each line up.
+				el('div', { 'class': 'hs-a2p-quad' }, [
+					field(row, 'Publish date *', 'date', [publishWhen], 'Untick Publish now to choose a date: a future date schedules it. The publish date sets the URL.'),
+					field(row, 'Status', null, [status], 'Live: public once created. Draft: not public; finish and publish it from Posts (or Edit here).'),
+					field(row, 'Event start', 'event', [dateInput('eventStart', 'date')], 'Shown to readers instead of the publish date. Leave empty to use the publish date.'),
+					field(row, 'Event end', null, [dateInput('eventEnd', 'date')], 'Only for events over several days.')
+				])
+			], 'hs-a2p-g-wide'),
+			group('Website Section', [
+				field(row, 'Website Section *', 'section', [section, custom], 'Sets the feeds, the URL and the yellow badge.'),
+				field(row, 'Yellow badge text', null, [text('badgeText')], 'Optional. Leave empty to show the Website Section.')
+			], 'hs-a2p-g-sub'),
+			group('Campus', [
+				field(row, 'Campus *', 'campus', [el('div', { 'class': 'hs-a2p-campuses' }, campusBoxes), row.dom.bothHint], 'Tick both for Both Campuses.'),
+				field(row, 'Location text', null, [text('location', 'e.g. Bangkok Trip')], 'Optional. Replaces the campus name in the chip.')
+			], 'hs-a2p-g-sub'),
+			imagesRow(row),
 			tagsField(row)
 		]);
 		mark(row);
 		return body;
+	}
+
+	/* ---- Labelled preview: a slider card and the top of the Post page, built from the row's fields ---- */
+	var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+	function ymd(v) {
+		var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v || '');
+		if (!m) { return null; }
+		var y = +m[1], mo = +m[2], d = +m[3];
+		var check = new Date(Date.UTC(y, mo - 1, d));
+		return check.getUTCMonth() === mo - 1 && check.getUTCDate() === d ? { y: y, m: mo, d: d, key: m[1] + m[2] + m[3] } : null;
+	}
+	function ordinal(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+	function publishDay(f) { return ymd(f.publishNow ? panel.today : f.date); }
+	// Same rules as hs_date_label_for_post(): event start/end, else the publish date.
+	function postDateLabel(f) {
+		var s = ymd(f.eventStart), e = ymd(f.eventEnd), dash = '–', p = publishDay(f);
+		var full = function (x) { return x.d + ' ' + MONTHS[x.m - 1] + ' ' + x.y; };
+		if (!s) { return p ? full(p) : ''; }
+		if (!e || e.key <= s.key) { return full(s); }
+		if (s.y === e.y && s.m === e.m) { return s.d + dash + full(e); }
+		if (s.y === e.y) { return s.d + ' ' + MONTHS[s.m - 1] + ' ' + dash + ' ' + full(e); }
+		return full(s) + ' ' + dash + ' ' + full(e);
+	}
+	// Same rules as hs_card_date_label(): short months only for ranges.
+	function cardDateLabel(f) {
+		var s = ymd(f.eventStart), e = ymd(f.eventEnd), dash = '\u2013', p = publishDay(f);
+		var long = function (x) { return ordinal(x.d) + ' ' + MONTHS[x.m - 1] + ' ' + x.y; };
+		var mon = function (x) { return MONTHS[x.m - 1].slice(0, 3); };
+		if (!s) { return p ? long(p) : ''; }
+		if (!e || e.key <= s.key) { return long(s); }
+		if (s.y === e.y && s.m === e.m) { return s.d + dash + e.d + ' ' + mon(e) + ' ' + e.y; }
+		if (s.y === e.y) { return s.d + ' ' + mon(s) + ' ' + dash + ' ' + e.d + ' ' + mon(e) + ' ' + e.y; }
+		return s.d + ' ' + mon(s) + ' ' + s.y + ' ' + dash + ' ' + e.d + ' ' + mon(e) + ' ' + e.y;
+	}
+	function previewValues(row) {
+		var f = row.fields;
+		var section = f.section === 'custom' ? String(f.customSection || '').trim() : ((panel.sections.filter(function (s) { return String(s.id) === String(f.section); })[0] || {}).name || '');
+		var names = panel.campuses.filter(function (c) { return f.campus.indexOf(c.slug) !== -1; }).map(function (c) { return c.name; });
+		var place = String(f.location || '').trim() || (names.length > 1 ? 'Both Campuses' : names[0] || '');
+		return {
+			badge: String(f.badgeText || '').trim() || section || 'News',
+			place: place,
+			sliderDate: cardDateLabel(f),
+			postDate: postDateLabel(f),
+			image: row.portraitUrl || row.imageUrl || '',
+			title: String(f.title || '').trim() || row.headline,
+			tags: (f.tags || []).map(function (t) { var i = t.indexOf(':'); return (i > -1 ? t.slice(i + 1) : t).trim(); }).filter(Boolean)
+		};
+	}
+
+	// [where, target, part of the page, where its text comes from]
+	var CALLOUTS = [
+		['card', 'badge', 'Yellow badge', 'Shows the Yellow badge text if you fill it in, otherwise the Website Section.'],
+		['card', 'place', 'Campus line', 'Shows the Location text if you fill it in, otherwise the campus name (or \u201cBoth Campuses\u201d).'],
+		['card', 'sliderDate', 'Date', 'The event date if set, otherwise the publish date.'],
+		['card', 'image', 'Photo', 'The Portrait image if chosen, otherwise the Featured image.'],
+		['card', 'title', 'Title', 'The Title field.'],
+		['card', 'tags', 'Tag chips', 'Thematic Tags without their prefix: \u201cSPORT: Swimming\u201d shows as \u201cSwimming\u201d.'],
+		['strip', 'section', 'Section heading', 'Shows the Yellow badge text if you fill it in, otherwise the Website Section.'],
+		['strip', 'postDate', 'Date chip', 'The event date if set, otherwise the publish date.'],
+		['strip', 'chipPlace', 'Campus chip', 'Shows the Location text if you fill it in, otherwise the campus name.']
+	];
+
+	function previewNode(row) {
+		var t = {};
+		var card = el('div', { 'class': 'hs-shortcode-slider-wrapper' }, [
+			el('div', { 'class': 'hs-story-card' }, [
+				t.image = el('div', { 'class': 'hs-story-image' }),
+				t.badge = el('div', { 'class': 'hs-badge-primary' }, [el('div', { 'class': 'hs-badge-primary-inner' }, [el('p')])]),
+				el('div', { 'class': 'hs-story-top-group' }, [
+					t.place = el('div', { 'class': 'hs-badge-location' }, [el('p')]),
+					t.sliderDate = el('div', { 'class': 'hs-story-date' }, [el('p')])
+				]),
+				el('div', { 'class': 'hs-story-bottom-group' }, [
+					t.title = el('div', { 'class': 'hs-story-title' }, [el('p')]),
+					t.tags = el('div', { 'class': 'hs-story-tags' }, [el('p')])
+				])
+			])
+		]);
+		var strip = el('div', { 'class': 'hs-a2p-pv-strip' }, [
+			t.section = el('div', { 'class': 'hs-a2p-pv-sec' }, [el('p')]),
+			el('div', { 'class': 'hs-a2p-pv-chips' }, [
+				t.postDate = el('div', { 'class': 'hs-a2p-pv-chip' }, [el('p')]),
+				t.chipPlace = el('div', { 'class': 'hs-a2p-pv-chip' }, [el('p')])
+			])
+		]);
+		var lines = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+		lines.setAttribute('class', 'hs-a2p-pv-lines');
+		lines.setAttribute('aria-hidden', 'true');
+		var labels = el('div', { 'class': 'hs-a2p-pv-labels' });
+		var stripLabels = el('div', { 'class': 'hs-a2p-pv-striplabels' });
+		var capCard = el('span', { 'class': 'hs-a2p-pv-cap', text: 'Preview \u00b7 Slider card' });
+		var capStrip = el('span', { 'class': 'hs-a2p-pv-cap', text: 'Preview \u00b7 Top of the Post page' });
+		var stage = el('div', { 'class': 'hs-a2p-pv-stage' }, [
+			capCard,
+			el('div', { 'class': 'hs-a2p-pv-cardbox' }, [card]),
+			capStrip,
+			el('div', { 'class': 'hs-a2p-pv-stripbox' }, [strip]),
+			stripLabels,
+			labels, lines
+		]);
+		var box = el('div', { 'class': 'hs-a2p-preview' }, [
+			stage
+		]);
+		row.dom.preview = { box: box, stage: stage, labels: labels, stripLabels: stripLabels, lines: lines, t: t, caps: { card: capCard, strip: capStrip } };
+		updatePreview(row);
+		return box;
+	}
+
+	function updatePreview(row) {
+		var pv = row.dom && row.dom.preview;
+		if (!pv) { return; }
+		var v = previewValues(row), t = pv.t;
+		var setText = function (node, text) { node.querySelector('p').textContent = text; node.style.display = text ? '' : 'none'; };
+		setText(t.badge, v.badge);
+		setText(t.place, v.place);
+		setText(t.sliderDate, v.sliderDate);
+		setText(t.title, v.title);
+		setText(t.section, v.badge);
+		setText(t.postDate, v.postDate);
+		setText(t.chipPlace, v.place);
+		var tp = t.tags.querySelector('p');
+		tp.textContent = '';
+		v.tags.forEach(function (name) { tp.appendChild(el('span', { text: name })); });
+		t.tags.style.display = v.tags.length ? '' : 'none';
+		if (t.image.dataset.src !== v.image) {
+			t.image.dataset.src = v.image;
+			t.image.textContent = '';
+			if (v.image) {
+				var img = el('img', { src: v.image, alt: '' });
+				img.addEventListener('load', function () { drawCallouts(row); });
+				t.image.appendChild(img);
+			}
+		}
+		drawCallouts(row);
+	}
+
+	// Card labels sit in the right-hand column, level with their target where they can.
+	// Strip labels sit in a row under the strip, each joined by a line from below its target.
+	function drawCallouts(row) {
+		var pv = row.dom && row.dom.preview;
+		if (!pv || !pv.stage.isConnected) { return; }
+		window.requestAnimationFrame(function () {
+			var base = pv.stage.getBoundingClientRect();
+			if (!base.width) { return; }
+			var svg = function (tag, attrs) { var n = document.createElementNS('http://www.w3.org/2000/svg', tag); Object.keys(attrs).forEach(function (k) { n.setAttribute(k, attrs[k]); }); pv.lines.appendChild(n); };
+			var labelNode = function (c) { return el('div', { 'class': 'hs-a2p-pv-label' }, [el('strong', { text: c[2] }), c[3] ? el('span', { text: c[3] }) : null]); };
+			var shown = function (c) { var t = pv.t[c[1]]; return t && t.style.display !== 'none' ? t : null; };
+			pv.labels.textContent = '';
+			pv.stripLabels.textContent = '';
+			pv.labels.style.minHeight = '';
+			while (pv.lines.firstChild) { pv.lines.removeChild(pv.lines.firstChild); }
+
+			// Card: right-hand column.
+			var lx = pv.labels.getBoundingClientRect().left - base.left;
+			var next = pv.caps.card.getBoundingClientRect().bottom - base.top + 6;
+			var placed = [];
+			CALLOUTS.filter(function (c) { return c[0] === 'card'; }).forEach(function (c) {
+				var target = shown(c);
+				if (!target) { return; }
+				var r = (c[1] === 'image' ? target : (target.querySelector('p') || target)).getBoundingClientRect();
+				if (!r.width) { return; }
+				var ty = c[1] === 'image' ? r.top - base.top + r.height * 0.42 : r.top - base.top + r.height / 2;
+				var tx = c[1] === 'image' ? r.right - base.left - 14 : r.right - base.left + 4;
+				var label = labelNode(c);
+				pv.labels.appendChild(label);
+				var h = label.offsetHeight;
+				var top = Math.max(ty - h / 2, next);
+				next = top + h + 6;
+				placed.push({ label: label, top: top, h: h, tx: tx, ty: ty });
+			});
+			var labelsTop = pv.labels.getBoundingClientRect().top - base.top;
+			placed.forEach(function (p) { p.label.style.top = (p.top - labelsTop) + 'px'; });
+			pv.labels.style.minHeight = Math.max(0, next - labelsTop) + 'px'; // pushes the strip down if the labels run long
+
+			// Strip: labels in a row underneath; lines go down from each target, then across to its label.
+			var stripCallouts = CALLOUTS.filter(function (c) { return c[0] === 'strip' && shown(c); });
+			stripCallouts.forEach(function (c) { pv.stripLabels.appendChild(labelNode(c)); });
+			var sx = pv.stripLabels.getBoundingClientRect();
+			var stripBottom = pv.stage.querySelector('.hs-a2p-pv-stripbox').getBoundingClientRect().bottom - base.top;
+			var midY = stripBottom + (sx.top - base.top - stripBottom) / 2;
+
+			pv.lines.setAttribute('width', base.width);
+			pv.lines.setAttribute('height', base.height);
+			placed.forEach(function (p) {
+				var ly = p.top + Math.min(p.h / 2, 10);
+				svg('polyline', { points: p.tx + ',' + p.ty + ' ' + (lx - 16) + ',' + p.ty + ' ' + (lx - 4) + ',' + ly });
+				svg('circle', { cx: p.tx, cy: p.ty, r: 3 });
+			});
+			stripCallouts.forEach(function (c, i) {
+				var r = (pv.t[c[1]].querySelector('p') || pv.t[c[1]]).getBoundingClientRect();
+				var l = pv.stripLabels.children[i].getBoundingClientRect();
+				var tx = r.left - base.left + r.width / 2, ty = r.bottom - base.top + 2;
+				var x2 = l.left - base.left + 10, y2 = l.top - base.top;
+				svg('polyline', { points: tx + ',' + ty + ' ' + tx + ',' + midY + ' ' + x2 + ',' + midY + ' ' + x2 + ',' + y2 });
+				svg('circle', { cx: tx, cy: ty, r: 3 });
+			});
+		});
+	}
+
+	window.addEventListener('resize', function () {
+		panel.rows.forEach(function (row) { drawCallouts(row); });
+	});
+
+	function previewToggle(row, preview) {
+		var button = el('button', { type: 'button', 'class': 'button-link hs-a2p-pv-toggle', text: row.showPreview ? 'Hide preview' : 'Show preview', on: { click: function () {
+			row.showPreview = !row.showPreview;
+			button.textContent = row.showPreview ? 'Hide preview' : 'Show preview';
+			preview.classList.toggle('is-open', row.showPreview);
+			drawCallouts(row);
+		} } });
+		preview.classList.toggle('is-open', !!row.showPreview);
+		return button;
 	}
 
 	function rowNode(row) {
@@ -981,21 +1373,16 @@ function hs_a2p_print_assets() {
 			head.push(el('span', { 'class': 'hs-a2p-state' + (row.post.live ? ' is-live' : ''), text: row.post.label }));
 			if (row.post.view) { head.push(el('a', { href: row.post.view, target: '_blank', rel: 'noopener', text: 'View' })); }
 			if (row.post.edit) { head.push(el('a', { href: row.post.edit, target: '_blank', rel: 'noopener', text: 'Edit' })); }
-			if (row.found) {
-				head.push(el('button', { type: 'button', 'class': 'button-link', text: 'Re-copy', on: { click: function () {
-					var warning = row.post.live ? 'This changes a public page. ' : '';
-					if (!window.confirm(warning + 'Overwrite this Post’s content with the article from this weekly update? Its other details stay as they are.')) { return; }
-					post('hs_a2p_recopy', { post: row.post.id }).then(function (res) {
-						message = res.success ? { text: 'Re-copied: ' + row.headline } : { error: true, text: (res.data && res.data.message) || 'Re-copy failed.' };
-						render();
-					});
-				} } }));
-			}
 		}
-		return el('div', { 'class': 'hs-a2p-row' }, [
+		var open = row.found && !row.post && row.fields.tick;
+		var body = open ? rowBody(row) : null;
+		var preview = open ? previewNode(row) : null;
+		var node = el('div', { 'class': 'hs-a2p-row' }, [
 			el('div', { 'class': 'hs-a2p-head' }, head),
-			row.found && !row.post && row.fields.tick ? rowBody(row) : null
+			open ? el('div', { 'class': 'hs-a2p-rowgrid' }, [body, previewToggle(row, preview), preview]) : null
 		]);
+		if (open) { setTimeout(function () { drawCallouts(row); }, 0); }
+		return node;
 	}
 
 	var createButton = null;

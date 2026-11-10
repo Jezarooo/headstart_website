@@ -924,7 +924,8 @@ function hs_get_post_slider_card_html($post, $shortcode_dept_slug = '', $is_slid
         $permalink = add_query_arg('hs_campus', urlencode($campus), $permalink);
     }
     $title = get_the_title($post_id);
-    $date = get_the_date('jS F Y', $post_id);
+    // Event date or range when set (Posts--Compute-Taxonomies-From-Custom-Fields), else the publish date as before.
+    $date = function_exists('hs_card_date_label') ? hs_card_date_label($post_id) : get_the_date('jS F Y', $post_id);
     $portrait_image = get_field('hs_portrait_image', $post_id);
     if (!empty($portrait_image)) {
         $image_url = $portrait_image; // URL format
