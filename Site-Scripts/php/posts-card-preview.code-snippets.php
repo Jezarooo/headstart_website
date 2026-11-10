@@ -184,6 +184,22 @@ function hs_card_preview_print_assets() {
 #wpbody .hs-cip-tag.is-p { background: #8a2be2; left: auto; right: 2px; }
 #wpbody .hs-cip-rack-note { margin-top: 4px; }
 #wpbody .hs-cip-rack-label { display: block; font-weight: 600; margin-bottom: 4px; }
+/* Hero focal point (desktop): the whole Featured image with a dot, and the 70vh hero crop it gives. */
+#wpbody .hs-chf { margin-top: 22px; }
+#wpbody .hs-chf-cap { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+#wpbody .hs-chf-cap span { display: inline-flex; white-space: nowrap; padding: 3px 10px; border-radius: 999px; background: #f0f0f1; color: #50575e; font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; }
+#wpbody .hs-chf-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+#wpbody .hs-chf-edit { position: relative; display: block; line-height: 0; cursor: crosshair; outline: 0; border-radius: 4px; touch-action: none; user-select: none; }
+#wpbody .hs-chf-edit:focus-visible { box-shadow: 0 0 0 2px #2271b1; }
+#wpbody .hs-chf-edit img { width: 100%; height: auto; max-height: 240px; object-fit: contain; background: #1d2327; border-radius: 4px; pointer-events: none; }
+#wpbody .hs-chf-dot { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; border: 2px solid #fff; background: rgba(240, 179, 35, .9); box-shadow: 0 0 0 2px #003057, 0 2px 6px rgba(0, 0, 0, .5); pointer-events: none; }
+#wpbody .hs-chf-crop { position: relative; width: 100%; aspect-ratio: 973 / 756; overflow: hidden; border-radius: 4px; background: #1d2327; }
+#wpbody .hs-chf-crop img { display: block; width: 100%; height: 100%; object-fit: cover; }
+#wpbody .hs-chf-label { margin-top: 6px; padding: 3px 0 3px 8px; border-left: 2px solid #2271b1; font-size: 12px; line-height: 1.35; }
+#wpbody .hs-chf-label strong { display: block; color: #1d2327; }
+#wpbody .hs-chf-label span { display: block; color: #3c434a; font-size: 11.5px; }
+#wpbody .hs-chf-actions { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 12px; color: #646970; }
+#wpbody .hs-chf-empty { padding: 14px; border: 1px dashed #c3c4c7; border-radius: 4px; color: #646970; font-size: 12px; }
 </style>
 <script id="hs-card-preview-js">
 (function () {
@@ -487,7 +503,85 @@ function hs_card_preview_print_assets() {
 		return { node: node, draw: draw };
 	}
 
-	window.hsCardPreview = { create: create, imagePicker: imagePicker, cardDateLabel: cardDateLabel, postDateLabel: postDateLabel };
+	/*
+	 * Hero focal point (desktop). options:
+	 *   get() -> { url, focus }   focus is "X Y" (whole percentages) or '' for the centre
+	 *   set(focus)                 called with "X Y" or ''
+	 * The crop uses the hero's own CSS: object-fit cover, object-position X% Y%, in a box the
+	 * shape of the desktop hero at a 1920×1080 window (973px content column × 70vh).
+	 */
+	function parseFocus(f) {
+		var m = /^\s*(\d{1,3})\s+(\d{1,3})\s*$/.exec(f || '');
+		return m && +m[1] <= 100 && +m[2] <= 100 ? { x: +m[1], y: +m[2] } : { x: 50, y: 50 };
+	}
+	function heroFocus(o) {
+		var node = el('div', { 'class': 'hs-chf' });
+		var editImg = el('img', { alt: '' }), cropImg = el('img', { alt: '' }), dot = el('span', { 'class': 'hs-chf-dot' });
+		var edit = el('div', { 'class': 'hs-chf-edit', tabindex: '0', role: 'slider', 'aria-label': 'Hero focal point: click, drag or use the arrow keys' }, [editImg, dot]);
+		var crop = el('div', { 'class': 'hs-chf-crop' }, [cropImg]);
+		var where = el('span');
+		var centre = el('button', { type: 'button', 'class': 'button-link', text: 'Centre' });
+		var empty = el('p', { 'class': 'hs-chf-empty', text: 'Pick a Featured image first; then click it here to choose which part stays in view.' });
+		var grid = el('div', { 'class': 'hs-chf-grid' }, [
+			el('div', {}, [edit, el('div', { 'class': 'hs-chf-label' }, [el('strong', { text: 'Focal point' }), el('span', { text: 'Click or drag on the photo (or use the arrow keys). This part stays in view when the hero is cropped.' })]), el('div', { 'class': 'hs-chf-actions' }, [where, centre])]),
+			el('div', {}, [crop, el('div', { 'class': 'hs-chf-label' }, [el('strong', { text: 'Hero on desktop' }), el('span', { text: 'The Featured image at 70% of the window height, as at the top of the Post page.' })])])
+		]);
+		node.appendChild(el('div', { 'class': 'hs-chf-cap' }, [el('span', { text: 'Preview · Hero (top of the Post page, desktop)' })]));
+		node.appendChild(empty);
+		node.appendChild(grid);
+
+		var dragging = false;
+		function apply(f) {
+			var p = parseFocus(f);
+			dot.style.left = p.x + '%';
+			dot.style.top = p.y + '%';
+			cropImg.style.objectPosition = p.x + '% ' + p.y + '%';
+			edit.setAttribute('aria-valuetext', p.x + '% across, ' + p.y + '% down');
+			where.textContent = f ? p.x + '% across, ' + p.y + '% down' : 'Centre (default)';
+		}
+		function commit(x, y) {
+			x = Math.max(0, Math.min(100, Math.round(x)));
+			y = Math.max(0, Math.min(100, Math.round(y)));
+			var f = x + ' ' + y;
+			o.set(f);
+			apply(f);
+		}
+		function fromEvent(e) {
+			var r = editImg.getBoundingClientRect();
+			// The photo is drawn with object-fit: contain, so find the drawn picture inside the box.
+			var nw = editImg.naturalWidth || r.width, nh = editImg.naturalHeight || r.height;
+			var scale = Math.min(r.width / nw, r.height / nh), w = nw * scale, h = nh * scale;
+			var left = r.left + (r.width - w) / 2, top = r.top + (r.height - h) / 2;
+			commit((e.clientX - left) / w * 100, (e.clientY - top) / h * 100);
+		}
+		edit.addEventListener('pointerdown', function (e) { dragging = true; edit.setPointerCapture(e.pointerId); edit.focus(); fromEvent(e); });
+		edit.addEventListener('pointermove', function (e) { if (dragging) { fromEvent(e); } });
+		edit.addEventListener('pointerup', function () { dragging = false; });
+		edit.addEventListener('pointercancel', function () { dragging = false; });
+		edit.addEventListener('keydown', function (e) {
+			var step = e.shiftKey ? 10 : 1, p = parseFocus(o.get().focus);
+			var moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+			if (!moves[e.key]) { return; }
+			e.preventDefault();
+			commit(p.x + moves[e.key][0], p.y + moves[e.key][1]);
+		});
+		centre.addEventListener('click', function () { o.set(''); apply(''); });
+
+		function draw() {
+			var cur = o.get() || {};
+			empty.style.display = cur.url ? 'none' : '';
+			grid.style.display = cur.url ? '' : 'none';
+			if (cur.url && editImg.getAttribute('src') !== cur.url) {
+				editImg.setAttribute('src', cur.url);
+				cropImg.setAttribute('src', cur.url);
+			}
+			apply(cur.focus || '');
+		}
+		draw();
+		return { node: node, draw: draw };
+	}
+
+	window.hsCardPreview = { create: create, imagePicker: imagePicker, heroFocus: heroFocus, parseFocus: parseFocus, cardDateLabel: cardDateLabel, postDateLabel: postDateLabel };
 }());
 </script>
 	<?php

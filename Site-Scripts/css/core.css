@@ -3144,6 +3144,20 @@ button.mfp-close:hover, div.mfp-close:hover {
     object-fit: cover;
 }
 
+/* Post hero (desktop): the featured image at the site's hero height (70vh, like the page heroes),
+   cropped to fill, with the Post's focal point (hs_hero_focus → --hs-hero-focus).
+   Applies only where the Post template's featured Image module has the class hs-post-hero.
+   Phones and tablets keep the image as it was. */
+@media (min-width: 981px) {
+    .hs-post-hero .et_pb_image_wrap,
+    .hs-post-hero img {
+        width: 100% !important;
+        height: 70vh !important;
+        object-fit: cover;
+        object-position: var(--hs-hero-focus, 50% 50%);
+    }
+}
+
 .hs-post-content-sandbox .et_pb_text_inner {
     padding: 0 !important;
     margin: 0 !important;

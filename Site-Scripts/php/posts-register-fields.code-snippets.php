@@ -188,6 +188,25 @@ function hs_register_post_acf_fields() {
                     'class' => 'hs-pc-portrait',
                     'id' => '',
                 ),
+
+            // 7. Hero focal point (desktop): which part of the Featured image stays in view in the 70vh hero.
+            array(
+                'key' => 'field_hs_hero_focus',
+                'label' => 'Hero focal point',
+                'name' => 'hs_hero_focus',
+                'type' => 'text',
+                'instructions' => 'Set by clicking the hero preview. Two percentages, left and top, e.g. "50 30". Empty is the centre.',
+                'required' => 0,
+                'conditional_logic' => 0,
+                'wrapper' => array(
+                    'width' => '',
+                    'class' => 'hs-pc-hero-focus',
+                    'id' => '',
+                ),
+                'default_value' => '',
+                'placeholder' => '50 50',
+                'maxlength' => 7,
+            ),
                 'return_format' => 'url',
                 'preview_size' => 'medium',
                 'library' => 'all',
@@ -216,6 +235,30 @@ function hs_register_post_acf_fields() {
         'show_in_rest' => 1,
     ));
 }
+
+/**
+ * Hero focal point: two whole percentages "X Y" (0–100), or '' for the centre. Anything else is cleared.
+ */
+function hs_hero_focus_sanitize($value) {
+    if (preg_match('/^\s*(\d{1,3})\s+(\d{1,3})\s*$/', (string) $value, $m) && (int) $m[1] <= 100 && (int) $m[2] <= 100) {
+        return (int) $m[1] . ' ' . (int) $m[2];
+    }
+    return '';
+}
+add_filter('acf/update_value/key=field_hs_hero_focus', 'hs_hero_focus_sanitize');
+
+// On a single Post's page, tell the hero (class hs-post-hero in the Post template) where to focus.
+add_action('wp_head', function () {
+    if (!is_singular('post')) {
+        return;
+    }
+    $focus = hs_hero_focus_sanitize(get_post_meta(get_queried_object_id(), 'hs_hero_focus', true));
+    if ('' === $focus) {
+        return;
+    }
+    list($x, $y) = explode(' ', $focus);
+    echo '<style id="hs-hero-focus">.hs-post-hero{--hs-hero-focus:' . (int) $x . '% ' . (int) $y . '%}</style>' . "\n";
+});
 
 /**
  * Event end needs an Event start, and can't be before it. ACF posts dates as Ymd.
