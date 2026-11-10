@@ -111,12 +111,27 @@ try {
 	$t( 'the tags field still shows on an old issue', false !== hs_issue_hide_tags_field( array( 'key' => 'field_weekly_update_tags' ) ) );
 	$GLOBALS['post'] = get_post( $id );
 	$t( 'the tags field is hidden on an issue with articles', false === hs_issue_hide_tags_field( array( 'key' => 'field_weekly_update_tags' ) ) );
+	$t( 'an untagged issue with articles shows the In this issue box', is_array( hs_issue_contents_prepare_field( array( 'key' => 'field_weekly_update_contents' ) ) ) );
+
+	echo "\nTags first: a tagged issue with articles keeps its tags\n";
+	$tagged = $make( $content( array( 'Tagged Article One', 'Tagged Article Two' ) ) );
+	wp_set_object_terms( $tagged, array( 'Swimming', 'Music' ), 'in_this_issue' );
+	hs_issue_contents_refresh( $tagged );
+	$t( 'the article list is still stored, but no names are given', 2 === count( hs_issue_contents( $tagged ) ) && array() === hs_issue_contents_names( $tagged ) );
+	$GLOBALS['post'] = get_post( $tagged );
+	$t( 'its edit screen shows the tags field', false !== hs_issue_hide_tags_field( array( 'key' => 'field_weekly_update_tags' ) ) );
+	$t( 'its edit screen hides the In this issue box', false === hs_issue_contents_prepare_field( array( 'key' => 'field_weekly_update_contents' ) ) );
+	$no_tags_yet = $make( '' );
+	$GLOBALS['post'] = get_post( $no_tags_yet );
+	$t( 'a new, empty issue hides the tags field', false === hs_issue_hide_tags_field( array( 'key' => 'field_weekly_update_tags' ) ) );
+	$GLOBALS['post'] = get_post( $id );
 
 	$t( 'Archive Post is hidden unless the issue is already marked as imported', false === hs_wu_hide_archive_field( array( 'value' => 0 ) ) && false === hs_wu_hide_archive_field( array( 'value' => '' ) ) && is_array( hs_wu_hide_archive_field( array( 'value' => 1 ) ) ) );
 
 	echo "\nCampus Hub cards\n";
 	wp_publish_post( $id );
 	wp_update_post( array( 'ID' => $old, 'post_status' => 'publish' ) );
+	wp_update_post( array( 'ID' => $tagged, 'post_status' => 'publish' ) );
 	$cards = array();
 	add_filter( 'wp_doing_ajax', '__return_true' );
 	add_filter( 'wp_die_ajax_handler', function () { return function ( $m ) { throw new Exception( 'die' ); }; } );
@@ -134,6 +149,8 @@ try {
 	$_POST = array();
 	$t( 'an issue with articles shows its article names', isset( $cards[ $id ] ) && array( 'First', 'A very long article heading about the Science Fair', 'Sports Day' ) === $cards[ $id ]['tags'], isset( $cards[ $id ] ) ? wp_json_encode( $cards[ $id ]['tags'] ) : 'card not found (' . count( $cards ) . ' cards)' );
 	$t( 'an old issue still shows its tags', isset( $cards[ $old ] ) && array( 'Sports' ) === $cards[ $old ]['tags'], isset( $cards[ $old ] ) ? wp_json_encode( $cards[ $old ]['tags'] ) : 'card not found' );
+	$tc = isset( $cards[ $tagged ] ) ? $cards[ $tagged ]['tags'] : null;
+	$t( 'a tagged issue with articles shows its tags, not article names', is_array( $tc ) && 2 === count( $tc ) && in_array( 'Swimming', $tc, true ) && ! in_array( 'Tagged Article One', $tc, true ), $tc ? wp_json_encode( $tc ) : 'card not found' );
 
 	echo "\nAdmin list: blurb and In This Issue columns\n";
 	update_field( 'field_weekly_update_blurb', 'A <strong>blurb</strong> written on the edit screen.', $id );
@@ -149,6 +166,10 @@ try {
 	hs_weekly_update_column_content( 'hs_tags_col', $old );
 	$col = ob_get_clean();
 	$t( 'an old issue keeps its tag editor', false !== strpos( $col, 'hs-tags-checkbox' ) && false !== strpos( $col, '>Sports<' ) );
+	ob_start();
+	hs_weekly_update_column_content( 'hs_tags_col', $tagged );
+	$col = ob_get_clean();
+	$t( 'a tagged issue with articles shows its tags and tag editor in the list', false !== strpos( $col, 'hs-tags-checkbox' ) && false !== strpos( $col, '>Swimming<' ) && false === strpos( $col, 'Tagged Article One' ) );
 
 	echo "\nBlurb column's Save\n";
 	$save = function ( $post_id, $blurb ) {
