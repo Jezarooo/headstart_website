@@ -17,23 +17,21 @@ Decisions from the user (10 Nov):
 - Use the same viewport height as the rest of the site, as a **fixed** 70vh (not "at most").
 - Allow the image to be nudged to its best position, with a preview, on both the weekly update panel and the Post screen.
 - Slider cards are **not** changed: the Portrait image already chooses their photo.
-- **Desktop crop, optional image for phones and tablets** (user, 10 Nov, revised): at 981px and wider the hero is the 70vh crop. Below 981px it stays as today (the whole Featured image at its own shape) unless a separate **Image for phones and tablets** is chosen for that Post.
+- **70vh at every size, like the page heroes** (user, 10 Nov, revised again): measured, page heroes are 70vh on phones (371×591, portrait) and tablets (779×826) as well as desktop. The Post hero now does the same at all widths. An optional **Image for phones and tablets** replaces the Featured image below 981px, cropped the same way, with its own position.
 
 ## Proposed changes
 
 ### `Site-Scripts/css/core.css` (global stylesheet; Jeremy adds the rule on live, as with the padding fix)
 After the existing Theme Builder image rules (~line 3140):
 ```css
-/* Post hero (desktop): the featured image at the site's hero height, cropped to fill, focal point per Post.
-   Below 981px the image is as before, unless the Post has an Image for phones and tablets (printed per Post). */
-@media (min-width: 981px) {
-    .hs-post-hero .et_pb_image_wrap,
-    .hs-post-hero img {
-        width: 100% !important;
-        height: 70vh !important;
-        object-fit: cover;
-        object-position: var(--hs-hero-focus, 50% 50%);
-    }
+/* Post hero: the featured image at the site's hero height (70vh, like the page heroes), cropped to fill,
+   at the Post's focal point. Below 981px a Post can use its own Image for phones and tablets (printed per Post). */
+.hs-post-hero .et_pb_image_wrap,
+.hs-post-hero img {
+    width: 100% !important;
+    height: 70vh !important;
+    object-fit: cover;
+    object-position: var(--hs-hero-focus, 50% 50%);
 }
 ```
 It does nothing until the class `hs-post-hero` is on the module (see Templates), so it's safe to add first.
@@ -43,22 +41,23 @@ In **HSN Post STANDARD** and **HSC Posts STANDARD** (body layout titled "HSC Pos
 
 ### `Site-Scripts/php/posts-register-fields.code-snippets.php` (Posts--Register-Fields)
 1. A new ACF field in Post Classification: **Hero focal point**. Key `field_hs_hero_focus`, name `hs_hero_focus`, type text, wrapper class `hs-pc-hero-focus`. It stores two whole percentages, `"50 30"`. Empty means the centre. On save it's validated to two numbers between 0 and 100; anything else is cleared. The field is hidden by the Post screen script, which sets it from the preview; its input stays in the form so it saves. If the script fails, the field shows and can be typed into.
-1b. A new ACF image field **Image for phones and tablets**: key `field_hs_hero_mobile`, name `hs_hero_mobile`, return ID, wrapper class `hs-pc-hero-mobile`, hidden by the Post screen script (set from the Phone tab); if the script fails it shows as a normal image field.
-2. On the front end of a single Post, a `wp_head` hook prints `<style>.hs-post-hero{--hs-hero-focus:X% Y%}</style>` when `hs_hero_focus` is set. Nothing is printed when it's empty. When `hs_hero_mobile` is set to an image, it also prints, inside `@media (max-width: 980px)`: the hero's `<img>` hidden and its wrapper showing that image as a background at the image's own shape (`aspect-ratio` from its width and height, `background-size: cover`). Nothing is printed for phones when it's empty.
+1b. Two new ACF fields: **Image for phones and tablets** (key `field_hs_hero_mobile`, name `hs_hero_mobile`, image, return ID, class `hs-pc-hero-mobile`) and its position (key `field_hs_hero_mobile_focus`, name `hs_hero_mobile_focus`, text "X Y", same sanitiser, class `hs-pc-hero-mobile-focus`). Both are hidden by the Post screen script and set from the preview; if the script fails they show as normal fields.
+2. On the front end of a single Post, a `wp_head` hook prints `<style>.hs-post-hero{--hs-hero-focus:X% Y%}</style>` when `hs_hero_focus` is set (nothing when empty, so the hero is centred). When `hs_hero_mobile` is set to an image, it also prints, inside `@media (max-width: 980px)`, that image as the hero wrapper's background (`cover`, positioned at `hs_hero_mobile_focus`, centre if empty) with the `<img>` made invisible, so it keeps the 70vh box. Nothing is printed for phones when it's empty.
 3. The Post screen's script adds the hero preview with the focal point control (below).
 
 ### New in `Site-Scripts/php/posts-card-preview.code-snippets.php` (Posts--Card-Preview)
 `hsCardPreview.heroFocus({ image, get, set })`, a third labelled preview, **"Preview · Hero (top of the Post page)"**:
-- **Device preview** *(user, 10 Nov, revised after re-measuring)*: buttons above the preview switch between **Desktop 1920×1080**, **MacBook Air 13" (1470×830 browser window)** and **Phone 390×844**, matching the site's breakpoints (desktop ≥981px; phones and tablets below). Each shows a to-scale screen: the header band, the hero at its real size and position, the Section strip below it, and a **fold line** at the bottom of the window, so you see what a visitor sees before scrolling.
+- **Device preview** *(revised)*: toggles **Desktop · Laptop · Tablet · Phone** (no dimensions or model names on them). Each shows a to-scale screen down to the fold: the header band, the hero at its measured size and position, and a **fold line** at the bottom of the window. No placeholder strip below the hero.
 - **Measured hero sizes** (local site, Post template, 10 Nov; an earlier measurement was wrongly taken in a frame squeezed to 1024px):
   | Window | Header | Hero (w × h) | Shape |
   |---|---|---|---|
   | 1920×1080 | 256px | 1632 × 756 (70vh) | 2.16 : 1 |
   | 1470×830 | 157px | 1380 × 581 (70vh) | 2.38 : 1 |
-  | 390×844 | 76px | 371 × the image's own height | the image's shape |
+  | Tablet 820×1180 | 100px | 779 × 826 (70vh) | 0.94 : 1 |
+  | Phone 390×844 | 76px | 371 × 591 (70vh) | 0.63 : 1 (portrait) |
   These numbers are built into the preview; if the Post template's header or margins change, they'll need re-measuring (noted in the dev notes).
-- **Setting the focal point:** on Desktop or MacBook, drag the photo inside the hero box (or use the arrow keys; **Centre** resets). Desktop and MacBook share one focal point. Because the desktop hero is a wide banner, a typical 3:2 photo is cropped top and bottom, so it moves **up and down**. The position is the `object-position` the site uses, so the box shows what the page shows.
-- **Phone tab:** shows the phone hero: the Featured image at its own shape, or the **Image for phones and tablets** when one is chosen. That image is picked here, from the article/Post images rack or Media Library, and can be removed.
+- **Setting the focal point:** one focal point per Post, a point on the photo (`hs_hero_focus`, "X Y"). The wide Desktop/Laptop crops use its up/down part; the portrait Tablet/Phone crops use its left/right part. Dragging the photo in a view (or the arrow keys) sets the part that view crops; **Centre** resets. So a typical 3:2 photo needs a drag in Desktop (up/down) and one in Phone (left/right).
+- **Tablet and Phone views:** show the Featured image cropped to the 70vh portrait box, or the **Image for phones and tablets** when one is chosen. That image is picked below the view (from this Post's/article's images or Media Library, with padding and a compact layout) and has its **own position** (`hs_hero_mobile_focus`, "X Y"), set by dragging in the Tablet/Phone views. The photo rack keeps its scroll position while you use it (it's updated in place, not rebuilt).
 - The previous single-image frame (wrong 1.29 shape) is replaced by this device preview.
 - Label lines as in the other previews: "Hero: the Featured image at 70% of the window height", "Focal point: stays in view when cropped".
 - With no Featured image it says to pick one first.
@@ -80,7 +79,7 @@ Not changed: URLs, chips, dates, the gatekeeper, page heroes, weekly updates, sl
 
 ## Risks & rollback
 - **Different window shapes on desktop:** the hero is the page width (minus margins) × 70vh, so its shape changes with the window: 2.16:1 at 1920×1080, about 2.4:1 on a MacBook Air or 1280×720. The Desktop and MacBook buttons show both; one focal point serves both.
-- **Image for phones and tablets:** shown below 981px in place of the Featured image, at its own shape. If it's removed, phones go back to the Featured image. Only the hero changes; slider cards and the featured image elsewhere are untouched.
+- **Image for phones and tablets:** used below 981px in place of the Featured image, cropped to 70vh at its own position. Removing it brings back the Featured image (with the Post's focal point). Slider cards and anything else are untouched.
 - **The class must be on the right module:** if it were added to another image module, that image would become 70vh. The template steps name the module. Checked on the local templates.
 - **CSS before the class:** harmless, because the rule only matches `.hs-post-hero`.
 - **Cache:** the hero's look is page output. Purge WP Super Cache and Cloudflare APO after adding the CSS and the class. A focal point change on one Post is picked up when that Post is saved, as now.
@@ -105,7 +104,7 @@ Not changed: URLs, chips, dates, the gatekeeper, page heroes, weekly updates, sl
   - the hidden field holds the value, and saving stores it;
   - changing the Featured image resets it.
 - Front end, after I add the class to the local STANDARD templates for the test (then put them back, so you do it yourself in UAT):
-  - the hero is 70vh tall at 1920×1080, 1470×830 and 1280×720, with the widths in the table above; at 390×844 and 800×1024 it's unchanged from today without a phone image, and shows the phone image at its own shape with one;
+  - the hero is 70vh tall at 1920×1080, 1470×830, 820×1180 and 390×844, with the widths in the table above, cropped at the focal point; with a phone image, below 981px the wrapper shows it at its own position and the box is still 70vh;
   - its `object-position` matches the Post's focus;
   - a Post without a focus is centred;
   - an imported Post on an Archive template is unchanged unless the class is added there;
@@ -117,9 +116,9 @@ Not changed: URLs, chips, dates, the gatekeeper, page heroes, weekly updates, sl
 - [ ] On the Post edit screen, the hero preview shows the Featured image with the desktop frame. Drag the frame to the best part. Save, then view the Post on desktop: the hero shows what was in the frame.
 - [ ] The same in a weekly update's Articles → Posts panel: set a focal point, create a Draft, view it.
 - [ ] Slider cards look as before.
-- [ ] In the preview, switch between **Desktop**, **MacBook Air** and **Phone**: each shows the header, the hero at its real size and the fold line. Compare Desktop with your 1920 screen and MacBook with your laptop.
-- [ ] Set an **Image for phones and tablets** on one Post: the Phone tab shows it; on your phone (or a window under 981px) the hero shows it at its own shape. Remove it: the Featured image is back.
-- [ ] Without a phone image, below 981px the featured image looks as it does today.
+- [ ] In the preview, switch between **Desktop**, **Laptop**, **Tablet** and **Phone**: each shows the header, the hero at its real size and the fold line (no empty space below). Drag the photo up/down in Desktop and left/right in Phone; compare with your screen, laptop and phone.
+- [ ] Set an **Image for phones and tablets** on one Post (the picker has proper padding, and the photo rack scrolls smoothly). Drag it in the Phone view. On your phone (or a window under 981px) the hero shows it, 70% of the screen tall, at that position. Remove it: the Featured image is back.
+- [ ] Without a phone image, the phone hero is the Featured image, 70% of the screen tall, cropped at the Post's left/right position.
 - [ ] Page heroes, weekly updates and archive Posts look as before.
 - [ ] The hints for Website Section, Campus and Location override read as above (no "URL" under Website Section).
 - [ ] Rename the Website Section **Thai** to **Thai Department** (Posts → Website Sections; keep the slug `thai`). Open a Thai Post: its Section heading and slider badge read "THAI DEPARTMENT" without re-saving it. A weekly-update heading "Thai" or "Thai Department" still pre-selects it in the panel.
