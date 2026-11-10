@@ -728,24 +728,6 @@ function hs_a2p_print_assets() {
 #hs-a2p .hs-a2p-add { display: flex; gap: 6px; margin-top: 6px; }
 #hs-a2p .hs-a2p-add input[type="text"] { flex: 1 1 auto; min-width: 0; }
 #hs-a2p .hs-a2p-add-error { color: #b32d2e; font-size: 12px; margin: 4px 0 0; }
-#hs-a2p .hs-a2p-images-grid { display: grid; grid-template-columns: 210px 170px minmax(0, 1fr); gap: 8px; align-items: start; }
-@media (max-width: 960px) { #hs-a2p .hs-a2p-images-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } #hs-a2p .hs-a2p-rack-wrap { grid-column: 1 / -1; } }
-#hs-a2p .hs-a2p-slot { outline: 2px solid transparent; outline-offset: -2px; }
-#hs-a2p .hs-a2p-slot.is-active { outline-color: #2271b1; background: #f0f6fc; }
-#hs-a2p .hs-a2p-slot-pick { display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
-#hs-a2p .hs-a2p-thumb { display: block; width: 100%; height: 120px; object-fit: cover; border-radius: 2px; margin: 2px 0 4px; }
-#hs-a2p .hs-a2p-empty { display: flex; align-items: center; justify-content: center; height: 120px; margin: 2px 0 4px; border: 1px dashed #c3c4c7; border-radius: 2px; color: #8c8f94; font-size: 12px; }
-#hs-a2p .hs-a2p-picking { display: block; font-size: 11px; color: #646970; }
-#hs-a2p .hs-a2p-slot.is-active .hs-a2p-picking { color: #2271b1; font-weight: 600; }
-#hs-a2p .hs-a2p-slot-actions { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
-#hs-a2p .hs-a2p-rack { display: grid; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 4px; max-height: 260px; overflow-y: auto; padding: 4px; background: #fff; border: 1px solid #dcdcde; border-radius: 2px; }
-#hs-a2p .hs-a2p-rack-item { position: relative; padding: 0; border: 2px solid transparent; background: #f0f0f1; cursor: pointer; line-height: 0; border-radius: 2px; aspect-ratio: 1; }
-#hs-a2p .hs-a2p-rack-item:hover, #hs-a2p .hs-a2p-rack-item:focus { border-color: #2271b1; outline: 0; }
-#hs-a2p .hs-a2p-rack-item img { width: 100%; height: 100%; object-fit: cover; }
-#hs-a2p .hs-a2p-tag { position: absolute; top: 2px; left: 2px; min-width: 16px; padding: 0 3px; line-height: 16px; font-size: 10px; font-weight: 700; color: #fff; border-radius: 2px; }
-#hs-a2p .hs-a2p-tag.is-f { background: #2271b1; }
-#hs-a2p .hs-a2p-tag.is-p { background: #8a2be2; left: auto; right: 2px; }
-#hs-a2p .hs-a2p-rack-note { margin-top: 4px; }
 #hs-a2p .hs-a2p-switch label { margin-right: 12px; }
 #hs-a2p .hs-a2p-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
 #hs-a2p .hs-a2p-saved { color: #646970; font-size: 12px; }
@@ -914,81 +896,47 @@ function hs_a2p_print_assets() {
 		return box;
 	}
 
-	// One rack of the article's images. Clicking an image fills the active slot (Featured, then Portrait).
-	var SLOTS = { image: { label: 'Featured image', url: 'imageUrl', tag: 'F' }, portrait: { label: 'Portrait (slider)', url: 'portraitUrl', tag: 'P' } };
+	// Images: the shared picker (Posts--Card-Preview): Featured and Portrait slots plus one rack of the article's photos.
+	var SLOT_URL = { image: 'imageUrl', portrait: 'portraitUrl' };
+	var SLOT_LABEL = { image: 'Featured image', portrait: 'Portrait (slider)' };
 
 	function imagesRow(row) {
 		var f = row.fields;
-		if (!row.active) { row.active = f.image && !f.portrait ? 'portrait' : 'image'; }
-		var wrap = el('div', { 'class': 'hs-a2p-g hs-a2p-g-wide hs-a2p-images' });
-
-		function setImage(name, id, url) {
-			f[name] = id;
-			row[SLOTS[name].url] = url;
-			if (name === 'image' && id && !f.portrait) { row.active = 'portrait'; }
-			draw();
-			changed(row);
-		}
-		function slot(name) {
-			var s = SLOTS[name];
-			var active = row.active === name;
-			var url = row[s.url];
-			var hint = name === 'image'
-				? (f.status === 'live' ? 'Required for Live.' : 'Needed before it can go Live.')
-				: 'Optional. Used by the slider.';
-			var box = el('div', { 'class': 'hs-a2p-f hs-a2p-slot' + (active ? ' is-active' : ''), 'data-slot': name }, [
-				el('button', { type: 'button', 'class': 'hs-a2p-slot-pick', 'aria-pressed': active ? 'true' : 'false', on: { click: function () { row.active = name; draw(); } } }, [
-					el('span', { 'class': 'hs-a2p-label', text: s.label + (name === 'image' ? ' *' : '') }),
-					url ? el('img', { 'class': 'hs-a2p-thumb', src: url, alt: '' }) : el('span', { 'class': 'hs-a2p-empty', text: 'No image yet' }),
-					el('span', { 'class': 'hs-a2p-picking', text: active ? '◀ picking now' : 'Click to pick' })
-				]),
-				el('div', { 'class': 'hs-a2p-slot-actions' }, [
+		var wrap = el('div', { 'class': 'hs-a2p-g hs-a2p-g-wide hs-a2p-images' }, [el('h4', { text: 'Images' })]);
+		function set(name, id, url) { f[name] = id; row[SLOT_URL[name]] = url; changed(row); }
+		if (!window.hsCardPreview || !window.hsCardPreview.imagePicker) {
+			// Posts--Card-Preview is off: plain Media Library buttons, so images can still be chosen.
+			['image', 'portrait'].forEach(function (name) {
+				var box = el('div', { 'class': 'hs-a2p-f' }, [
+					el('span', { 'class': 'hs-a2p-label', text: SLOT_LABEL[name] + (name === 'image' ? ' *' : '') }),
+					row[SLOT_URL[name]] ? el('img', { 'class': 'hs-cip-thumb', src: row[SLOT_URL[name]], alt: '', style: 'max-width:200px' }) : null,
 					el('button', { type: 'button', 'class': 'button button-small', text: 'Media Library', on: { click: function () {
-						var frame = wp.media({ title: s.label, multiple: false, library: { type: 'image' } });
-						frame.on('select', function () {
-							var a = frame.state().get('selection').first().toJSON();
-							var size = a.sizes && (a.sizes.medium || a.sizes.full);
-							setImage(name, a.id, size ? size.url : a.url);
-						});
+						var frame = wp.media({ title: SLOT_LABEL[name], multiple: false, library: { type: 'image' } });
+						frame.on('select', function () { var a = frame.state().get('selection').first().toJSON(); var size = a.sizes && (a.sizes.medium || a.sizes.full); set(name, a.id, size ? size.url : a.url); render(); });
 						frame.open();
-					} } }),
-					url ? el('button', { type: 'button', 'class': 'button-link', text: 'Remove', on: { click: function () { row.active = name; setImage(name, 0, ''); } } }) : null
-				]),
-				el('p', { 'class': 'hs-a2p-hint', text: hint })
-			]);
-			if (name === 'image') { row.dom.fields.image = box; }
-			return box;
+					} } })
+				]);
+				if (name === 'image') { row.dom.fields.image = box; }
+				wrap.appendChild(box);
+			});
+			return wrap;
 		}
-		function rack() {
-			if (!row.images || !row.images.length) {
-				return el('div', { 'class': 'hs-a2p-rack-wrap' }, [el('p', { 'class': 'hs-a2p-hint', text: 'This article has no images of its own. Use Media Library.' })]);
-			}
-			var grid = el('div', { 'class': 'hs-a2p-rack', role: 'list' }, row.images.map(function (image) {
-				var tags = [];
-				if (image.id === f.image) { tags.push(el('span', { 'class': 'hs-a2p-tag is-f', text: 'F', title: 'Featured image' })); }
-				if (image.id === f.portrait) { tags.push(el('span', { 'class': 'hs-a2p-tag is-p', text: 'P', title: 'Portrait' })); }
-				return el('button', { type: 'button', role: 'listitem', 'class': 'hs-a2p-rack-item', title: 'Use as ' + SLOTS[row.active].label, 'data-id': String(image.id), on: { click: function () {
-					setImage(row.active, image.id, image.url);
-				} } }, [el('img', { src: image.thumb || image.url, alt: '', loading: 'lazy', width: '150', height: '150' })].concat(tags));
-			}));
-			return el('div', { 'class': 'hs-a2p-rack-wrap' }, [
-				el('span', { 'class': 'hs-a2p-label', text: 'Article images (' + row.images.length + ')' }),
-				grid,
-				el('p', { 'class': 'hs-a2p-hint hs-a2p-rack-note', text: 'Click an image to set it as the ' + SLOTS[row.active].label + '.' })
-			]);
-		}
-		function draw() {
-			var scroll = wrap.querySelector('.hs-a2p-rack');
-			var top = scroll ? scroll.scrollTop : 0;
-			wrap.textContent = '';
-			wrap.appendChild(el('h4', { text: 'Images' }));
-			wrap.appendChild(el('div', { 'class': 'hs-a2p-images-grid' }, [slot('image'), slot('portrait'), rack()]));
-			var again = wrap.querySelector('.hs-a2p-rack');
-			if (again) { again.scrollTop = top; }
-			mark(row);
-		}
-		row.dom.redrawImages = draw;
-		draw();
+		var picker = window.hsCardPreview.imagePicker({
+			images: row.images,
+			state: row.pick || (row.pick = {}),
+			get: function (name) { return { id: f[name] || 0, url: row[SLOT_URL[name]] || '' }; },
+			set: set,
+			slots: {
+				image: { label: SLOT_LABEL.image, required: true, hint: function () { return f.status === 'live' ? 'Required for Live.' : 'Needed before it can go Live.'; } },
+				portrait: { label: SLOT_LABEL.portrait, hint: function () { return 'Optional. Used by the slider.'; } }
+			},
+			source: 'Article images',
+			empty: 'This article has no images of its own. Use Media Library.',
+			classes: { slot: 'hs-a2p-f', label: 'hs-a2p-label', hint: 'hs-a2p-hint' },
+			onDraw: function (slots) { if (row.dom) { row.dom.fields.image = slots.image; mark(row); } }
+		});
+		row.dom.redrawImages = picker.draw;
+		wrap.appendChild(picker.node);
 		return wrap;
 	}
 

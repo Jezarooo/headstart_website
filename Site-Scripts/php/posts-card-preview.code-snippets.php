@@ -44,6 +44,49 @@ add_action( 'admin_head', function () {
 	}
 } );
 
+/**
+ * The photos in a Post's own content, for the image picker: Divi 5 image modules, then
+ * gallery modules, then plain-HTML <img class="wp-image-ID"> (archive Posts), without repeats.
+ * Returns [ { id, url (medium), thumb } ].
+ */
+function hs_card_preview_content_images( $content ) {
+	$inline  = array();
+	$gallery = array();
+	$walk    = function ( $blocks ) use ( &$walk, &$inline, &$gallery ) {
+		foreach ( $blocks as $b ) {
+			if ( 'divi/image' === $b['blockName'] ) {
+				$v  = $b['attrs']['image']['innerContent']['desktop']['value'] ?? array();
+				$id = (int) ( $v['id'] ?? 0 );
+				if ( ! $id && ! empty( $v['src'] ) ) {
+					$id = (int) attachment_url_to_postid( $v['src'] );
+				}
+				if ( $id ) {
+					$inline[] = $id;
+				}
+			}
+			if ( 'divi/gallery' === $b['blockName'] ) {
+				$gallery = array_merge( $gallery, wp_parse_id_list( $b['attrs']['image']['advanced']['galleryIds']['desktop']['value'] ?? '' ) );
+			}
+			if ( ! empty( $b['innerBlocks'] ) ) {
+				$walk( $b['innerBlocks'] );
+			}
+		}
+	};
+	$walk( parse_blocks( (string) $content ) );
+	$html = array();
+	if ( preg_match_all( '/<img[^>]+class="[^"]*\bwp-image-(\d+)\b/i', (string) $content, $m ) ) {
+		$html = array_map( 'intval', $m[1] );
+	}
+	$out = array();
+	foreach ( array_values( array_unique( array_merge( $inline, $gallery, $html ) ) ) as $id ) {
+		$url = $id && wp_attachment_is_image( $id ) ? (string) wp_get_attachment_image_url( $id, 'medium' ) : '';
+		if ( $url ) {
+			$out[] = array( 'id' => $id, 'url' => $url, 'thumb' => (string) wp_get_attachment_image_url( $id, 'thumbnail' ) );
+		}
+	}
+	return $out;
+}
+
 function hs_card_preview_print_assets() {
 	static $done = false;
 	if ( $done ) {
@@ -101,7 +144,28 @@ function hs_card_preview_print_assets() {
 #wpbody .hs-cpv-sec p { color: #003057; font-size: 32px; font-weight: 700; line-height: 1.05; text-transform: uppercase; }
 #wpbody .hs-cpv-chips { display: flex; flex-wrap: nowrap; gap: 8px; }
 #wpbody .hs-cpv-chip { padding: 2px 8px; border-radius: 5px; background: #003057; box-shadow: 0 2px 18px rgba(0, 0, 0, .3); }
-#wpbody .hs-cpv-chip p { color: #fff; font-size: 11.2px; font-weight: 700; line-height: 27.2px; white-space: nowrap; }</style>
+#wpbody .hs-cpv-chip p { color: #fff; font-size: 11.2px; font-weight: 700; line-height: 27.2px; white-space: nowrap; }
+/* Image picker: Featured and Portrait slots plus one rack of the content's own photos. */
+#wpbody .hs-cip-grid { display: grid; grid-template-columns: 210px 170px minmax(0, 1fr); gap: 8px; align-items: start; }
+@media (max-width: 960px) { #wpbody .hs-cip-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } #wpbody .hs-cip-rack-wrap { grid-column: 1 / -1; } }
+#wpbody .hs-cip-slot { outline: 2px solid transparent; outline-offset: -2px; }
+#wpbody .hs-cip-slot.is-active { outline-color: #2271b1; background: #f0f6fc; }
+#wpbody .hs-cip-slot-pick { display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
+#wpbody .hs-cip-thumb { display: block; width: 100%; height: 120px; object-fit: cover; border-radius: 2px; margin: 2px 0 4px; }
+#wpbody .hs-cip-empty { display: flex; align-items: center; justify-content: center; height: 120px; margin: 2px 0 4px; border: 1px dashed #c3c4c7; border-radius: 2px; color: #8c8f94; font-size: 12px; }
+#wpbody .hs-cip-picking { display: block; font-size: 11px; color: #646970; }
+#wpbody .hs-cip-slot.is-active .hs-cip-picking { color: #2271b1; font-weight: 600; }
+#wpbody .hs-cip-slot-actions { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+#wpbody .hs-cip-rack { display: grid; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 4px; max-height: 260px; overflow-y: auto; padding: 4px; background: #fff; border: 1px solid #dcdcde; border-radius: 2px; }
+#wpbody .hs-cip-rack-item { position: relative; padding: 0; border: 2px solid transparent; background: #f0f0f1; cursor: pointer; line-height: 0; border-radius: 2px; aspect-ratio: 1; }
+#wpbody .hs-cip-rack-item:hover, #wpbody .hs-cip-rack-item:focus { border-color: #2271b1; outline: 0; }
+#wpbody .hs-cip-rack-item img { width: 100%; height: 100%; object-fit: cover; }
+#wpbody .hs-cip-tag { position: absolute; top: 2px; left: 2px; min-width: 16px; padding: 0 3px; line-height: 16px; font-size: 10px; font-weight: 700; color: #fff; border-radius: 2px; }
+#wpbody .hs-cip-tag.is-f { background: #2271b1; }
+#wpbody .hs-cip-tag.is-p { background: #8a2be2; left: auto; right: 2px; }
+#wpbody .hs-cip-rack-note { margin-top: 4px; }
+#wpbody .hs-cip-rack-label { display: block; font-weight: 600; margin-bottom: 4px; }
+</style>
 <script id="hs-card-preview-js">
 (function () {
 	if (window.hsCardPreview) { return; }
@@ -316,7 +380,95 @@ function hs_card_preview_print_assets() {
 		instances.forEach(function (i) { i.redraw(); });
 	});
 
-	window.hsCardPreview = { create: create, cardDateLabel: cardDateLabel, postDateLabel: postDateLabel };
+	/*
+	 * Image picker. options:
+	 *   images: [{ id, url (medium), thumb }]        the content's own photos, in order
+	 *   get(name) -> { id, url }   set(name, id, url)  where 'image' (Featured) and 'portrait' live
+	 *   state: {}                                    keeps the active slot across redraws
+	 *   slots: { image: { label, required, hint() }, portrait: { label, hint() } }
+	 *   source: 'Article images'                     the rack's heading
+	 *   empty: 'This article has no images of its own. Use Media Library.'
+	 *   classes: { slot, label, hint }               extra classes so each screen keeps its own look
+	 *   onDraw(slotNodes)                            after every draw, e.g. to mark required fields
+	 */
+	function imagePicker(o) {
+		var state = o.state || {};
+		var cls = o.classes || {};
+		var node = el('div', { 'class': 'hs-cip' });
+		function label(name) { return (o.slots[name] || {}).label || name; }
+		function pick(name, id, url) {
+			o.set(name, id, url);
+			if (name === 'image' && id && !o.get('portrait').id) { state.active = 'portrait'; }
+			draw();
+		}
+		function button(text, klass, onClick) {
+			var b = el('button', { type: 'button', 'class': klass, text: text });
+			b.addEventListener('click', onClick);
+			return b;
+		}
+		function slot(name) {
+			var cur = o.get(name), active = state.active === name;
+			var spec = o.slots[name] || {};
+			var pickBtn = el('button', { type: 'button', 'class': 'hs-cip-slot-pick', 'aria-pressed': active ? 'true' : 'false' }, [
+				el('span', { 'class': (cls.label || '') + ' hs-cip-label', text: spec.label + (spec.required ? ' *' : '') }),
+				cur.url ? el('img', { 'class': 'hs-cip-thumb', src: cur.url, alt: '' }) : el('span', { 'class': 'hs-cip-empty', text: 'No image yet' }),
+				el('span', { 'class': 'hs-cip-picking', text: active ? '◀ picking now' : 'Click to pick' })
+			]);
+			pickBtn.addEventListener('click', function () { state.active = name; draw(); });
+			var media = button('Media Library', 'button button-small', function () {
+				var frame = wp.media({ title: spec.label, multiple: false, library: { type: 'image' } });
+				frame.on('select', function () {
+					var a = frame.state().get('selection').first().toJSON();
+					var size = a.sizes && (a.sizes.medium || a.sizes.full);
+					state.active = name;
+					pick(name, a.id, size ? size.url : a.url);
+				});
+				frame.open();
+			});
+			var remove = cur.id ? button('Remove', 'button-link', function () { state.active = name; o.set(name, 0, ''); draw(); }) : null;
+			return el('div', { 'class': (cls.slot || '') + ' hs-cip-slot' + (active ? ' is-active' : ''), 'data-slot': name }, [
+				pickBtn,
+				el('div', { 'class': 'hs-cip-slot-actions' }, [media, remove]),
+				spec.hint ? el('p', { 'class': (cls.hint || '') + ' hs-cip-hint', text: spec.hint() }) : null
+			]);
+		}
+		function rack() {
+			var images = o.images || [];
+			if (!images.length) {
+				return el('div', { 'class': 'hs-cip-rack-wrap' }, [el('p', { 'class': (cls.hint || '') + ' hs-cip-hint', text: o.empty || 'No images of its own. Use Media Library.' })]);
+			}
+			var f = o.get('image').id, p = o.get('portrait').id;
+			var grid = el('div', { 'class': 'hs-cip-rack', role: 'list' }, images.map(function (image) {
+				var b = el('button', { type: 'button', role: 'listitem', 'class': 'hs-cip-rack-item', title: 'Use as ' + label(state.active), 'data-id': String(image.id) }, [
+					el('img', { src: image.thumb || image.url, alt: '', loading: 'lazy', width: '150', height: '150' }),
+					image.id === f ? el('span', { 'class': 'hs-cip-tag is-f', text: 'F', title: label('image') }) : null,
+					image.id === p ? el('span', { 'class': 'hs-cip-tag is-p', text: 'P', title: label('portrait') }) : null
+				]);
+				b.addEventListener('click', function () { pick(state.active, image.id, image.url); });
+				return b;
+			}));
+			return el('div', { 'class': 'hs-cip-rack-wrap' }, [
+				el('span', { 'class': (cls.label || '') + ' hs-cip-rack-label', text: (o.source || 'Images') + ' (' + images.length + ')' }),
+				grid,
+				el('p', { 'class': (cls.hint || '') + ' hs-cip-hint hs-cip-rack-note', text: 'Click an image to set it as the ' + label(state.active) + '.' })
+			]);
+		}
+		function draw() {
+			if (!state.active) { state.active = o.get('image').id && !o.get('portrait').id ? 'portrait' : 'image'; }
+			var scroll = node.querySelector('.hs-cip-rack');
+			var top = scroll ? scroll.scrollTop : 0;
+			node.textContent = '';
+			var slots = { image: slot('image'), portrait: slot('portrait') };
+			node.appendChild(el('div', { 'class': 'hs-cip-grid' }, [slots.image, slots.portrait, rack()]));
+			var again = node.querySelector('.hs-cip-rack');
+			if (again) { again.scrollTop = top; }
+			if (o.onDraw) { o.onDraw(slots); }
+		}
+		draw();
+		return { node: node, draw: draw };
+	}
+
+	window.hsCardPreview = { create: create, imagePicker: imagePicker, cardDateLabel: cardDateLabel, postDateLabel: postDateLabel };
 }());
 </script>
 	<?php
