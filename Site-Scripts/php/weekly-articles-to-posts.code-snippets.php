@@ -682,25 +682,29 @@ function hs_a2p_print_assets() {
 #hs-a2p .hs-a2p-intro, #hs-a2p .hs-a2p-row, #hs-a2p .hs-a2p-actions, #hs-a2p .hs-a2p-message { max-width: 1100px; }
 #hs-a2p .hs-a2p-preview { display: none; padding: 10px 12px 12px; border-top: 1px solid #f0f0f1; }
 #hs-a2p .hs-a2p-preview.is-open { display: block; }
-#hs-a2p .hs-a2p-preview > h4 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #50575e; }
+#hs-a2p .hs-a2p-hint.hs-a2p-hint-top { margin: 0 0 6px; }
 #hs-a2p .hs-a2p-pv-toggle { margin: 0 12px 10px; }
 @container (min-width: 1400px) {
 	#hs-a2p .hs-a2p-row { max-width: 1720px; }
 	#hs-a2p .hs-a2p-rowgrid { display: grid; grid-template-columns: minmax(0, 1fr) 560px; align-items: start; }
 	#hs-a2p .hs-a2p-pv-toggle { display: none; }
-	#hs-a2p .hs-a2p-preview { display: block; grid-column: 2; grid-row: 1; border-top: 0; border-left: 1px solid #f0f0f1; position: sticky; top: 40px; }
+	#hs-a2p .hs-a2p-preview { display: block; grid-column: 2; grid-row: 1; border-top: 0; border-left: 1px solid #f0f0f1; }
 }
-#hs-a2p .hs-a2p-pv-stage { position: relative; display: grid; grid-template-columns: 280px minmax(0, 1fr); column-gap: 40px; }
-#hs-a2p .hs-a2p-pv-labels { position: relative; }
+#hs-a2p .hs-a2p-pv-stage { position: relative; display: grid; grid-template-columns: 216px minmax(0, 1fr); column-gap: 44px; align-items: start; align-content: start; }
+#hs-a2p .hs-a2p-pv-labels { position: relative; grid-column: 2; grid-row: 1 / 5; align-self: stretch; }
+/* The card and the strip are shown at 80% with zoom, so every part keeps its proportions. */
+#hs-a2p .hs-a2p-pv-cardbox, #hs-a2p .hs-a2p-pv-stripbox { grid-column: 1; zoom: .8; width: 270px; }
+#hs-a2p .hs-a2p-pv-cardbox { grid-row: 2; padding-top: 18px; }
+#hs-a2p .hs-a2p-pv-stripbox { grid-row: 4; }
+#hs-a2p .hs-a2p-pv-cap { grid-column: 1 / -1; justify-self: end; position: relative; z-index: 2; display: inline-flex; align-items: center; white-space: nowrap; margin: 0 0 8px; padding: 3px 10px; border-radius: 999px; background: #f0f0f1; color: #50575e; font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; }
+#hs-a2p .hs-a2p-pv-cap:first-child { grid-row: 1; }
+#hs-a2p .hs-a2p-pv-cap:nth-child(3) { grid-row: 3; margin-top: 18px; }
 #hs-a2p .hs-a2p-pv-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
 #hs-a2p .hs-a2p-pv-lines polyline { fill: none; stroke: #2271b1; stroke-width: 1; }
 #hs-a2p .hs-a2p-pv-lines circle { fill: #2271b1; }
-#hs-a2p .hs-a2p-pv-label { position: absolute; left: 0; right: 0; padding: 2px 0 2px 7px; border-left: 2px solid #2271b1; background: #fff; font-size: 12px; line-height: 1.35; }
-#hs-a2p .hs-a2p-pv-label strong { display: block; color: #1d2327; }
-#hs-a2p .hs-a2p-pv-label span { display: block; color: #646970; font-size: 11px; }
-#hs-a2p .hs-a2p-pv-cap { margin: 0 0 6px; font-size: 11px; color: #646970; }
-#hs-a2p .hs-a2p-pv-cap + .hs-shortcode-slider-wrapper { padding-top: 18px; }
-#hs-a2p .hs-shortcode-slider-wrapper + .hs-a2p-pv-cap { margin-top: 20px; }
+#hs-a2p .hs-a2p-pv-label { position: absolute; left: 0; right: 0; padding: 3px 0 3px 8px; border-left: 2px solid #2271b1; background: #fff; font-size: 12px; line-height: 1.35; }
+#hs-a2p .hs-a2p-pv-label strong { display: block; color: #1d2327; font-size: 12px; }
+#hs-a2p .hs-a2p-pv-label span { display: block; color: #3c434a; font-size: 11.5px; line-height: 1.4; }
 
 /* Slider card: copied from core.css (.hs-story-*, .hs-shortcode-slider-wrapper) and the slider snippet's inline styles. */
 #hs-a2p .hs-a2p-preview { --hs-dark: #003057; --hs-gold: #f0b323; --hs-font-head: 'Montserrat', sans-serif; }
@@ -1064,8 +1068,12 @@ function hs_a2p_print_assets() {
 		});
 		row.dom.bothHint = el('p', { 'class': 'hs-a2p-hint', text: 'Both Campuses: one Post. Its sidebar opens on one campus, and readers can switch.' });
 
+		var STATUS_TIPS = {
+			live: 'Public as soon as you click Create Posts, or on the publish date if that is in the future.',
+			draft: 'Saved but not public. Open it in Posts to finish it, then publish it yourself.'
+		};
 		var status = el('div', { 'class': 'hs-a2p-switch' }, ['live', 'draft'].map(function (value) {
-			return el('label', {}, [
+			return el('label', { title: STATUS_TIPS[value] }, [
 				el('input', { type: 'radio', name: 'hs-a2p-status-' + row.key, disabled: value === 'live' && !panel.canPublish, checked: f.status === value, on: { change: function () {
 					f.status = value;
 					changed(row);
@@ -1103,7 +1111,7 @@ function hs_a2p_print_assets() {
 				field(row, 'Title *', 'title', [text('title')]),
 				el('div', { 'class': 'hs-a2p-pair' }, [
 					field(row, 'Publish date *', 'date', [publishWhen]),
-					field(row, 'Status', null, [status])
+					field(row, 'Status', null, [el('p', { 'class': 'hs-a2p-hint hs-a2p-hint-top', text: 'Live: public once created. Draft: saved for you to finish and publish later.' }), status])
 				]),
 				el('p', { 'class': 'hs-a2p-hint', text: 'Untick Publish now to choose a date: a future date schedules it. The publish date sets the URL.' })
 			]),
@@ -1177,16 +1185,17 @@ function hs_a2p_print_assets() {
 		};
 	}
 
+	// [where, target, part of the page, where its text comes from]
 	var CALLOUTS = [
-		['card', 'badge', 'Yellow badge text', 'else Website Section'],
-		['card', 'place', 'Location text', 'else Campus'],
-		['card', 'sliderDate', 'Event date', 'else publish date; short for ranges'],
-		['card', 'image', 'Portrait', 'else Featured image'],
-		['card', 'title', 'Title', ''],
-		['card', 'tags', 'Thematic Tags', 'prefix dropped, e.g. “SPORT: Swimming” → Swimming'],
-		['strip', 'section', 'Yellow badge text', 'else Website Section'],
-		['strip', 'postDate', 'Event date', 'else publish date'],
-		['strip', 'chipPlace', 'Location text', 'else Campus']
+		['card', 'badge', 'Yellow badge', 'Shows the Yellow badge text if you fill it in, otherwise the Website Section.'],
+		['card', 'place', 'Campus line', 'Shows the Location text if you fill it in, otherwise the campus name (or \u201cBoth Campuses\u201d).'],
+		['card', 'sliderDate', 'Date', 'The event date if set (shortened for several days), otherwise the publish date.'],
+		['card', 'image', 'Photo', 'The Portrait image if chosen, otherwise the Featured image.'],
+		['card', 'title', 'Title', 'The Title field.'],
+		['card', 'tags', 'Tag chips', 'Thematic Tags without their prefix: \u201cSPORT: Swimming\u201d shows as \u201cSwimming\u201d.'],
+		['strip', 'section', 'Section heading', 'Shows the Yellow badge text if you fill it in, otherwise the Website Section.'],
+		['strip', 'postDate', 'Date chip', 'The event date if set, otherwise the publish date.'],
+		['strip', 'chipPlace', 'Campus chip', 'Shows the Location text if you fill it in, otherwise the campus name.']
 	];
 
 	function previewNode(row) {
@@ -1216,19 +1225,20 @@ function hs_a2p_print_assets() {
 		lines.setAttribute('class', 'hs-a2p-pv-lines');
 		lines.setAttribute('aria-hidden', 'true');
 		var labels = el('div', { 'class': 'hs-a2p-pv-labels' });
+		var capCard = el('span', { 'class': 'hs-a2p-pv-cap', text: 'Preview \u00b7 Slider card' });
+		var capStrip = el('span', { 'class': 'hs-a2p-pv-cap', text: 'Preview \u00b7 Top of the Post page' });
 		var stage = el('div', { 'class': 'hs-a2p-pv-stage' }, [
-			el('div', { 'class': 'hs-a2p-pv-art' }, [
-				el('p', { 'class': 'hs-a2p-pv-cap', text: 'Slider card' }), card,
-				el('p', { 'class': 'hs-a2p-pv-cap', text: 'Top of the Post page' }), strip
-			]),
+			capCard,
+			el('div', { 'class': 'hs-a2p-pv-cardbox' }, [card]),
+			capStrip,
+			el('div', { 'class': 'hs-a2p-pv-stripbox' }, [strip]),
 			labels, lines
 		]);
 		var box = el('div', { 'class': 'hs-a2p-preview' }, [
-			el('h4', { text: 'Preview' }),
 			stage,
 			el('p', { 'class': 'hs-a2p-hint', text: 'Updates as you edit. A close copy of the real card and page; it saves nothing.' })
 		]);
-		row.dom.preview = { box: box, stage: stage, labels: labels, lines: lines, t: t };
+		row.dom.preview = { box: box, stage: stage, labels: labels, lines: lines, t: t, caps: { card: capCard, strip: capStrip } };
 		updatePreview(row);
 		return box;
 	}
@@ -1274,8 +1284,10 @@ function hs_a2p_print_assets() {
 			while (pv.lines.firstChild) { pv.lines.removeChild(pv.lines.firstChild); }
 			pv.lines.setAttribute('width', base.width);
 			pv.lines.setAttribute('height', base.height);
-			var next = 0;
+			var below = function (node) { return node.getBoundingClientRect().bottom - base.top + 6; };
+			var next = below(pv.caps.card), stripStarted = false;
 			CALLOUTS.forEach(function (c) {
+				if (c[0] === 'strip' && !stripStarted) { stripStarted = true; next = Math.max(next, below(pv.caps.strip)); }
 				var target = pv.t[c[1]];
 				if (!target || target.style.display === 'none') { return; }
 				var r = (c[1] === 'image' ? target : (target.querySelector('p') || target)).getBoundingClientRect();

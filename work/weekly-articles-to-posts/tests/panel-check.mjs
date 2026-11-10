@@ -206,14 +206,26 @@ try {
     const labels = [...pv.querySelectorAll('.hs-a2p-pv-label strong')].map((x) => x.textContent);
     return JSON.stringify({ visible: pv.offsetParent !== null, beside: pr.left >= fr.right - 2 && Math.abs(pr.top - fr.top) < 60, toggle: (r.querySelector('.hs-a2p-pv-toggle') || {}).offsetParent !== null,
       before, after, reset, labels, lines: pv.querySelectorAll('.hs-a2p-pv-lines polyline').length, featured: (fieldOf(r,'Portrait').querySelector('.hs-a2p-thumb') || {}).src || '',
-      font: getComputedStyle(pv.querySelector('.hs-story-title p')).fontFamily })`));
+      font: getComputedStyle(pv.querySelector('.hs-story-title p')).fontFamily,
+      card: (() => { const c = pv.querySelector('.hs-story-card').getBoundingClientRect(); return { w: Math.round(c.width), h: Math.round(c.height) }; })(),
+      caps: [...pv.querySelectorAll('.hs-a2p-pv-cap')].map((c) => { const b = c.getBoundingClientRect(); return { text: c.textContent, oneLine: b.height < 26, right: Math.abs(b.right - pv.querySelector('.hs-a2p-pv-stage').getBoundingClientRect().right) < 2 }; }),
+      overlap: (() => { const ls = [...pv.querySelectorAll('.hs-a2p-pv-label, .hs-a2p-pv-cap')].map((x) => x.getBoundingClientRect()); for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) { const a = ls[i], b = ls[j]; if (a.left < b.right && b.left < a.right && a.top < b.bottom - 1 && b.top < a.bottom - 1) return true; } return false; })(),
+      gaps: (() => { const st = pv.querySelector('.hs-a2p-pv-stage'); const caps = st.querySelectorAll('.hs-a2p-pv-cap'); const cb = st.querySelector('.hs-a2p-pv-cardbox').getBoundingClientRect(), sb = st.querySelector('.hs-a2p-pv-stripbox').getBoundingClientRect(); return { card: Math.round(cb.top - caps[0].getBoundingClientRect().bottom), strip: Math.round(sb.top - caps[1].getBoundingClientRect().bottom) }; })(),
+      position: getComputedStyle(pv).position,
+      statusHint: (fieldOf(r,'Status').querySelector('.hs-a2p-hint-top') || {}).textContent || '', statusTip: fieldOf(r,'Status').querySelector('label').title })`));
   t('at 1920 the preview sits beside the form, with no toggle', wide.visible && wide.beside && !wide.toggle, JSON.stringify({ v: wide.visible, b: wide.beside, t: wide.toggle }));
   t('card shows the section badge, campus, publish date, title and tags', wide.before.badge && wide.before.place && /\d{1,2}(st|nd|rd|th) [A-Z][a-z]+ \d{4}/.test(wide.before.date) && wide.before.title && wide.before.tags.length > 0, JSON.stringify(wide.before));
   t('card photo is the Portrait', wide.before.img && wide.before.img === wide.featured, JSON.stringify({ img: wide.before.img, p: wide.featured }));
   t('editing fields updates the card and the Post top', wide.after.badge === 'Preview Badge' && wide.after.sec === 'Preview Badge' && wide.after.place === 'Bangkok Trip' && wide.after.chipPlace === 'Bangkok Trip' && wide.after.title === 'Preview Title Check' && wide.after.post === '12–14 November 2026', JSON.stringify(wide.after));
   t('the preview card shows the short range', wide.after.card === '12\u201314 Nov 2026', wide.after.card);
   t('clearing the badge text falls back to the Website Section', wide.reset.badge === wide.reset.sec, JSON.stringify(wide.reset));
-  t('nine labels with lines, naming the sources', wide.labels.length === 9 && wide.lines === 9 && wide.labels.includes('Yellow badge text') && wide.labels.includes('Event date') && wide.labels.includes('Portrait'), JSON.stringify(wide.labels));
+  t('nine labels with lines, naming each part', wide.labels.length === 9 && wide.lines === 9 && ['Yellow badge', 'Campus line', 'Date', 'Photo', 'Title', 'Tag chips', 'Section heading', 'Date chip', 'Campus chip'].every((x) => wide.labels.includes(x)), JSON.stringify(wide.labels));
+  t('card shown at 80% in proportion (216 × 384)', Math.abs(wide.card.w - 216) <= 1 && Math.abs(wide.card.h - 384) <= 1, JSON.stringify(wide.card));
+  t('caption chips sit on the right, each on one line', wide.caps.length === 2 && wide.caps.every((c) => c.oneLine && c.right) && /Preview · Slider card/.test(wide.caps[0].text), JSON.stringify(wide.caps));
+  t('labels and chips do not overlap', wide.overlap === false);
+  t('preview scrolls with the page (not sticky)', wide.position !== 'sticky' && wide.position !== 'fixed', wide.position);
+  t('card and strip sit just under their chips', wide.gaps.card <= 16 && wide.gaps.strip <= 16, JSON.stringify(wide.gaps));
+  t('Status has a line explaining Live and Draft, and tooltips', /Live: public once created/.test(wide.statusHint) && /Public as soon as/.test(wide.statusTip), JSON.stringify({ h: wide.statusHint, t: wide.statusTip }));
   t('preview uses the site heading font', /Montserrat/.test(wide.font), wide.font);
   if (shots) { await run(`document.querySelector('#hs-a2p .hs-a2p-preview').closest('.hs-a2p-row').scrollIntoView({ block: 'start' });`); await sleep(1200); const p = await send('Page.captureScreenshot', { format: 'png' }); writeFileSync(join(shots, 'panel-4-preview-1920.png'), Buffer.from(p.data, 'base64')); }
   await setWidth(1280);
