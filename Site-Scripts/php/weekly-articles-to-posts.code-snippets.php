@@ -190,7 +190,9 @@ function hs_a2p_row_defaults( $article, $issue_id ) {
 		'tags'          => array(),
 		'badgeText'     => '',
 		'location'      => '',
-		'date'          => get_post_time( 'Y-m-d\TH:i', false, $issue_id ),
+		'date'          => current_time( 'Y-m-d\TH:i' ),
+		'eventStart'    => get_post_time( 'Y-m-d', false, $issue_id ),
+		'eventEnd'      => '',
 		'image'         => 0,
 		'portrait'      => 0,
 		'status'        => $article['dark'] ? 'draft' : 'live',
@@ -206,6 +208,7 @@ function hs_a2p_sanitize_row( $raw ) {
 	$section = $raw['section'] ?? 0;
 	$campus  = array_values( array_intersect( array_map( 'sanitize_key', (array) ( $raw['campus'] ?? array() ) ), array( 'chaofah', 'cherngtalay' ) ) );
 	$date    = (string) ( $raw['date'] ?? '' );
+	$ymd     = function ( $v ) { $v = (string) $v; return preg_match( '/^\d{4}-\d{2}-\d{2}$/', $v ) ? $v : ''; };
 	return array(
 		'tick'          => ! empty( $raw['tick'] ),
 		'title'         => sanitize_text_field( (string) ( $raw['title'] ?? '' ) ),
@@ -216,6 +219,8 @@ function hs_a2p_sanitize_row( $raw ) {
 		'badgeText'     => sanitize_text_field( (string) ( $raw['badgeText'] ?? '' ) ),
 		'location'      => sanitize_text_field( (string) ( $raw['location'] ?? '' ) ),
 		'date'          => preg_match( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $date ) ? $date : '',
+		'eventStart'    => $ymd( $raw['eventStart'] ?? '' ),
+		'eventEnd'      => $ymd( $raw['eventEnd'] ?? '' ),
 		'image'         => absint( $raw['image'] ?? 0 ),
 		'portrait'      => absint( $raw['portrait'] ?? 0 ),
 		'status'        => 'draft' === ( $raw['status'] ?? '' ) ? 'draft' : 'live',
@@ -239,6 +244,10 @@ function hs_a2p_missing_fields( $row ) {
 	}
 	if ( '' === $row['date'] ) {
 		$missing[] = 'Publish date';
+	}
+	$end = $row['eventEnd'] ?? '';
+	if ( '' !== $end && ( '' === ( $row['eventStart'] ?? '' ) || $end < $row['eventStart'] ) ) {
+		$missing[] = 'Event date (the end needs a start, on or before it)';
 	}
 	if ( 'live' === $row['status'] && ! wp_attachment_is_image( $row['image'] ) ) {
 		$missing[] = 'Featured image';
@@ -398,7 +407,13 @@ function hs_a2p_create_post( $issue_id, $article, $row ) {
 		update_post_meta( $id, 'hs_portrait_image', $row['portrait'] );
 		update_post_meta( $id, '_hs_portrait_image', 'field_hs_portrait_image' );
 	}
-	// Before the terms: the chip hook fires when a term is set, not when this meta is first added.
+	// Before the terms, so the chip hook sees them. Ymd, as ACF stores date pickers.
+	foreach ( array( 'eventStart' => 'hs_event_start', 'eventEnd' => 'hs_event_end' ) as $from => $meta ) {
+		if ( '' !== ( $row[ $from ] ?? '' ) ) {
+			update_post_meta( $id, $meta, str_replace( '-', '', $row[ $from ] ) );
+			update_post_meta( $id, '_' . $meta, 'field_' . $meta );
+		}
+	}
 	if ( '' !== $row['location'] ) {
 		update_post_meta( $id, 'hs_location_override', $row['location'] );
 		update_post_meta( $id, '_hs_location_override', 'field_hs_location_override' );
@@ -523,7 +538,7 @@ function hs_a2p_panel_data( $issue_id ) {
 		foreach ( hs_a2p_article_image_ids( $article['block'] ) as $image_id ) {
 			$url = hs_a2p_image_url( $image_id );
 			if ( $url ) {
-				$images[] = array( 'id' => $image_id, 'url' => $url );
+				$images[] = array( 'id' => $image_id, 'url' => $url, 'thumb' => (string) wp_get_attachment_image_url( $image_id, 'thumbnail' ) );
 			}
 		}
 		$rows[] = array(
@@ -687,12 +702,18 @@ function hs_a2p_print_assets() {
 #hs-a2p .hs-a2p-state { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #f0f0f1; }
 #hs-a2p .hs-a2p-state.is-live { background: #d1f0d8; color: #0a5c1f; }
 #hs-a2p .hs-a2p-state.is-missing { background: #fcf0d1; color: #6e4b00; }
-#hs-a2p .hs-a2p-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; padding: 4px 12px 12px; border-top: 1px solid #f0f0f1; }
-#hs-a2p .hs-a2p-f { padding: 8px 10px; border-left: 3px solid transparent; background: #f6f7f7; border-radius: 2px; min-width: 0; }
+#hs-a2p .hs-a2p-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 10px 12px 12px; border-top: 1px solid #f0f0f1; align-items: start; }
+@media (max-width: 960px) { #hs-a2p .hs-a2p-body { grid-template-columns: minmax(0, 1fr); } }
+#hs-a2p .hs-a2p-g { border: 1px solid #e2e4e7; border-radius: 4px; padding: 8px; background: #fbfbfc; min-width: 0; display: grid; gap: 6px; }
+#hs-a2p .hs-a2p-g > h4 { margin: 0 0 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #50575e; }
+#hs-a2p .hs-a2p-g > .hs-a2p-hint { margin: 0 2px; }
+#hs-a2p .hs-a2p-g-wide, #hs-a2p .hs-a2p-body > .hs-a2p-wide { grid-column: 1 / -1; }
+#hs-a2p .hs-a2p-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+#hs-a2p .hs-a2p-f { padding: 6px 8px; border-left: 3px solid transparent; background: #f0f0f1; border-radius: 2px; min-width: 0; }
 #hs-a2p .hs-a2p-f.hs-a2p-ok { border-left-color: #00a32a; }
 #hs-a2p .hs-a2p-f.hs-a2p-bad { border-left-color: #d63638; background: #fcf0f1; }
 #hs-a2p .hs-a2p-f > .hs-a2p-label { display: block; font-weight: 600; margin-bottom: 4px; }
-#hs-a2p .hs-a2p-f input[type="text"], #hs-a2p .hs-a2p-f input[type="datetime-local"], #hs-a2p .hs-a2p-f select { width: 100%; max-width: 100%; }
+#hs-a2p .hs-a2p-f input[type="text"], #hs-a2p .hs-a2p-f input[type="datetime-local"], #hs-a2p .hs-a2p-f input[type="date"], #hs-a2p .hs-a2p-f select { width: 100%; max-width: 100%; }
 #hs-a2p .hs-a2p-hint { color: #646970; font-size: 12px; margin: 4px 0 0; }
 #hs-a2p .hs-a2p-warn { grid-column: 1 / -1; background: #fcf0d1; color: #6e4b00; padding: 8px 10px; border-radius: 2px; margin: 8px 0 0; }
 #hs-a2p .hs-a2p-f.hs-a2p-wide { grid-column: 1 / -1; }
@@ -703,11 +724,24 @@ function hs_a2p_print_assets() {
 #hs-a2p .hs-a2p-add { display: flex; gap: 6px; margin-top: 6px; }
 #hs-a2p .hs-a2p-add input[type="text"] { flex: 1 1 auto; min-width: 0; }
 #hs-a2p .hs-a2p-add-error { color: #b32d2e; font-size: 12px; margin: 4px 0 0; }
-#hs-a2p .hs-a2p-thumb { display: block; width: 100%; max-height: 140px; object-fit: cover; border-radius: 2px; margin-bottom: 6px; }
-#hs-a2p .hs-a2p-choices { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-#hs-a2p .hs-a2p-choices button { padding: 0; border: 2px solid transparent; background: none; cursor: pointer; line-height: 0; border-radius: 2px; }
-#hs-a2p .hs-a2p-choices button:focus { border-color: #2271b1; outline: 0; }
-#hs-a2p .hs-a2p-choices img { width: 48px; height: 48px; object-fit: cover; }
+#hs-a2p .hs-a2p-images-grid { display: grid; grid-template-columns: 210px 170px minmax(0, 1fr); gap: 8px; align-items: start; }
+@media (max-width: 960px) { #hs-a2p .hs-a2p-images-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } #hs-a2p .hs-a2p-rack-wrap { grid-column: 1 / -1; } }
+#hs-a2p .hs-a2p-slot { outline: 2px solid transparent; outline-offset: -2px; }
+#hs-a2p .hs-a2p-slot.is-active { outline-color: #2271b1; background: #f0f6fc; }
+#hs-a2p .hs-a2p-slot-pick { display: block; width: 100%; padding: 0; border: 0; background: none; text-align: left; cursor: pointer; }
+#hs-a2p .hs-a2p-thumb { display: block; width: 100%; height: 120px; object-fit: cover; border-radius: 2px; margin: 2px 0 4px; }
+#hs-a2p .hs-a2p-empty { display: flex; align-items: center; justify-content: center; height: 120px; margin: 2px 0 4px; border: 1px dashed #c3c4c7; border-radius: 2px; color: #8c8f94; font-size: 12px; }
+#hs-a2p .hs-a2p-picking { display: block; font-size: 11px; color: #646970; }
+#hs-a2p .hs-a2p-slot.is-active .hs-a2p-picking { color: #2271b1; font-weight: 600; }
+#hs-a2p .hs-a2p-slot-actions { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+#hs-a2p .hs-a2p-rack { display: grid; grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)); gap: 4px; max-height: 260px; overflow-y: auto; padding: 4px; background: #fff; border: 1px solid #dcdcde; border-radius: 2px; }
+#hs-a2p .hs-a2p-rack-item { position: relative; padding: 0; border: 2px solid transparent; background: #f0f0f1; cursor: pointer; line-height: 0; border-radius: 2px; aspect-ratio: 1; }
+#hs-a2p .hs-a2p-rack-item:hover, #hs-a2p .hs-a2p-rack-item:focus { border-color: #2271b1; outline: 0; }
+#hs-a2p .hs-a2p-rack-item img { width: 100%; height: 100%; object-fit: cover; }
+#hs-a2p .hs-a2p-tag { position: absolute; top: 2px; left: 2px; min-width: 16px; padding: 0 3px; line-height: 16px; font-size: 10px; font-weight: 700; color: #fff; border-radius: 2px; }
+#hs-a2p .hs-a2p-tag.is-f { background: #2271b1; }
+#hs-a2p .hs-a2p-tag.is-p { background: #8a2be2; left: auto; right: 2px; }
+#hs-a2p .hs-a2p-rack-note { margin-top: 4px; }
 #hs-a2p .hs-a2p-switch label { margin-right: 12px; }
 #hs-a2p .hs-a2p-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
 #hs-a2p .hs-a2p-saved { color: #646970; font-size: 12px; }
@@ -779,11 +813,12 @@ function hs_a2p_print_assets() {
 		if (!f.campus || !f.campus.length) { m.push('campus'); }
 		if (!f.tags || !f.tags.length) { m.push('tags'); }
 		if (!f.date) { m.push('date'); }
+		if (f.eventEnd && (!f.eventStart || f.eventEnd < f.eventStart)) { m.push('event'); }
 		if (f.status === 'live' && !f.image) { m.push('image'); }
 		return m;
 	}
 
-	var NAMES = { title: 'Title', section: 'Website Section', campus: 'Campus', tags: 'Thematic Tags', date: 'Publish date', image: 'Featured image' };
+	var NAMES = { title: 'Title', section: 'Website Section', campus: 'Campus', tags: 'Thematic Tags', date: 'Publish date', event: 'Event date (end needs a start, on or before it)', image: 'Featured image' };
 
 	function mark(row) {
 		if (!row.dom) { return; }
@@ -791,7 +826,8 @@ function hs_a2p_print_assets() {
 		Object.keys(row.dom.fields).forEach(function (name) {
 			var box = row.dom.fields[name];
 			var needed = !(name === 'image' && row.fields.status !== 'live');
-			box.classList.toggle('hs-a2p-ok', needed && gaps.indexOf(name) === -1);
+			var optional = name === 'event'; // only ever red, never green
+			box.classList.toggle('hs-a2p-ok', needed && !optional && gaps.indexOf(name) === -1);
 			box.classList.toggle('hs-a2p-bad', needed && gaps.indexOf(name) !== -1);
 		});
 		if (row.dom.bothHint) {
@@ -873,39 +909,86 @@ function hs_a2p_print_assets() {
 		return box;
 	}
 
-	function imageField(row, label, name, urlKey, hint) {
-		var preview = el('div');
-		function setImage(id, url) {
-			row.fields[name] = id;
-			row[urlKey] = url;
+	// One rack of the article's images. Clicking an image fills the active slot (Featured, then Portrait).
+	var SLOTS = { image: { label: 'Featured image', url: 'imageUrl', tag: 'F' }, portrait: { label: 'Portrait (slider)', url: 'portraitUrl', tag: 'P' } };
+
+	function imagesRow(row) {
+		var f = row.fields;
+		if (!row.active) { row.active = f.image && !f.portrait ? 'portrait' : 'image'; }
+		var wrap = el('div', { 'class': 'hs-a2p-g hs-a2p-g-wide hs-a2p-images' });
+
+		function setImage(name, id, url) {
+			f[name] = id;
+			row[SLOTS[name].url] = url;
+			if (name === 'image' && id && !f.portrait) { row.active = 'portrait'; }
 			draw();
 			changed(row);
 		}
-		function draw() {
-			preview.textContent = '';
-			remove.style.display = row[urlKey] ? '' : 'none';
-			if (row[urlKey]) {
-				preview.appendChild(el('img', { 'class': 'hs-a2p-thumb', src: row[urlKey], alt: '' }));
+		function slot(name) {
+			var s = SLOTS[name];
+			var active = row.active === name;
+			var url = row[s.url];
+			var hint = name === 'image'
+				? (f.status === 'live' ? 'Required for Live.' : 'Needed before it can go Live.')
+				: 'Optional. Used by the slider.';
+			var box = el('div', { 'class': 'hs-a2p-f hs-a2p-slot' + (active ? ' is-active' : ''), 'data-slot': name }, [
+				el('button', { type: 'button', 'class': 'hs-a2p-slot-pick', 'aria-pressed': active ? 'true' : 'false', on: { click: function () { row.active = name; draw(); } } }, [
+					el('span', { 'class': 'hs-a2p-label', text: s.label + (name === 'image' ? ' *' : '') }),
+					url ? el('img', { 'class': 'hs-a2p-thumb', src: url, alt: '' }) : el('span', { 'class': 'hs-a2p-empty', text: 'No image yet' }),
+					el('span', { 'class': 'hs-a2p-picking', text: active ? '◀ picking now' : 'Click to pick' })
+				]),
+				el('div', { 'class': 'hs-a2p-slot-actions' }, [
+					el('button', { type: 'button', 'class': 'button button-small', text: 'Media Library', on: { click: function () {
+						var frame = wp.media({ title: s.label, multiple: false, library: { type: 'image' } });
+						frame.on('select', function () {
+							var a = frame.state().get('selection').first().toJSON();
+							var size = a.sizes && (a.sizes.medium || a.sizes.full);
+							setImage(name, a.id, size ? size.url : a.url);
+						});
+						frame.open();
+					} } }),
+					url ? el('button', { type: 'button', 'class': 'button-link', text: 'Remove', on: { click: function () { row.active = name; setImage(name, 0, ''); } } }) : null
+				]),
+				el('p', { 'class': 'hs-a2p-hint', text: hint })
+			]);
+			if (name === 'image') { row.dom.fields.image = box; }
+			return box;
+		}
+		function rack() {
+			if (!row.images || !row.images.length) {
+				return el('div', { 'class': 'hs-a2p-rack-wrap' }, [el('p', { 'class': 'hs-a2p-hint', text: 'This article has no images of its own. Use Media Library.' })]);
 			}
-		}
-		var choose = el('button', { type: 'button', 'class': 'button', text: 'Media Library', on: { click: function () {
-			var frame = wp.media({ title: label, multiple: false, library: { type: 'image' } });
-			frame.on('select', function () {
-				var a = frame.state().get('selection').first().toJSON();
-				var size = a.sizes && (a.sizes.medium || a.sizes.full);
-				setImage(a.id, size ? size.url : a.url);
-			});
-			frame.open();
-		} } });
-		var remove = el('button', { type: 'button', 'class': 'button-link', text: 'Remove', style: 'margin-left:8px', on: { click: function () { setImage(0, ''); } } });
-		var choices = null;
-		if (row.images && row.images.length) {
-			choices = el('div', { 'class': 'hs-a2p-choices' }, row.images.map(function (image) {
-				return el('button', { type: 'button', title: 'Use this image', on: { click: function () { setImage(image.id, image.url); } } }, [el('img', { src: image.url, alt: '', loading: 'lazy' })]);
+			var grid = el('div', { 'class': 'hs-a2p-rack', role: 'list' }, row.images.map(function (image) {
+				var tags = [];
+				if (image.id === f.image) { tags.push(el('span', { 'class': 'hs-a2p-tag is-f', text: 'F', title: 'Featured image' })); }
+				if (image.id === f.portrait) { tags.push(el('span', { 'class': 'hs-a2p-tag is-p', text: 'P', title: 'Portrait' })); }
+				return el('button', { type: 'button', role: 'listitem', 'class': 'hs-a2p-rack-item', title: 'Use as ' + SLOTS[row.active].label, 'data-id': String(image.id), on: { click: function () {
+					setImage(row.active, image.id, image.url);
+				} } }, [el('img', { src: image.thumb || image.url, alt: '', loading: 'lazy', width: '150', height: '150' })].concat(tags));
 			}));
+			return el('div', { 'class': 'hs-a2p-rack-wrap' }, [
+				el('span', { 'class': 'hs-a2p-label', text: 'Article images (' + row.images.length + ')' }),
+				grid,
+				el('p', { 'class': 'hs-a2p-hint hs-a2p-rack-note', text: 'Click an image to set it as the ' + SLOTS[row.active].label + '.' })
+			]);
 		}
+		function draw() {
+			var scroll = wrap.querySelector('.hs-a2p-rack');
+			var top = scroll ? scroll.scrollTop : 0;
+			wrap.textContent = '';
+			wrap.appendChild(el('h4', { text: 'Images' }));
+			wrap.appendChild(el('div', { 'class': 'hs-a2p-images-grid' }, [slot('image'), slot('portrait'), rack()]));
+			var again = wrap.querySelector('.hs-a2p-rack');
+			if (again) { again.scrollTop = top; }
+			mark(row);
+		}
+		row.dom.redrawImages = draw;
 		draw();
-		return field(row, label, name === 'image' ? 'image' : null, [preview, choose, remove, choices], hint);
+		return wrap;
+	}
+
+	function group(title, children, extra) {
+		return el('div', { 'class': 'hs-a2p-g' + (extra ? ' ' + extra : '') }, [el('h4', { text: title })].concat(children));
 	}
 
 	function rowBody(row) {
@@ -939,23 +1022,49 @@ function hs_a2p_print_assets() {
 
 		var status = el('div', { 'class': 'hs-a2p-switch' }, ['live', 'draft'].map(function (value) {
 			return el('label', {}, [
-				el('input', { type: 'radio', name: 'hs-a2p-status-' + row.key, disabled: value === 'live' && !panel.canPublish, checked: f.status === value, on: { change: function () { f.status = value; changed(row); } } }),
+				el('input', { type: 'radio', name: 'hs-a2p-status-' + row.key, disabled: value === 'live' && !panel.canPublish, checked: f.status === value, on: { change: function () {
+					f.status = value;
+					changed(row);
+					if (row.dom.redrawImages) { row.dom.redrawImages(); }
+				} } }),
 				document.createTextNode(value === 'live' ? ' Live' : ' Draft')
 			]);
 		}));
 		if (!panel.canPublish) { f.status = 'draft'; }
 
+		function text(name, placeholder) {
+			return el('input', { type: 'text', value: f[name] || '', placeholder: placeholder || '', on: { input: function (e) { f[name] = e.target.value; changed(row); } } });
+		}
+		function dateInput(name, type) {
+			return el('input', { type: type, value: f[name] || '', on: { input: function (e) { f[name] = e.target.value; changed(row); } } });
+		}
+
 		var body = el('div', { 'class': 'hs-a2p-body' }, [
 			row.dark ? el('p', { 'class': 'hs-a2p-warn', text: 'Styled for a dark background: check the text colours on the Post.' }) : null,
-			field(row, 'Title *', 'title', [el('input', { type: 'text', value: f.title, on: { input: function (e) { f.title = e.target.value; changed(row); } } })]),
-			field(row, 'Website Section *', 'section', [section, custom]),
-			field(row, 'Campus *', 'campus', campusBoxes.concat([row.dom.bothHint])),
-			field(row, 'Yellow Badge Override', null, [el('input', { type: 'text', value: f.badgeText || '', on: { input: function (e) { f.badgeText = e.target.value; changed(row); } } })], 'Optional. Leave empty to show the Website Section. Type your own to replace it.'),
-			field(row, 'Display Location Override', null, [el('input', { type: 'text', value: f.location, placeholder: 'e.g. Bangkok Trip', on: { input: function (e) { f.location = e.target.value; changed(row); } } })], 'Optional. Replaces the campus chip and changes the Post’s URL.'),
-			field(row, 'Publish date *', 'date', [el('input', { type: 'datetime-local', value: f.date, on: { input: function (e) { f.date = e.target.value; changed(row); } } })]),
-			imageField(row, 'Featured image (required for Live)', 'image', 'imageUrl'),
-			imageField(row, 'Portrait image', 'portrait', 'portraitUrl', 'Optional. Used by the slider.'),
-			field(row, 'Status', null, [status], 'Live publishes it straight away. A future date schedules it.'),
+			group('Post', [
+				field(row, 'Title *', 'title', [text('title')]),
+				el('div', { 'class': 'hs-a2p-pair' }, [
+					field(row, 'Publish date *', 'date', [dateInput('date', 'datetime-local')]),
+					field(row, 'Status', null, [status])
+				]),
+				el('p', { 'class': 'hs-a2p-hint', text: 'Live publishes it now; a future date schedules it. The publish date sets the URL.' })
+			]),
+			group('Event date (shown to readers)', [
+				el('div', { 'class': 'hs-a2p-pair' }, [
+					field(row, 'Start', 'event', [dateInput('eventStart', 'date')]),
+					field(row, 'End', null, [dateInput('eventEnd', 'date')])
+				]),
+				el('p', { 'class': 'hs-a2p-hint', text: 'Leave End empty for a single day. Leave both empty to show the publish date.' })
+			]),
+			group('Website Section', [
+				field(row, 'Website Section *', 'section', [section, custom], 'Sets the feeds, the URL and the yellow badge.'),
+				field(row, 'Yellow badge text', null, [text('badgeText')], 'Optional. Leave empty to show the Website Section.')
+			]),
+			group('Campus', [
+				field(row, 'Campus *', 'campus', campusBoxes.concat([row.dom.bothHint])),
+				field(row, 'Location text', null, [text('location', 'e.g. Bangkok Trip')], 'Optional. Replaces the campus name in the chip.')
+			]),
+			imagesRow(row),
 			tagsField(row)
 		]);
 		mark(row);
