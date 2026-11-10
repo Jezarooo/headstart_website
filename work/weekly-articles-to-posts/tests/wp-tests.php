@@ -470,6 +470,32 @@ try {
 	$hid = $r['created'][0]['id'] ?? 0;
 	$t( 'panel: a created Post stores its focus, tied to the ACF field', '30 40' === get_post_meta( $hid, 'hs_hero_focus', true ) && 'field_hs_hero_focus' === get_post_meta( $hid, '_hs_hero_focus', true ), wp_json_encode( $r ) );
 
+	echo "\nRenaming a Section, badge or Campus refreshes its Posts\n";
+	$rd = wp_insert_term( 'A2P Rename Dept', 'hs_department' ); $rc = wp_insert_term( 'A2P Rename Campus', 'hs_post_campus' ); $rb = wp_insert_term( 'A2P Rename Badge', 'hs_thematic_chip' );
+	$terms[] = $rd['term_id'];
+	$mk = function ( $title ) use ( &$made ) { $id = wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'draft', 'post_title' => $title ) ); $made[] = $id; return $id; };
+	$pa = $mk( 'A2P rename a' ); wp_set_object_terms( $pa, array( (int) $rd['term_id'] ), 'hs_department' ); wp_set_object_terms( $pa, array( (int) $rc['term_id'] ), 'hs_post_campus' );
+	$pb = $mk( 'A2P rename b' ); wp_set_object_terms( $pb, array( (int) $rd['term_id'] ), 'hs_department' ); wp_set_object_terms( $pb, array( (int) $rb['term_id'] ), 'hs_thematic_chip' );
+	$pc = $mk( 'A2P rename c' ); wp_set_object_terms( $pc, array( $primary ), 'hs_department' );
+	$t( 'before: chips show the original names', 'A2P Rename Dept' === get_post_meta( $pa, 'hs_final_section_chip', true ) && 'A2P Rename Campus' === get_post_meta( $pa, 'hs_final_location_chip', true ) && 'A2P Rename Badge' === get_post_meta( $pb, 'hs_final_section_chip', true ) );
+	$c_before = get_post_meta( $pc, 'hs_final_section_chip', true );
+	wp_update_term( (int) $rd['term_id'], 'hs_department', array( 'name' => 'A2P Renamed Dept' ) );
+	wp_update_term( (int) $rc['term_id'], 'hs_post_campus', array( 'name' => 'A2P Renamed Campus' ) );
+	$t( 'renaming the Section updates its Posts\' Section chip without re-saving them', 'A2P Renamed Dept' === get_post_meta( $pa, 'hs_final_section_chip', true ), get_post_meta( $pa, 'hs_final_section_chip', true ) );
+	$t( 'renaming the Campus updates the location chip', 'A2P Renamed Campus' === get_post_meta( $pa, 'hs_final_location_chip', true ) );
+	$t( 'a badge override still wins over the renamed Section', 'A2P Rename Badge' === get_post_meta( $pb, 'hs_final_section_chip', true ) );
+	wp_update_term( (int) $rb['term_id'], 'hs_thematic_chip', array( 'name' => 'A2P Renamed Badge' ) );
+	$t( 'renaming the badge updates the Posts that use it', 'A2P Renamed Badge' === get_post_meta( $pb, 'hs_final_section_chip', true ) );
+	$t( 'Posts in other Sections are untouched', $c_before === get_post_meta( $pc, 'hs_final_section_chip', true ) );
+	$t( 'the slug stays the same when only the name changes', 'a2p-rename-dept' === get_term( (int) $rd['term_id'] )->slug );
+
+	echo "\nPanel headings: name, then slug, then alias\n";
+	$thai = $section_id( 'Thai' );
+	$t( '"Thai" and "Thai Department" both find the Thai Section', $thai && $thai === hs_a2p_section_for_heading( 'Thai' ) && $thai === hs_a2p_section_for_heading( 'Thai Department' ) );
+	$t( 'after a rename the old heading still finds it by slug', (int) $rd['term_id'] === hs_a2p_section_for_heading( 'A2P Rename Dept' ) && (int) $rd['term_id'] === hs_a2p_section_for_heading( 'A2P Renamed Dept' ) );
+	$t( 'an unknown heading stays empty', 0 === hs_a2p_section_for_heading( 'Nothing Like This' ) && 0 === hs_a2p_section_for_heading( '' ) );
+	wp_delete_term( (int) $rc['term_id'], 'hs_post_campus' ); wp_delete_term( (int) $rb['term_id'], 'hs_thematic_chip' );
+
 	echo "\nPosts gatekeeper\n";
 	$gate = wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'draft', 'post_title' => 'A2P gate check' ) );
 	$made[] = $gate;
