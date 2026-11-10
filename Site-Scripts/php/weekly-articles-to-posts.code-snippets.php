@@ -146,17 +146,35 @@ function hs_a2p_section_for_heading( $heading ) {
 		'sports & academies'   => 'Sports Academies',
 		'eca news'             => 'ECA',
 		'capa news'            => 'CAPA',
-		'thai department'      => 'Thai',
+		'thai department'      => 'thai', // by slug, so it works before and after the Section is renamed
 		'languages department' => 'World Languages',
 		'langauges department' => 'World Languages',
 		'house update'         => 'School Houses',
 		'alumni network'       => 'HeadStart Alumni',
 	);
-	$want = strtolower( trim( $heading ) );
-	$want = $aliases[ $want ] ?? $want;
-	foreach ( get_terms( array( 'taxonomy' => 'hs_department', 'hide_empty' => false ) ) as $term ) {
-		if ( strtolower( html_entity_decode( $term->name, ENT_QUOTES, 'UTF-8' ) ) === strtolower( $want ) ) {
+	$heading = strtolower( trim( $heading ) );
+	if ( '' === $heading ) {
+		return 0;
+	}
+	$terms = get_terms( array( 'taxonomy' => 'hs_department', 'hide_empty' => false ) );
+	$name  = function ( $term ) { return strtolower( html_entity_decode( $term->name, ENT_QUOTES, 'UTF-8' ) ); };
+	// 1. Exact name. 2. Slug (still finds a Section after it's renamed). 3. Alias, by name or slug.
+	foreach ( $terms as $term ) {
+		if ( $name( $term ) === $heading ) {
 			return (int) $term->term_id;
+		}
+	}
+	foreach ( $terms as $term ) {
+		if ( $term->slug === sanitize_title( $heading ) ) {
+			return (int) $term->term_id;
+		}
+	}
+	if ( isset( $aliases[ $heading ] ) ) {
+		$want = strtolower( $aliases[ $heading ] );
+		foreach ( $terms as $term ) {
+			if ( $name( $term ) === $want || $term->slug === $want ) {
+				return (int) $term->term_id;
+			}
 		}
 	}
 	return 0;
@@ -1040,12 +1058,12 @@ function hs_a2p_print_assets() {
 				])
 			], 'hs-a2p-g-wide'),
 			group('Website Section', [
-				field(row, 'Website Section *', 'section', [section, custom], 'Dictates where on the site the Post is shown (its feeds and URL). Also the default yellow badge.'),
+				field(row, 'Website Section *', 'section', [section, custom], 'Dictates where on the site the Post is shown (its feeds). Also the default yellow badge.'),
 				field(row, 'Yellow badge text', null, [text('badgeText')], 'Optional. Leave empty to show the Website Section.')
 			], 'hs-a2p-g-sub'),
 			group('Campus', [
-				field(row, 'Campus *', 'campus', [el('div', { 'class': 'hs-a2p-campuses' }, campusBoxes), row.dom.bothHint], 'Tick both for Both Campuses.'),
-				field(row, 'Location text', null, [text('location', 'e.g. Bangkok Trip')], 'Optional. Replaces the campus name in the chip.')
+				field(row, 'Campus *', 'campus', [el('div', { 'class': 'hs-a2p-campuses' }, campusBoxes), row.dom.bothHint], 'Tick both for Both Campuses. Sets the campus in the URL.'),
+				field(row, 'Location text', null, [text('location', 'e.g. Bangkok Trip')], 'Optional. Replaces the campus name in the chip and the URL, e.g. Bangkok Trip. Still tick a Campus.')
 			], 'hs-a2p-g-sub'),
 			imagesRow(row),
 			tagsField(row)

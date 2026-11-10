@@ -27,7 +27,7 @@ function hs_register_post_acf_fields() {
                 'label' => 'Website Section',
                 'name' => 'hs_department_tax', // Internal ACF name, not highly relevant since save_terms is true
                 'type' => 'taxonomy',
-                'instructions' => 'Dictates where on the site the Post is shown (its feeds and URL). Also the default yellow badge.',
+                'instructions' => 'Dictates where on the site the Post is shown (its feeds). Also the default yellow badge.',
                 'required' => 1,
                 'conditional_logic' => 0,
                 'wrapper' => array(
@@ -99,7 +99,7 @@ function hs_register_post_acf_fields() {
                 'label' => 'Campus',
                 'name' => 'hs_campus_tax',
                 'type' => 'taxonomy',
-                'instructions' => 'Tick both for Both Campuses.',
+                'instructions' => 'Tick both for Both Campuses. Sets the campus in the URL.',
                 'required' => 1,
                 'conditional_logic' => 0,
                 'wrapper' => array(
@@ -123,7 +123,7 @@ function hs_register_post_acf_fields() {
                 'label' => 'Location override',
                 'name' => 'hs_location_override',
                 'type' => 'text',
-                'instructions' => 'Optional. Replaces the campus name in the chip, e.g. Bangkok Trip. Still tick a Campus.',
+                'instructions' => 'Optional. Replaces the campus name in the chip and the URL, e.g. Bangkok Trip. Still tick a Campus.',
                 'required' => 0,
                 'conditional_logic' => 0,
                 'wrapper' => array(

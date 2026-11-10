@@ -109,13 +109,13 @@ try {
       preview: !!pv && pv.offsetParent !== null, previewRight: pv ? pv.getBoundingClientRect().left >= fieldsRight - 2 : false,
       toggle: (box.querySelector('.hs-pc-toggle') || {}).offsetParent !== null, sticky: pv ? getComputedStyle(box.querySelector('.hs-pc-preview')).position : '',
       labels: [...box.querySelectorAll('.hs-cpv-label strong')].map((x) => x.textContent), lines: box.querySelectorAll('.hs-cpv-lines polyline').length,
-      hints: { section: (f('hs_department_tax').querySelector('.description') || {}).textContent, badge: (f('hs_thematic_chip_tax').querySelector('.description') || {}).textContent } })`));
+      hints: { section: (f('hs_department_tax').querySelector('.description') || {}).textContent, badge: (f('hs_thematic_chip_tax').querySelector('.description') || {}).textContent, campus: (f('hs_campus_tax').querySelector('.description') || {}).textContent, location: (f('hs_location_override').querySelector('.description') || {}).textContent } })`));
   t('fields are on the grid with the five group headings', lay.grid && JSON.stringify(lay.heads) === JSON.stringify(['Website Section', 'Campus', 'Event date (shown to readers)', 'Tags', 'Images']), JSON.stringify(lay.heads));
   t('Website Section beside Campus, badge override beside location override, event start beside end (same line)', lay.pair1 && lay.pair2 && lay.pair3 && lay.sideBySide, JSON.stringify(lay));
   t('order down the page: Section, badge, event dates, tags (full width), images', lay.order.every((v, i, a) => i === 0 || v > a[i - 1]) && lay.tagsWide, JSON.stringify(lay.order));
   t('preview to the right of the fields, no toggle, not sticky', lay.preview && lay.previewRight && !lay.toggle && lay.sticky !== 'sticky', JSON.stringify({ p: lay.preview, r: lay.previewRight, t: lay.toggle, s: lay.sticky }));
   t('nine labels with lines', lay.labels.length === 9 && lay.lines === 9, JSON.stringify(lay.labels));
-  t('shorter hints', /Dictates where on the site the Post is shown/.test(lay.hints.section || '') && /Leave empty to show the Website Section/.test(lay.hints.badge || ''), JSON.stringify(lay.hints));
+  t('hints: Section → feeds (not the URL); Campus and Location override → URL', /its feeds\)/.test(lay.hints.section || '') && !/URL/.test(lay.hints.section || '') && /Leave empty to show the Website Section/.test(lay.hints.badge || '') && /Sets the campus in the URL/.test(lay.hints.campus || '') && /chip and the URL/.test(lay.hints.location || ''), JSON.stringify(lay.hints));
   await shot('post-1-layout-1920.png');
 
   console.log('\nThe preview follows the saved Post');

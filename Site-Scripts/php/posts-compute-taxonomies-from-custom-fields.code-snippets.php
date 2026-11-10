@@ -216,6 +216,28 @@ function hs_compute_chips_on_ajax_tax_update($object_id, $terms, $tt_ids, $taxon
     }
 }
 
+// ========================================================================
+// RENAMING A SECTION, BADGE OR CAMPUS (10 Nov 2026)
+// ========================================================================
+// Each Post stores its chip text, so renaming a term (e.g. "Thai" → "Thai Department")
+// would leave its Posts showing the old name until each was saved. This recalculates
+// the stored chips for every Post in the renamed term. It writes only the chip meta.
+add_action('edited_term', 'hs_refresh_chips_after_term_rename', 10, 3);
+function hs_refresh_chips_after_term_rename($term_id, $tt_id, $taxonomy) {
+    if (!in_array($taxonomy, array('hs_department', 'hs_thematic_chip', 'hs_post_campus'), true)) {
+        return;
+    }
+    $ids = get_objects_in_term((int) $term_id, $taxonomy);
+    if (is_wp_error($ids)) {
+        return;
+    }
+    foreach ($ids as $post_id) {
+        if (get_post_type($post_id) === 'post') {
+            hs_compute_final_divi_chips((int) $post_id);
+        }
+    }
+}
+
 // Catch List View Meta updates (Location Override, event dates), including first-time and cleared values
 add_action('updated_post_meta', 'hs_compute_chips_on_ajax_meta_update', 10, 4);
 add_action('added_post_meta', 'hs_compute_chips_on_ajax_meta_update', 10, 4);
