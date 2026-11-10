@@ -138,6 +138,42 @@ function hs_register_post_acf_fields() {
                 'maxlength' => '',
             ),
 
+            // 5b. Event dates: what readers see instead of the publish date (hs_final_date_label).
+            array(
+                'key' => 'field_hs_event_start',
+                'label' => 'Event start',
+                'name' => 'hs_event_start',
+                'type' => 'date_picker',
+                'instructions' => 'Optional. When it happened. Readers see this instead of the publish date. Leave empty to show the publish date.',
+                'required' => 0,
+                'conditional_logic' => 0,
+                'wrapper' => array(
+                    'width' => '12',
+                    'class' => '',
+                    'id' => '',
+                ),
+                'display_format' => 'd/m/Y',
+                'return_format' => 'Ymd',
+                'first_day' => 1,
+            ),
+            array(
+                'key' => 'field_hs_event_end',
+                'label' => 'Event end',
+                'name' => 'hs_event_end',
+                'type' => 'date_picker',
+                'instructions' => 'Optional. Only for events over several days.',
+                'required' => 0,
+                'conditional_logic' => 0,
+                'wrapper' => array(
+                    'width' => '12',
+                    'class' => '',
+                    'id' => '',
+                ),
+                'display_format' => 'd/m/Y',
+                'return_format' => 'Ymd',
+                'first_day' => 1,
+            ),
+
             // 6. Portrait Featured Image (Slider)
             array(
                 'key' => 'field_hs_portrait_image',
@@ -179,6 +215,24 @@ function hs_register_post_acf_fields() {
         'description' => 'Classification and taxonomy assignments for standard Posts.',
         'show_in_rest' => 1,
     ));
+}
+
+/**
+ * Event end needs an Event start, and can't be before it. ACF posts dates as Ymd.
+ */
+add_filter('acf/validate_value/key=field_hs_event_end', 'hs_validate_event_end', 10, 4);
+function hs_validate_event_end($valid, $value, $field, $input_name) {
+    if ($valid !== true || $value === '' || $value === null) {
+        return $valid;
+    }
+    $start = isset($_POST['acf']['field_hs_event_start']) ? preg_replace('/\D/', '', (string) wp_unslash($_POST['acf']['field_hs_event_start'])) : '';
+    if ($start === '') {
+        return 'Add an Event start, or clear the Event end.';
+    }
+    if (preg_replace('/\D/', '', (string) $value) < $start) {
+        return 'The Event end can\'t be before the Event start.';
+    }
+    return $valid;
 }
 
 /**
