@@ -190,6 +190,7 @@ function hs_a2p_row_defaults( $article, $issue_id ) {
 		'tags'          => array(),
 		'badgeText'     => '',
 		'location'      => '',
+		'publishNow'    => true,
 		'date'          => current_time( 'Y-m-d\TH:i' ),
 		'eventStart'    => get_post_time( 'Y-m-d', false, $issue_id ),
 		'eventEnd'      => '',
@@ -218,6 +219,7 @@ function hs_a2p_sanitize_row( $raw ) {
 		'tags'          => array_values( array_filter( array_map( 'sanitize_text_field', (array) ( $raw['tags'] ?? array() ) ) ) ),
 		'badgeText'     => sanitize_text_field( (string) ( $raw['badgeText'] ?? '' ) ),
 		'location'      => sanitize_text_field( (string) ( $raw['location'] ?? '' ) ),
+		'publishNow'    => ! empty( $raw['publishNow'] ) && 'false' !== $raw['publishNow'],
 		'date'          => preg_match( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $date ) ? $date : '',
 		'eventStart'    => $ymd( $raw['eventStart'] ?? '' ),
 		'eventEnd'      => $ymd( $raw['eventEnd'] ?? '' ),
@@ -242,7 +244,7 @@ function hs_a2p_missing_fields( $row ) {
 	if ( ! $row['tags'] ) {
 		$missing[] = 'Thematic Tags';
 	}
-	if ( '' === $row['date'] ) {
+	if ( empty( $row['publishNow'] ) && '' === $row['date'] ) {
 		$missing[] = 'Publish date';
 	}
 	$end = $row['eventEnd'] ?? '';
@@ -385,15 +387,23 @@ function hs_a2p_create_post( $issue_id, $article, $row ) {
 		}
 	}
 
-	$local = str_replace( 'T', ' ', $row['date'] ) . ':00';
-	$id    = wp_insert_post( wp_slash( array(
-		'post_type'     => 'post',
-		'post_status'   => 'draft',
-		'post_title'    => $row['title'],
-		'post_content'  => hs_a2p_build_content( $article['block'] ),
-		'post_date'     => $local,
-		'post_date_gmt' => get_gmt_from_date( $local ),
-	) ), true );
+	$insert = array(
+		'post_type'    => 'post',
+		'post_status'  => 'draft',
+		'post_title'   => $row['title'],
+		'post_content' => hs_a2p_build_content( $article['block'] ),
+	);
+	if ( ! empty( $row['publishNow'] ) ) {
+		if ( 'live' === $row['status'] ) { // Dated the moment it is created.
+			$insert['post_date']     = current_time( 'mysql' );
+			$insert['post_date_gmt'] = current_time( 'mysql', true );
+		} // A Draft gets no fixed date, so WordPress dates it when it is published.
+	} else {
+		$local                   = str_replace( 'T', ' ', $row['date'] ) . ':00';
+		$insert['post_date']     = $local;
+		$insert['post_date_gmt'] = get_gmt_from_date( $local );
+	}
+	$id = wp_insert_post( wp_slash( $insert ), true );
 	if ( is_wp_error( $id ) ) {
 		return $id;
 	}
@@ -532,7 +542,7 @@ function hs_a2p_panel_data( $issue_id ) {
 	$saved = hs_a2p_get_rows( $issue_id );
 	$rows  = array();
 	foreach ( $found['articles'] as $key => $article ) {
-		$fields = isset( $saved[ $key ] ) ? array_merge( hs_a2p_row_defaults( $article, $issue_id ), $saved[ $key ] ) : hs_a2p_row_defaults( $article, $issue_id );
+		$fields = isset( $saved[ $key ] ) ? array_merge( hs_a2p_row_defaults( $article, $issue_id ), array( 'publishNow' => false ), $saved[ $key ] ) : hs_a2p_row_defaults( $article, $issue_id );
 		$post   = hs_a2p_find_post( $issue_id, $key );
 		$images = array();
 		foreach ( hs_a2p_article_image_ids( $article['block'] ) as $image_id ) {
@@ -708,6 +718,11 @@ function hs_a2p_print_assets() {
 #hs-a2p .hs-a2p-g > h4 { margin: 0 0 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #50575e; }
 #hs-a2p .hs-a2p-g > .hs-a2p-hint { margin: 0 2px; }
 #hs-a2p .hs-a2p-g-wide, #hs-a2p .hs-a2p-body > .hs-a2p-wide { grid-column: 1 / -1; }
+/* Website Section and Campus share row lines, so their second fields line up. */
+#hs-a2p .hs-a2p-g-sub { grid-row: span 3; grid-template-rows: subgrid; row-gap: 6px; }
+#hs-a2p .hs-a2p-campuses { display: flex; flex-wrap: wrap; align-items: center; min-height: 30px; }
+#hs-a2p .hs-a2p-when { display: grid; gap: 4px; }
+#hs-a2p .hs-a2p-now { display: flex; align-items: center; gap: 4px; min-height: 30px; }
 #hs-a2p .hs-a2p-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 #hs-a2p .hs-a2p-f { padding: 6px 8px; border-left: 3px solid transparent; background: #f0f0f1; border-radius: 2px; min-width: 0; }
 #hs-a2p .hs-a2p-f.hs-a2p-ok { border-left-color: #00a32a; }
@@ -812,7 +827,7 @@ function hs_a2p_print_assets() {
 		if (f.section === 'custom' ? !String(f.customSection || '').trim() : !f.section) { m.push('section'); }
 		if (!f.campus || !f.campus.length) { m.push('campus'); }
 		if (!f.tags || !f.tags.length) { m.push('tags'); }
-		if (!f.date) { m.push('date'); }
+		if (!f.publishNow && !f.date) { m.push('date'); }
 		if (f.eventEnd && (!f.eventStart || f.eventEnd < f.eventStart)) { m.push('event'); }
 		if (f.status === 'live' && !f.image) { m.push('image'); }
 		return m;
@@ -1039,15 +1054,29 @@ function hs_a2p_print_assets() {
 			return el('input', { type: type, value: f[name] || '', on: { input: function (e) { f[name] = e.target.value; changed(row); } } });
 		}
 
+		var picker = dateInput('date', 'datetime-local');
+		var publishWhen = el('div', { 'class': 'hs-a2p-when' }, [
+			el('label', { 'class': 'hs-a2p-now' }, [
+				el('input', { type: 'checkbox', checked: !!f.publishNow, on: { change: function (e) {
+					f.publishNow = e.target.checked;
+					picker.style.display = f.publishNow ? 'none' : '';
+					changed(row);
+				} } }),
+				document.createTextNode(' Publish now')
+			]),
+			picker
+		]);
+		picker.style.display = f.publishNow ? 'none' : '';
+
 		var body = el('div', { 'class': 'hs-a2p-body' }, [
 			row.dark ? el('p', { 'class': 'hs-a2p-warn', text: 'Styled for a dark background: check the text colours on the Post.' }) : null,
 			group('Post', [
 				field(row, 'Title *', 'title', [text('title')]),
 				el('div', { 'class': 'hs-a2p-pair' }, [
-					field(row, 'Publish date *', 'date', [dateInput('date', 'datetime-local')]),
+					field(row, 'Publish date *', 'date', [publishWhen]),
 					field(row, 'Status', null, [status])
 				]),
-				el('p', { 'class': 'hs-a2p-hint', text: 'Live publishes it now; a future date schedules it. The publish date sets the URL.' })
+				el('p', { 'class': 'hs-a2p-hint', text: 'Untick Publish now to choose a date: a future date schedules it. The publish date sets the URL.' })
 			]),
 			group('Event date (shown to readers)', [
 				el('div', { 'class': 'hs-a2p-pair' }, [
@@ -1059,11 +1088,11 @@ function hs_a2p_print_assets() {
 			group('Website Section', [
 				field(row, 'Website Section *', 'section', [section, custom], 'Sets the feeds, the URL and the yellow badge.'),
 				field(row, 'Yellow badge text', null, [text('badgeText')], 'Optional. Leave empty to show the Website Section.')
-			]),
+			], 'hs-a2p-g-sub'),
 			group('Campus', [
-				field(row, 'Campus *', 'campus', campusBoxes.concat([row.dom.bothHint])),
+				field(row, 'Campus *', 'campus', [el('div', { 'class': 'hs-a2p-campuses' }, campusBoxes), row.dom.bothHint], 'Tick both for Both Campuses.'),
 				field(row, 'Location text', null, [text('location', 'e.g. Bangkok Trip')], 'Optional. Replaces the campus name in the chip.')
-			]),
+			], 'hs-a2p-g-sub'),
 			imagesRow(row),
 			tagsField(row)
 		]);
