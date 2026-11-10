@@ -242,7 +242,7 @@ echo wp_json_encode(['title' => get_the_title($id), 'section' => wp_get_object_t
   console.log('\nImage picker');
   const pk = JSON.parse(await run(`${helpers}
     const ed = () => wp.data.select('core/editor').getEditedPostAttribute('featured_media');
-    const items = () => [...box.querySelectorAll('.hs-cip-rack-item')];
+    const items = () => [...box.querySelectorAll('.hs-cip-rack-item')].filter((x) => !x.closest('.hs-chf-mobile'));
     const slotPick = (n) => box.querySelector('.hs-cip-slot[data-slot=' + n + '] .hs-cip-slot-pick');
     const out = { rack: items().map((b) => +b.dataset.id), acfHidden: f('hs_portrait_image').style.display === 'none', picker: !!box.querySelector('.hs-pc-images .hs-cip-grid') };
     slotPick('image').click(); await wait(200);

@@ -117,7 +117,7 @@ try {
       badgeUnderSection: fieldOf(r,'Yellow').parentElement === fieldOf(r,'Website').parentElement && fieldOf(r,'Website').nextElementSibling === fieldOf(r,'Yellow'),
       locUnderCampus: fieldOf(r,'Location').parentElement === fieldOf(r,'Campus').parentElement && fieldOf(r,'Campus').nextElementSibling === fieldOf(r,'Location'),
       dateWithTitle: fieldOf(r,'Publish').closest('.hs-a2p-g') === fieldOf(r,'Title').closest('.hs-a2p-g'),
-      racks: r.querySelectorAll('.hs-cip-rack').length, oldChoices: r.querySelectorAll('.hs-a2p-choices').length,
+      racks: [...r.querySelectorAll('.hs-cip-rack')].filter((x) => !x.closest('.hs-chf-mobile')).length, oldChoices: r.querySelectorAll('.hs-a2p-choices').length,
       active: (r.querySelector('.hs-cip-slot.is-active') || {}).dataset?.slot, note: (r.querySelector('.hs-cip-rack-note') || {}).textContent,
       rackImg: (() => { const i = r.querySelector('.hs-cip-rack img'); return i ? { lazy: i.getAttribute('loading'), src: i.getAttribute('src') } : null; })(),
       publish: fieldOf(r,'Publish').querySelector('input[type=datetime-local]').value, eventStart: fieldOf(r,'Event start').querySelector('input').value,
