@@ -437,6 +437,17 @@ try {
 	$t( 'required fields unchanged (Website Section and Campus)', 1 === (int) $by_key['field_hs_post_department']['required'] && 1 === (int) $by_key['field_hs_post_campus']['required'] && 0 === (int) $by_key['field_hs_thematic_chip']['required'] );
 	$t( 'the shared preview snippet is loaded', function_exists( 'hs_card_preview_print_assets' ) && function_exists( 'hs_card_preview_screen' ) );
 
+	echo "\nImage picker: the Post's own photos\n";
+	$divi = hs_card_preview_content_images( $fixture() );
+	$t( 'Divi content: image and gallery photos found once each', array( $image_id ) === array_column( $divi, 'id' ) && '' !== $divi[0]['thumb'] && $divi[0]['thumb'] !== $divi[0]['url'], wp_json_encode( $divi ) );
+	$others = get_posts( array( 'post_type' => 'attachment', 'post_mime_type' => 'image', 'post_status' => 'inherit', 'numberposts' => 2, 'fields' => 'ids', 'exclude' => array( $image_id ) ) );
+	$html = '<p>x</p><img class="wp-image-' . $others[0] . '" src="a.jpg"/><img class="alignleft wp-image-' . $others[1] . ' size-full" src="b.jpg"/><img class="wp-image-' . $others[0] . '" src="a.jpg"/>';
+	$t( 'plain-HTML content: wp-image photos in order, without repeats', $others === array_column( hs_card_preview_content_images( $html ), 'id' ) );
+	$t( 'Divi photos come before plain-HTML ones', array( $image_id, $others[0] ) === array_slice( array_column( hs_card_preview_content_images( $fixture() . '<img class="wp-image-' . $others[0] . '" src="a.jpg"/>' ), 'id' ), 0, 2 ) );
+	$legacy = '<img src="' . home_url( '/wp-content/uploads/legacy-images/x/1.jpg' ) . '"/><img src="' . home_url( '/wp-content/uploads/legacy-images/x/2.jpg' ) . '"/><img class="wp-image-' . $others[0] . '" src="a.jpg"/>';
+	$t( 'old-site photos are counted, not listed', 2 === hs_card_preview_unlisted_image_count( $legacy ) && array( $others[0] ) === array_column( hs_card_preview_content_images( $legacy ), 'id' ) );
+	$t( 'no photos: empty list, zero count', array() === hs_card_preview_content_images( '<p>none</p>' ) && 0 === hs_card_preview_unlisted_image_count( '<p>none</p>' ) );
+
 	echo "\nPosts gatekeeper\n";
 	$gate = wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'draft', 'post_title' => 'A2P gate check' ) );
 	$made[] = $gate;

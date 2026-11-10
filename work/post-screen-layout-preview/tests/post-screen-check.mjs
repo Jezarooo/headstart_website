@@ -32,8 +32,10 @@ const t = (name, ok, detail = '') => { if (ok) { pass++; console.log(`  ok    ${
 const setup = JSON.parse(evalFile(`
 $u = get_users(['role' => 'administrator', 'number' => 1])[0];
 wp_set_current_user($u->ID);
-$imgs = get_posts(['post_type' => 'attachment', 'post_mime_type' => 'image', 'post_status' => 'inherit', 'numberposts' => 2, 'fields' => 'ids', 'orderby' => 'ID', 'order' => 'DESC']);
-$id = wp_insert_post(['post_type' => 'post', 'post_status' => 'draft', 'post_title' => 'PS Check Post', 'post_content' => '<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->']);
+$imgs = get_posts(['post_type' => 'attachment', 'post_mime_type' => 'image', 'post_status' => 'inherit', 'numberposts' => 4, 'fields' => 'ids', 'orderby' => 'ID', 'order' => 'DESC']);
+// Content with two Media Library photos (plain HTML, as in older Posts) and one that isn't in the Media Library.
+$body = '<p>Body</p><img class="wp-image-' . $imgs[2] . '" src="' . wp_get_attachment_url($imgs[2]) . '" alt=""/><img class="aligncenter wp-image-' . $imgs[3] . ' size-large" src="' . wp_get_attachment_url($imgs[3]) . '" alt=""/><img src="' . home_url('/wp-content/uploads/legacy-images/x/old.jpg') . '" alt=""/>';
+$id = wp_insert_post(['post_type' => 'post', 'post_status' => 'draft', 'post_title' => 'PS Check Post', 'post_content' => '<!-- wp:html -->' . $body . '<!-- /wp:html -->']);
 wp_set_object_terms($id, ['primary'], 'hs_department');
 wp_set_object_terms($id, ['chaofah'], 'hs_post_campus');
 $tag = get_terms(['taxonomy' => 'post_tag', 'hide_empty' => false, 'number' => 1, 'name__like' => 'ACADEMIC'])[0];
@@ -45,7 +47,8 @@ $badge = wp_insert_term('PS Check Badge', 'hs_thematic_chip');
 $exp = time() + 1800; $tok = WP_Session_Tokens::get_instance($u->ID)->create($exp);
 file_put_contents(getenv('HS_SESSION'), json_encode(['uid' => $u->ID, 'tok' => $tok, 'cookies' => [[LOGGED_IN_COOKIE, wp_generate_auth_cookie($u->ID, $exp, 'logged_in', $tok)], [AUTH_COOKIE, wp_generate_auth_cookie($u->ID, $exp, 'auth', $tok)]]]));
 echo wp_json_encode(['id' => $id, 'badge' => is_wp_error($badge) ? 0 : $badge['term_id'], 'tag' => $tag->name,
-  'featured' => wp_get_attachment_image_url($imgs[0], 'medium'), 'featuredId' => $imgs[0], 'portrait' => wp_get_attachment_url($imgs[1])]);
+  'featured' => wp_get_attachment_image_url($imgs[0], 'medium'), 'featuredId' => $imgs[0], 'portrait' => wp_get_attachment_url($imgs[1]),
+  'rackIds' => [$imgs[2], $imgs[3]], 'rackUrls' => [wp_get_attachment_url($imgs[2]), wp_get_attachment_url($imgs[3])]]);
 `).trim());
 const session = JSON.parse(readFileSync(sessionFile, 'utf8'));
 const browser = spawn(chrome, ['--headless=new', '--disable-gpu', '--window-size=1920,1200', `--user-data-dir=${join(tmp, 'chrome')}`, `--remote-debugging-port=${port}`, 'about:blank'], { stdio: 'ignore' });
@@ -102,14 +105,14 @@ try {
     return JSON.stringify({ grid: box.querySelector('.inside').classList.contains('hs-pc-grid'), heads,
       pair1: top(f('hs_department_tax')) === top(f('hs_campus_tax')), pair2: top(f('hs_thematic_chip_tax')) === top(f('hs_location_override')), pair3: top(f('hs_event_start')) === top(f('hs_event_end')),
       sideBySide: r('hs_campus_tax').left > r('hs_department_tax').right - 2, tagsWide: r('post_tag_tax').width > r('hs_department_tax').width * 1.8,
-      order: ['hs_department_tax', 'hs_thematic_chip_tax', 'hs_event_start', 'post_tag_tax', 'hs_portrait_image'].map((n) => top(f(n))),
+      order: ['hs_department_tax', 'hs_thematic_chip_tax', 'hs_event_start', 'post_tag_tax'].map((n) => top(f(n))).concat([top(box.querySelector('.hs-pc-images'))]),
       preview: !!pv && pv.offsetParent !== null, previewRight: pv ? pv.getBoundingClientRect().left >= fieldsRight - 2 : false,
       toggle: (box.querySelector('.hs-pc-toggle') || {}).offsetParent !== null, sticky: pv ? getComputedStyle(box.querySelector('.hs-pc-preview')).position : '',
       labels: [...box.querySelectorAll('.hs-cpv-label strong')].map((x) => x.textContent), lines: box.querySelectorAll('.hs-cpv-lines polyline').length,
       hints: { section: (f('hs_department_tax').querySelector('.description') || {}).textContent, badge: (f('hs_thematic_chip_tax').querySelector('.description') || {}).textContent } })`));
   t('fields are on the grid with the five group headings', lay.grid && JSON.stringify(lay.heads) === JSON.stringify(['Website Section', 'Campus', 'Event date (shown to readers)', 'Tags', 'Images']), JSON.stringify(lay.heads));
   t('Website Section beside Campus, badge override beside location override, event start beside end (same line)', lay.pair1 && lay.pair2 && lay.pair3 && lay.sideBySide, JSON.stringify(lay));
-  t('order down the page: Section, badge, event dates, tags (full width), portrait', lay.order.every((v, i, a) => i === 0 || v > a[i - 1]) && lay.tagsWide, JSON.stringify(lay.order));
+  t('order down the page: Section, badge, event dates, tags (full width), images', lay.order.every((v, i, a) => i === 0 || v > a[i - 1]) && lay.tagsWide, JSON.stringify(lay.order));
   t('preview to the right of the fields, no toggle, not sticky', lay.preview && lay.previewRight && !lay.toggle && lay.sticky !== 'sticky', JSON.stringify({ p: lay.preview, r: lay.previewRight, t: lay.toggle, s: lay.sticky }));
   t('nine labels with lines', lay.labels.length === 9 && lay.lines === 9, JSON.stringify(lay.labels));
   t('shorter hints', /Sets the feeds, the URL and the yellow badge/.test(lay.hints.section || '') && /Leave empty to show the Website Section/.test(lay.hints.badge || ''), JSON.stringify(lay.hints));
@@ -184,13 +187,45 @@ echo wp_json_encode(['title' => get_the_title($id), 'section' => wp_get_object_t
     return JSON.stringify({ card: card(), sec: [...f('hs_department_tax').querySelectorAll('input:checked')].map((i) => i.closest('label').textContent.trim()), loc: f('hs_location_override').querySelector('input[type=text]').value });`));
   t('after reload the fields and preview show the saved values', reloaded.sec.join() === 'Secondary' && reloaded.loc === 'PS Saved Place' && reloaded.card.place === 'PS Saved Place' && reloaded.card.date === '1st December 2026', JSON.stringify(reloaded));
 
+  console.log('\nImage picker');
+  const pk = JSON.parse(await run(`${helpers}
+    const ed = () => wp.data.select('core/editor').getEditedPostAttribute('featured_media');
+    const items = () => [...box.querySelectorAll('.hs-cip-rack-item')];
+    const slotPick = (n) => box.querySelector('.hs-cip-slot[data-slot=' + n + '] .hs-cip-slot-pick');
+    const out = { rack: items().map((b) => +b.dataset.id), acfHidden: f('hs_portrait_image').style.display === 'none', picker: !!box.querySelector('.hs-pc-images .hs-cip-grid') };
+    slotPick('image').click(); await wait(200);
+    items()[0].click(); await wait(800);
+    out.featured = ed(); out.fTag = !!items()[0].querySelector('.hs-cip-tag.is-f'); out.activeAfter = box.querySelector('.hs-cip-slot.is-active').dataset.slot;
+    items()[1].click(); await wait(800);
+    out.portrait = +f('hs_portrait_image').querySelector('.acf-image-uploader input[type=hidden]').value; out.pTag = !!items()[1].querySelector('.hs-cip-tag.is-p');
+    out.previewImg = card().img;
+    wp.data.dispatch('core/editor').editPost({ featured_media: ${setup.featuredId} }); await wait(2000);
+    out.slotAfterSidebar = (box.querySelector('.hs-cip-slot[data-slot=image] .hs-cip-thumb') || {}).src || '';
+    out.fTagGone = !items()[0].querySelector('.hs-cip-tag.is-f');
+    slotPick('image').click(); await wait(100); items()[0].click(); await wait(500);
+    await wp.data.dispatch('core/editor').savePost(); await wait(6000);
+    return JSON.stringify(out);`));
+  t('the rack lists this Post\'s Media Library photos in order (not the old-site one)', JSON.stringify(pk.rack) === JSON.stringify(setup.rackIds) && pk.picker, JSON.stringify(pk.rack));
+  t('ACF\'s own Portrait box is hidden behind the picker', pk.acfHidden);
+  t('clicking a photo sets the real featured image (editor store), tags it F, then picks the Portrait', pk.featured === setup.rackIds[0] && pk.fTag && pk.activeAfter === 'portrait', JSON.stringify(pk));
+  t('the next click sets the ACF Portrait, tags it P, and the preview shows it', pk.portrait === setup.rackIds[1] && pk.pTag && sameImage(pk.previewImg, setup.rackUrls[1]), JSON.stringify({ p: pk.portrait, tag: pk.pTag, img: pk.previewImg }));
+  t('changing the featured image in the sidebar updates the slot', sameImage(pk.slotAfterSidebar, setup.featured) && pk.fTagGone, pk.slotAfterSidebar);
+  const pkSaved = JSON.parse(evalFile(`$id = ${setup.id}; clean_post_cache($id); echo wp_json_encode(['thumb' => (int) get_post_thumbnail_id($id), 'portrait' => (int) get_post_meta($id, 'hs_portrait_image', true)]);`).trim());
+  t('saving stores the picked Featured image and Portrait', pkSaved.thumb === setup.rackIds[0] && pkSaved.portrait === setup.rackIds[1], JSON.stringify(pkSaved));
+  await run(`${helpers}
+    const rm = [...box.querySelectorAll('.hs-cip-slot[data-slot=image] .button-link')].find((b) => b.textContent === 'Remove'); if (rm) { rm.click(); } await wait(500);
+    await wp.data.dispatch('core/editor').savePost(); await wait(6000);`);
+  const gate = JSON.parse(evalFile(`$id = ${setup.id}; clean_post_cache($id); echo wp_json_encode(['thumb' => (int) get_post_thumbnail_id($id), 'missing' => function_exists('hs_post_gate_missing_fields') ? hs_post_gate_missing_fields($id) : null]);`).trim());
+  t('Remove clears the featured image, and the gatekeeper then lists it as missing', gate.thumb === 0 && Array.isArray(gate.missing) && gate.missing.some((m) => /Featured Image/.test(m)), JSON.stringify(gate));
+  await shot('post-3-picker-1920.png');
+
   console.log('\nNarrower window');
   await setWidth(1280); await sleep(1500);
   const narrow = JSON.parse(await run(`${helpers}
     const wrap = box.querySelector('.hs-pc-preview'), toggle = box.querySelector('.hs-pc-toggle');
     const hidden = wrap.offsetParent === null, toggleShown = toggle.offsetParent !== null;
     toggle.click(); await wait(400);
-    const shownBelow = wrap.offsetParent !== null && wrap.getBoundingClientRect().top >= f('hs_portrait_image').getBoundingClientRect().bottom - 2;
+    const shownBelow = wrap.offsetParent !== null && wrap.getBoundingClientRect().top >= box.querySelector('.hs-pc-images').getBoundingClientRect().bottom - 2;
     toggle.click();
     return JSON.stringify({ hidden, toggleShown, shownBelow });`));
   t('at 1280 the preview is under the fields behind Show preview', narrow.hidden && narrow.toggleShown && narrow.shownBelow, JSON.stringify(narrow));
