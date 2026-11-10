@@ -1150,16 +1150,26 @@ function hs_a2p_print_assets() {
 		if (s.y === e.y) { return s.d + ' ' + MONTHS[s.m - 1] + ' ' + dash + ' ' + full(e); }
 		return full(s) + ' ' + dash + ' ' + full(e);
 	}
+	// Same rules as hs_card_date_label(): short months only for ranges.
+	function cardDateLabel(f) {
+		var s = ymd(f.eventStart), e = ymd(f.eventEnd), dash = '\u2013', p = publishDay(f);
+		var long = function (x) { return ordinal(x.d) + ' ' + MONTHS[x.m - 1] + ' ' + x.y; };
+		var mon = function (x) { return MONTHS[x.m - 1].slice(0, 3); };
+		if (!s) { return p ? long(p) : ''; }
+		if (!e || e.key <= s.key) { return long(s); }
+		if (s.y === e.y && s.m === e.m) { return s.d + dash + e.d + ' ' + mon(e) + ' ' + e.y; }
+		if (s.y === e.y) { return s.d + ' ' + mon(s) + ' ' + dash + ' ' + e.d + ' ' + mon(e) + ' ' + e.y; }
+		return s.d + ' ' + mon(s) + ' ' + s.y + ' ' + dash + ' ' + e.d + ' ' + mon(e) + ' ' + e.y;
+	}
 	function previewValues(row) {
 		var f = row.fields;
 		var section = f.section === 'custom' ? String(f.customSection || '').trim() : ((panel.sections.filter(function (s) { return String(s.id) === String(f.section); })[0] || {}).name || '');
 		var names = panel.campuses.filter(function (c) { return f.campus.indexOf(c.slug) !== -1; }).map(function (c) { return c.name; });
 		var place = String(f.location || '').trim() || (names.length > 1 ? 'Both Campuses' : names[0] || '');
-		var p = publishDay(f);
 		return {
 			badge: String(f.badgeText || '').trim() || section || 'News',
 			place: place,
-			sliderDate: p ? ordinal(p.d) + ' ' + MONTHS[p.m - 1] + ' ' + p.y : '',
+			sliderDate: cardDateLabel(f),
 			postDate: postDateLabel(f),
 			image: row.portraitUrl || row.imageUrl || '',
 			title: String(f.title || '').trim() || row.headline,
@@ -1170,7 +1180,7 @@ function hs_a2p_print_assets() {
 	var CALLOUTS = [
 		['card', 'badge', 'Yellow badge text', 'else Website Section'],
 		['card', 'place', 'Location text', 'else Campus'],
-		['card', 'sliderDate', 'Publish date', 'slider cards don’t use the event date'],
+		['card', 'sliderDate', 'Event date', 'else publish date; short for ranges'],
 		['card', 'image', 'Portrait', 'else Featured image'],
 		['card', 'title', 'Title', ''],
 		['card', 'tags', 'Thematic Tags', 'prefix dropped, e.g. “SPORT: Swimming” → Swimming'],

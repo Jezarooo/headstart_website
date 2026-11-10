@@ -116,6 +116,31 @@ function hs_date_label_for_post($post_id) {
     return mysql2date('j F Y', $start) . " \u{2013} " . mysql2date('j F Y', $end);
 }
 
+/**
+ * The short date for slider cards: the event date or range when set, otherwise the
+ * publish date exactly as the slider has always shown it (jS F Y). Worked out when
+ * the card is drawn, so nothing is stored. Months are shortened only for ranges.
+ * 12th November 2026 · 12–14 Nov 2026 · 30 Oct – 2 Nov 2026 · 30 Dec 2026 – 2 Jan 2027
+ */
+function hs_card_date_label($post_id) {
+    $start = hs_event_ymd_to_mysql(get_post_meta($post_id, 'hs_event_start', true));
+    $end   = hs_event_ymd_to_mysql(get_post_meta($post_id, 'hs_event_end', true));
+
+    if ($start === '') {
+        return get_the_date('jS F Y', $post_id);
+    }
+    if ($end === '' || $end <= $start) {
+        return mysql2date('jS F Y', $start);
+    }
+    if (substr($start, 0, 7) === substr($end, 0, 7)) {
+        return mysql2date('j', $start) . "\u{2013}" . mysql2date('j M Y', $end);
+    }
+    if (substr($start, 0, 4) === substr($end, 0, 4)) {
+        return mysql2date('j M', $start) . " \u{2013} " . mysql2date('j M Y', $end);
+    }
+    return mysql2date('j M Y', $start) . " \u{2013} " . mysql2date('j M Y', $end);
+}
+
 // ========================================================================
 // ONE-OFF FILL OF hs_final_date_label (10 Nov 2026)
 // ========================================================================
