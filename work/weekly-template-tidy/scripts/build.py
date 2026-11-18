@@ -7,7 +7,7 @@ agreed on local on 18 Nov; made from source/Weekly-Update-12-live-export.json
 by tidy.py -> pass2..pass4 -> reels.py plus label/gallery edits in the session).
 
 Output (into out_dir):
-  HSC-Weekly-Update-Template.json   two copyable sections, 2 articles each, no reels
+  HSC-Weekly-Update-Template.json   Upcoming Events: 2 x single image; two copyable sections, 2 articles each (2 across + gallery); no reels
   HSN-Weekly-Update-Template.json   same, Cherngtalay calendar
   Weekly-Update-Layout-Library.json every image + reel layout, one per article
 
@@ -33,7 +33,6 @@ DRAFT_LAYOUTS = [
     ['1 + 3', '1 + 4', '2 then 3', '2 + 4', 'Gallery', '1 + gallery',
      'Reel – right column', 'Reels – 2 across', 'Reels – 3 across'],
 ]
-TEMPLATE_PICKS = [['1 + gallery', '2 across'], ['1 + 3', '2 then 3']]
 
 
 def parse(s):
@@ -126,15 +125,41 @@ def articles(row):
     return [x for x in row['children'][0]['children'] if x['name'] == 'divi/group']
 
 
+def layout_of(article):
+    """The article's image/reel layout: everything after its Text group."""
+    return [c for c in article['children'] if label(c) != 'Text']
+
+
+def with_layout(article, nodes):
+    a = copy.deepcopy(article)
+    a['children'] = [c for c in a['children'] if label(c) == 'Text'] + copy.deepcopy(nodes)
+    return a
+
+
+def two_plus_gallery(by_name):
+    """'2 across' grid, then the gallery, in a wrapper like '1 + gallery'."""
+    wrap = copy.deepcopy(layout_of(by_name['1 + gallery'])[0])
+    wrap['children'] = copy.deepcopy(layout_of(by_name['2 across']) + layout_of(by_name['Gallery']))
+    setlabel(wrap, 'Images – 2 + gallery')
+    return wrap
+
+
 def build_template(draft):
+    """Upcoming Events: 2 articles, single image each.
+    Both 'Section' rows: 2 articles, each 2 across + gallery. No reels."""
     root = copy.deepcopy(draft)
     sec, generic = section_rows(root)
     by_name = {}
     for row, names in zip(generic, DRAFT_LAYOUTS):
         by_name.update(zip(names, articles(row)))
-    for row, picks in zip(generic, TEMPLATE_PICKS):
+    single = layout_of(by_name['Single image'])
+    two_gal = two_plus_gallery(by_name)
+    for row in generic:
         col = row['children'][0]
-        col['children'] = [col['children'][0]] + [by_name[p] for p in picks]
+        col['children'] = [col['children'][0]] + [with_layout(by_name['2 across'], [two_gal]) for _ in range(2)]
+    events = next(r for r in sec['children'] if label(r) == 'Upcoming Events')
+    col = events['children'][0]
+    col['children'] = [col['children'][0]] + [with_layout(a, single) for a in articles(events)[:2]]
     return root
 
 
@@ -144,6 +169,9 @@ def build_library(draft):
     examples = []
     for row, names in zip(generic, DRAFT_LAYOUTS):
         examples += list(zip(names, articles(row)))
+    by_name = dict(examples)
+    i = [n for n, _ in examples].index('1 + gallery') + 1
+    examples.insert(i, ('2 + gallery', with_layout(by_name['2 across'], [two_plus_gallery(by_name)])))
     row = generic[0]
     col = row['children'][0]
     head = col['children'][0]
