@@ -3,7 +3,7 @@
 For whoever builds the HSC or HSN weekly update in Divi.
 
 ## One-time setup (Jeremy, on live, in this order)
-1. **Add the CSS.** Custom CSS & JS → Add CSS code → title "Weekly Article CSS", paste the contents of `Site-Scripts/css/weekly-article.css`, set it to load on the front end in the header, publish. Without it, headlines lose their gold line and reels show as small boxes.
+1. **Add the CSS.** Custom CSS & JS → Add CSS code → title "Weekly Article CSS", paste the contents of `weekly-article.css` (in this folder; the same file as `Site-Scripts/css/weekly-article.css`), set it to load on the front end in the header, publish. Without it, headlines lose their gold line and reels show as small boxes.
 2. **Clear caches.** Divi → Theme Options → Builder → Advanced → Static CSS File Generation → Clear. Then purge WP Super Cache and Cloudflare APO.
 3. **Import the templates.** Divi Library → Import: `templates/HSC-Weekly-Update-Template.json` and `templates/HSN-Weekly-Update-Template.json`. Delete the stray "Weekly Article Text (H3 + body)" preset from the first attempt (it's unused).
 4. **Import the layout library.** Import `templates/Weekly-Update-Layout-Library.json` onto a scratch page. For each layout, right-click the layout group (the layer named "Images – …", "Reel – …" or "Reels – …"; for Single image and Gallery, the module itself) → **Save to Library**, and name it "Weekly – Images – 2 across", "Weekly – Reels – 3 across" and so on. Delete the scratch page afterwards.
