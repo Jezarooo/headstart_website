@@ -5,8 +5,11 @@
  * added by Jeremy. Task: feat/weekly-template-tidy.
  * Copy kept with the templates: work/weekly-template-tidy/weekly-article.css
  *
- * Scope: only inside a weekly article (.hs-weekly-article), so nothing else on
- * the site can pick these rules up.
+ * Scope: both rules need a class that only the new template and layout
+ * library use (hs-article-text, hs-wu-reel) AND sit inside a weekly article
+ * (.hs-weekly-article), so no existing page, issue or post is affected.
+ * No section class: posts made from articles get a new plain section, so a
+ * section class would not reach them.
  *
  * 1. Article headline. Each article has ONE text module (CSS class
  *    hs-article-text) whose FIRST element is the h3 headline, then the body.
@@ -15,8 +18,10 @@
  *    body stays a normal heading. !important is needed because the global
  *    stylesheet sets h3 { margin: 0 !important; padding-bottom: 0 !important }.
  *
- * 2. Reels. A code block holding <div class="hs-reel"><iframe …YouTube…></div>
+ * 2. Reels. A code block holding <div class="hs-wu-reel"><iframe …YouTube…></div>
  *    becomes a 9:16 box, full width up to 360px, centred, rounded corners.
+ *    Own class (not the older hs-reel used in #8/#10, which carry inline
+ *    styles) so these rules touch only content from the new template/library.
  * ========================================================================== */
 
 /* 1. Article headline */
@@ -28,7 +33,7 @@
 }
 
 /* 2. Reels (YouTube Shorts) */
-.hs-weekly-article .hs-reel {
+.hs-weekly-article .hs-wu-reel {
   position: relative;
   width: 100%;
   max-width: 360px;
@@ -38,7 +43,7 @@
   overflow: hidden;
 }
 
-.hs-weekly-article .hs-reel iframe {
+.hs-weekly-article .hs-wu-reel iframe {
   position: absolute;
   inset: 0;
   width: 100%;

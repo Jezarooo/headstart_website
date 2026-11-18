@@ -113,7 +113,8 @@ def strip_css(root):
                 a['content'].pop('decoration', None)
             add_class(n, 'hs-article-text')
         if n['name'] == 'divi/code' and 'hs-reel' in text(n):
-            map_text(n, lambda v: re.sub(r'\s*<style>.*?</style>\s*', '', v, flags=re.S).strip())
+            map_text(n, lambda v: re.sub(r'\s*<style>.*?</style>\s*', '', v, flags=re.S).strip()
+                     .replace('class="hs-reel"', 'class="hs-wu-reel"'))
 
 
 def section_rows(root):
