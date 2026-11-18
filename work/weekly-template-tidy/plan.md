@@ -27,7 +27,8 @@ Agreed in the session on 18 Nov (layer names, sections kept/placeholder, 11 imag
 **2. Template JSON: `work/weekly-template-tidy/Weekly-Update-Template.json`**
 - Article text modules: Paragraph Default preset + CSS class `hs-article-text`. No per-module CSS or H3 size.
 - Reel code blocks: just `<div class="hs-reel"><iframe …></iframe></div>`, no `<style>`.
-- As agreed: HSC Weekly Update section; named fixed rows (Announcements, Upcoming Events, Upcoming Meetings & Presentations, Meetings & Presentations, Success Outside of School as one article with CTA, Promotions); two copyable "Section" rows with every image and reel layout; proper headlines; galleries pre-filled with the 12 live placeholders (IDs 993210–993221); no Images wrappers.
+- As agreed: HSC Weekly Update section; named fixed rows (Announcements, Upcoming Events, Upcoming Meetings & Presentations, Meetings & Presentations, Success Outside of School as one article with CTA, Promotions); proper headlines; no Images wrappers.
+- Two copyable "Section" rows, **2 articles each**, with varied image layouts and **no reels** (all layouts, reels included, live in the layout library): Section 1 = "1 + gallery" and "2 across"; Section 2 = "1 + 3" and "2 then 3". The gallery is pre-filled with the 12 live placeholders (IDs 993210–993221).
 
 **3. Layout library JSON: `work/weekly-template-tidy/Weekly-Update-Layout-Library.json`**
 - One row, each layout its own labelled group, ready to Save to Library: Single image, 2 across, 3 across, 2 × 2, 1 + 2, 1 + 3, 1 + 4, 2 then 3, 2 + 4, Gallery (12 placeholders), 1 + gallery, Reel – right column, Reels – 2 across, Reels – 3 across.
