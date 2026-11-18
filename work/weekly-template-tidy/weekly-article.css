@@ -1,8 +1,8 @@
 /* Weekly Article CSS — new weekly update template (feat/weekly-template-tidy).
-   Only affects content using the template's own classes, inside a weekly article. */
+   Only affects content using the template's own classes (front end and Divi builder). */
 
 /* Headline: first h3 in the article text module */
-.hs-weekly-article .hs-article-text .et_pb_text_inner > h3:first-child {
+.hs-article-text h3:first-of-type {
   font-size: 1.6rem !important;
   border-left: 6px solid var(--gcid-secondary-color, #f0b323);
   padding: 10px 0 10px 10px !important;
@@ -10,7 +10,7 @@
 }
 
 /* Reels: YouTube Shorts, 9:16, max 360px */
-.hs-weekly-article .hs-wu-reel {
+.hs-wu-reel {
   position: relative;
   width: 100%;
   max-width: 360px;
@@ -20,7 +20,7 @@
   overflow: hidden;
 }
 
-.hs-weekly-article .hs-wu-reel iframe {
+.hs-wu-reel iframe {
   position: absolute;
   inset: 0;
   width: 100%;
