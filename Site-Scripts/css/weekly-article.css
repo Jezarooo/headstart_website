@@ -1,30 +1,7 @@
-/* =============================================================================
- * WEEKLY ARTICLE — headline + reels for the Divi 5 weekly update template
- * -----------------------------------------------------------------------------
- * Live: its own Custom CSS & JS entry "Weekly Article CSS" (front end, header),
- * added by Jeremy. Task: feat/weekly-template-tidy.
- * Copy kept with the templates: work/weekly-template-tidy/weekly-article.css
- *
- * Scope: both rules need a class that only the new template and layout
- * library use (hs-article-text, hs-wu-reel) AND sit inside a weekly article
- * (.hs-weekly-article), so no existing page, issue or post is affected.
- * No section class: posts made from articles get a new plain section, so a
- * section class would not reach them.
- *
- * 1. Article headline. Each article has ONE text module (CSS class
- *    hs-article-text) whose FIRST element is the h3 headline, then the body.
- *    Only that first h3 gets the look the old separate headline module had
- *    (1.6rem, gold left border, 10px padding, 1rem gap); any other h3 in the
- *    body stays a normal heading. !important is needed because the global
- *    stylesheet sets h3 { margin: 0 !important; padding-bottom: 0 !important }.
- *
- * 2. Reels. A code block holding <div class="hs-wu-reel"><iframe …YouTube…></div>
- *    becomes a 9:16 box, full width up to 360px, centred, rounded corners.
- *    Own class (not the older hs-reel used in #8/#10, which carry inline
- *    styles) so these rules touch only content from the new template/library.
- * ========================================================================== */
+/* Weekly Article CSS — new weekly update template (feat/weekly-template-tidy).
+   Only affects content using the template's own classes, inside a weekly article. */
 
-/* 1. Article headline */
+/* Headline: first h3 in the article text module */
 .hs-weekly-article .hs-article-text .et_pb_text_inner > h3:first-child {
   font-size: 1.6rem !important;
   border-left: 6px solid var(--gcid-secondary-color, #f0b323);
@@ -32,7 +9,7 @@
   margin: 0 0 1rem 0 !important;
 }
 
-/* 2. Reels (YouTube Shorts) */
+/* Reels: YouTube Shorts, 9:16, max 360px */
 .hs-weekly-article .hs-wu-reel {
   position: relative;
   width: 100%;
